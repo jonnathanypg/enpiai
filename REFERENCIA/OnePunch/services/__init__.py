@@ -1,3 +1,0 @@
-"""
-OnePunch Services Package
-"""

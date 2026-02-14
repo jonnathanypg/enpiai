@@ -1,0 +1,102 @@
+'use client';
+
+import { ColumnDef } from '@tanstack/react-table';
+import { MoreHorizontal, ArrowUpDown, Phone, Mail, MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import Link from 'next/link';
+import type { Lead } from '@/types';
+
+export const columns: ColumnDef<Lead>[] = [
+    {
+        accessorKey: 'name',
+        header: 'Name',
+        cell: ({ row }) => {
+            const lead = row.original;
+            const fullName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown';
+            return (
+                <div className="flex flex-col">
+                    <Link href={`/contacts/${lead.id}`} className="font-medium hover:underline">
+                        {fullName}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">{lead.email}</span>
+                </div>
+            );
+        },
+    },
+    {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => {
+            const status = row.getValue('status') as string;
+            const variant =
+                status === 'qualified'
+                    ? 'default'
+                    : status === 'converted'
+                        ? 'outline' // Green? Shadcn default doesn't have success.
+                        : 'secondary';
+
+            return <Badge variant={variant} className="capitalize">{status}</Badge>;
+        },
+    },
+    {
+        accessorKey: 'score',
+        header: ({ column }) => {
+            return (
+                <Button
+                    variant="ghost"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+                >
+                    Score
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            );
+        },
+        cell: ({ row }) => {
+            const score = parseFloat(row.getValue('score'));
+            const color = score > 80 ? 'text-green-600' : score > 50 ? 'text-yellow-600' : 'text-red-600';
+            return <div className={`font-bold ${color}`}>{score}</div>;
+        },
+    },
+    {
+        accessorKey: 'source',
+        header: 'Source',
+        cell: ({ row }) => <div className="capitalize">{row.getValue('source')}</div>,
+    },
+    {
+        id: 'actions',
+        cell: ({ row }) => {
+            const lead = row.original;
+
+            return (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(lead.phone || '')}>
+                            <Phone className="mr-2 h-4 w-4" /> Copy Phone
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <Link href={`/contacts/${lead.id}`}>
+                            <DropdownMenuItem>View Details</DropdownMenuItem>
+                        </Link>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            );
+        },
+    },
+];

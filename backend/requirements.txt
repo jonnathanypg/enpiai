@@ -1,0 +1,71 @@
+# Core Framework
+Flask
+Werkzeug
+Flask-CORS
+Flask-JWT-Extended
+Flask-Migrate
+Flask-SQLAlchemy
+Flask-Limiter
+
+# Database
+SQLAlchemy
+PyMySQL
+
+# Authentication
+bcrypt
+pyjwt
+
+# Environment
+python-dotenv
+
+# LLM Providers
+openai
+anthropic
+google-generativeai
+
+# LangChain & LangGraph (Agent Framework)
+langgraph
+langchain
+langchain-community
+langchain-openai
+langchain-anthropic
+langchain-google-genai
+
+# Vector Database & Embeddings
+pinecone-client
+
+# Google APIs
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# Document Processing
+pdfplumber
+pdfminer.six
+python-docx
+openpyxl
+
+# PDF Generation
+reportlab
+
+# Telegram
+python-telegram-bot
+
+# Email
+# (uses built-in smtplib, no extra dependency)
+
+# Utilities
+python-dateutil
+pytz
+requests
+validators
+cryptography
+
+# Testing
+pytest
+pytest-flask
+
+# Task Queue (Phase 11)
+celery[redis]
+redis
+langgraph-checkpoint-redis

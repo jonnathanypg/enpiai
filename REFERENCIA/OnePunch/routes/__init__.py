@@ -1,3 +1,0 @@
-"""
-OnePunch API Routes Package
-"""
