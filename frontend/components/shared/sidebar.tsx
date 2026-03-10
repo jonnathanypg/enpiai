@@ -41,6 +41,7 @@ const distributorItems: NavItem[] = [
 // Super Admin-only navigation
 const adminItems: NavItem[] = [
     { title: 'Dashboard', href: '/admin/dashboard', icon: ShieldCheck },
+    { title: 'System Knowledge', href: '/admin/documents', icon: FileText },
 ];
 
 interface SidebarProps {

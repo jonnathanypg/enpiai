@@ -18,6 +18,7 @@ from .channel import Channel, ChannelType, ChannelStatus
 from .platform_config import PlatformConfig
 from .subscription import Plan, Subscription, PlanInterval, SubscriptionStatus
 from .transaction import Transaction, TransactionStatus, TransactionType
+from .whatsapp import BaileySession
 
 # Phase 9: Scheduled Tasks (model lives in services, imported here for migration discovery)
 try:
@@ -40,4 +41,5 @@ __all__ = [
     'PlatformConfig',
     'Plan', 'Subscription', 'PlanInterval', 'SubscriptionStatus',
     'Transaction', 'TransactionStatus', 'TransactionType',
+    'BaileySession',
 ]

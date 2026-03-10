@@ -12,6 +12,7 @@ from flask_cors import CORS
 
 from config import get_config
 from extensions import db, jwt, migrate, limiter
+import models # Ensure models are registered for migrations
 
 # Configure structured logging
 logging.basicConfig(

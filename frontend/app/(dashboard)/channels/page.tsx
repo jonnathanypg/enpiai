@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Radio,
@@ -12,6 +12,10 @@ import {
     Loader2,
     Save,
     ExternalLink,
+    QrCode,
+    Unplug,
+    RefreshCw,
+    XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,12 +26,14 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import apiClient from '@/lib/api-client';
+import { channelsService } from '@/services/channels-service';
 import type { Channel } from '@/types';
 
 // ─── Helpers ───────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
-    if (status === 'active') {
+    if (status === 'active' || status === 'connected') {
         return (
             <Badge variant="outline" className="border-green-500 text-green-600">
                 <CheckCircle2 className="mr-1 h-3 w-3" /> Connected
@@ -159,6 +165,108 @@ export default function ChannelsPage() {
 // WhatsApp Card (QR-based via api-whatsapp service)
 // ═══════════════════════════════════════════════════════════════════
 function WhatsAppCard({ channel }: { channel?: Channel }) {
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [qrCode, setQrCode] = useState<string | null>(null);
+    const [isPolling, setIsPolling] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
+    const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+    // Check initial WhatsApp status on mount
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const result = await channelsService.getWhatsAppStatus();
+                setIsConnected(result.connected);
+                if (result.phone) setConnectedPhone(result.phone);
+            } catch (error) {
+                console.error('Failed to check WhatsApp status:', error);
+            }
+        };
+        checkStatus();
+    }, []);
+
+    // Poll for WhatsApp connection status when QR is showing
+    useEffect(() => {
+        if (!isPolling || !qrCode) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const result = await channelsService.getWhatsAppStatus();
+                if (result.connected) {
+                    setQrCode(null);
+                    setIsPolling(false);
+                    setIsConnected(true);
+                    if (result.phone) setConnectedPhone(result.phone);
+                    toast.success('WhatsApp connected successfully!');
+                } else {
+                    // Try to refresh the QR code in case it expired
+                    try {
+                        const qrResult = await channelsService.getWhatsAppQR();
+                        if (qrResult.qr) {
+                            setQrCode(qrResult.qr);
+                        }
+                    } catch {
+                        // QR might not be ready yet, ignore
+                    }
+                }
+            } catch (error) {
+                console.error('WhatsApp status poll error:', error);
+            }
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [isPolling, qrCode]);
+
+    const handleConnect = async () => {
+        setIsConnecting(true);
+        try {
+            await channelsService.initWhatsApp();
+
+            // Wait a bit then fetch QR
+            setTimeout(async () => {
+                try {
+                    const qrResult = await channelsService.getWhatsAppQR();
+                    if (qrResult.qr) {
+                        setQrCode(qrResult.qr);
+                        setIsPolling(true);
+                    }
+                } catch (error) {
+                    console.error('Failed to get QR:', error);
+                    toast.error('Could not generate QR code. Try again.');
+                }
+                setIsConnecting(false);
+            }, 2500);
+        } catch (error) {
+            console.error('Failed to init WhatsApp:', error);
+            toast.error('Could not start WhatsApp session. Make sure the service is running.');
+            setIsConnecting(false);
+        }
+    };
+
+    const handleDisconnect = async () => {
+        setIsDisconnecting(true);
+        try {
+            await channelsService.disconnectWhatsApp();
+            setQrCode(null);
+            setIsPolling(false);
+            setIsConnected(false);
+            setConnectedPhone(null);
+            toast.success('WhatsApp disconnected.');
+        } catch (error) {
+            console.error('Failed to disconnect WhatsApp:', error);
+            toast.error('Error disconnecting WhatsApp.');
+        } finally {
+            setIsDisconnecting(false);
+        }
+    };
+
+    const handleCancel = () => {
+        setQrCode(null);
+        setIsPolling(false);
+        setIsConnecting(false);
+    };
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -171,18 +279,87 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                         <CardDescription>Connect via QR code scan</CardDescription>
                     </div>
                 </div>
-                <StatusBadge status={channel?.status || 'inactive'} />
+                <StatusBadge status={isConnected ? 'connected' : 'inactive'} />
             </CardHeader>
             <CardContent>
-                <p className="text-sm text-muted-foreground">
-                    WhatsApp connection is managed through the QR code pairing process.
-                    Contact your administrator to link a new WhatsApp number, or visit
-                    the WhatsApp management panel.
-                </p>
-                {channel && (
-                    <div className="mt-4 rounded-lg border bg-muted/30 p-3 text-sm">
-                        <span className="font-medium">Phone:</span>{' '}
-                        {(channel.config as Record<string, string>)?.phone_number || 'Connected'}
+                {isConnected ? (
+                    /* ─── Connected State ─── */
+                    <div className="space-y-4">
+                        <Alert className="bg-green-500/10 border-green-500/20">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-700 dark:text-green-400">
+                                WhatsApp is connected.{' '}
+                                {connectedPhone && (
+                                    <strong>{connectedPhone}</strong>
+                                )}
+                            </AlertDescription>
+                        </Alert>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDisconnect}
+                            disabled={isDisconnecting}
+                            className="w-full"
+                        >
+                            {isDisconnecting ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Unplug className="h-4 w-4 mr-2" />
+                            )}
+                            {isDisconnecting ? 'Disconnecting...' : 'Disconnect WhatsApp'}
+                        </Button>
+                    </div>
+                ) : qrCode ? (
+                    /* ─── QR Code State ─── */
+                    <div className="space-y-4">
+                        <div className="text-center">
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Scan this QR code with WhatsApp to connect
+                            </p>
+                            <div className="bg-white p-4 rounded-lg inline-block shadow-sm border">
+                                <img
+                                    src={
+                                        qrCode.startsWith('<svg')
+                                            ? `data:image/svg+xml;base64,${typeof window !== 'undefined' ? window.btoa(qrCode) : ''}`
+                                            : qrCode
+                                    }
+                                    alt="WhatsApp QR Code"
+                                    className="w-56 h-56"
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-4 flex items-center justify-center gap-1">
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                                Waiting for connection...
+                            </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            onClick={handleCancel}
+                            className="w-full"
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                ) : (
+                    /* ─── Disconnected State ─── */
+                    <div className="space-y-4">
+                        <Alert>
+                            <XCircle className="h-4 w-4" />
+                            <AlertDescription>
+                                WhatsApp is not connected. Connect a number to start receiving messages from your leads.
+                            </AlertDescription>
+                        </Alert>
+                        <Button
+                            onClick={handleConnect}
+                            disabled={isConnecting}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            {isConnecting ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <QrCode className="h-4 w-4 mr-2" />
+                            )}
+                            {isConnecting ? 'Generating QR...' : 'Connect WhatsApp'}
+                        </Button>
                     </div>
                 )}
             </CardContent>

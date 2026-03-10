@@ -8,8 +8,13 @@ Usage:
 
 Migration Path: Tasks will be distributed across a P2P mesh.
 """
+import sys
+import os
 import logging
 from celery_app import celery
+
+# Ensure current directory is in sys.path for Celery workers
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 logger = logging.getLogger(__name__)
 

@@ -45,16 +45,10 @@ class AgentOrchestrator:
     
     @classmethod
     def get_checkpointer(cls):
-        """Get persistent checkpointer. Tries Redis first, falls back to MemorySaver."""
+        """Get checkpointer. Defaulting to MemorySaver for stability."""
         if cls._checkpointer is None:
-            try:
-                from langgraph.checkpoint.redis import RedisSaver
-                redis_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-                cls._checkpointer = RedisSaver.from_conn_string(redis_url)
-                logger.info(f"LangGraph checkpointer: Redis ({redis_url})")
-            except Exception as e:
-                logger.warning(f"Redis checkpointer unavailable ({e}), falling back to MemorySaver (volatile)")
-                cls._checkpointer = MemorySaver()
+            cls._checkpointer = MemorySaver()
+            logger.info("LangGraph checkpointer: MemorySaver (volatile)")
         return cls._checkpointer
     
     def __init__(self, distributor: Distributor):

@@ -20,9 +20,9 @@ class MessagingService:
         Send WhatsApp message via api-whatsapp microservice.
         """
         try:
-            url = f"{self.whatsapp_api_url}/v1/messages"
+            url = f"{self.whatsapp_api_url}/lead"
             payload = {
-                "number": to_phone,
+                "phone": to_phone,
                 "message": message,
                 "companyId": distributor_id
             }

@@ -77,6 +77,10 @@ class Distributor(db.Model):
     instagram = db.Column(db.String(255), nullable=True)
     facebook = db.Column(db.String(255), nullable=True)
 
+    # WhatsApp connection state
+    whatsapp_connected = db.Column(db.Boolean, default=False)
+    whatsapp_phone = db.Column(db.String(50), nullable=True)
+
     # Personal story (used by agent in conversations)
     personal_story = db.Column(db.Text, nullable=True)
 
@@ -148,6 +152,8 @@ class Distributor(db.Model):
             'personal_story': self.personal_story,
             'is_active': self.is_active,
             'subscription_tier': self.subscription_tier.value if self.subscription_tier else 'free',
+            'whatsapp_connected': self.whatsapp_connected,
+            'whatsapp_phone': self.whatsapp_phone,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
