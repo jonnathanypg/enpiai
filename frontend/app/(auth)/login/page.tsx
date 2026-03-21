@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { GoogleLogin } from '@react-oauth/google';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,31 @@ export default function LoginPage() {
         }
     };
 
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        setIsLoading(true);
+        try {
+            const { data } = await apiClient.post<AuthResponse>('/auth/google', {
+                credential: credentialResponse.credential,
+            });
+            const res = data.data;
+
+            login(res.user, res.access_token, res.refresh_token);
+            toast.success('Welcome back!');
+
+            // Smart redirect based on role
+            if (res.user.role === 'super_admin') {
+                router.push('/admin/dashboard');
+            } else {
+                router.push('/dashboard');
+            }
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { error?: string } } };
+            toast.error(error.response?.data?.error || 'Google login failed');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <Card className="border-border/50 shadow-xl">
             <CardHeader className="text-center">
@@ -75,6 +101,25 @@ export default function LoginPage() {
                 <CardDescription>Sign in to your EnpiAI account</CardDescription>
             </CardHeader>
             <CardContent>
+                <div className="mb-4 flex justify-center">
+                    <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => toast.error('Google Sign-In failed')}
+                        theme="outline"
+                        width="100%"
+                        text="continue_with"
+                    />
+                </div>
+                <div className="relative mb-4">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                            Or continue with email
+                        </span>
+                    </div>
+                </div>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
