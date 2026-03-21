@@ -78,6 +78,7 @@ export interface Lead {
     source: string;
     status: 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
     score: number;
+    metadata?: Record<string, any> | null;
     tags: string[];
     notes: string | null;
     created_at: string;

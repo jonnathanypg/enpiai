@@ -153,21 +153,11 @@ def whatsapp_webhook():
             db.session.add(conversation)
             db.session.flush()
 
-        # 3. Find/Create Lead
+        # 3. Handle Lead Assignment (Agent-Driven)
+        # Webhooks no longer auto-create Leads. They map to existing Leads if available.
+        # Otherwise, the Conversation stays anonymous until the Agent captures the Lead.
         lead = Lead.query.filter_by(distributor_id=distributor_id, phone=sender_phone).first()
-        if not lead:
-            lead = Lead(
-                distributor_id=distributor_id,
-                first_name=sender_name or "Unknown",
-                phone=sender_phone,
-                source="whatsapp",
-                status="new"
-            )
-            db.session.add(lead)
-            db.session.flush()
-
-        # Link lead to conversation if not linked
-        if not conversation.lead_id:
+        if lead and not conversation.lead_id:
             conversation.lead_id = lead.id
 
         # 4. Save User Message (synchronous — fast DB write)
@@ -261,6 +251,16 @@ def telegram_webhook():
                 participant_name=sender_name,
             )
             db.session.add(conversation)
+            
+            # Map existing Lead if possible, else leave anonymous
+            lead = Lead.query.filter_by(
+                distributor_id=distributor_id, 
+                first_name=sender_first, 
+                last_name=sender_last
+            ).first()
+            if lead:
+                conversation.lead_id = lead.id
+                
             db.session.flush()
 
         # 3. Save User Message (synchronous — fast DB write)

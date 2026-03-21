@@ -152,11 +152,15 @@ def login():
         access_token = create_access_token(identity=str(user.id))
         refresh_token = create_refresh_token(identity=str(user.id))
 
+        response_user = user.to_dict()
+        if user.distributor:
+            response_user['distributor'] = user.distributor.to_dict()
+
         logger.info(f"User logged in: {email}")
 
         return jsonify({
             'data': {
-                'user': user.to_dict(),
+                'user': response_user,
                 'access_token': access_token,
                 'refresh_token': refresh_token
             }

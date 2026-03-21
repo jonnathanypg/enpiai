@@ -74,6 +74,9 @@ class SystemPromptBuilder:
         if 'contact_name' in context_data:
             self.parts.append(prompts['context_user'].format(name=context_data['contact_name']))
             
+        if 'contact_phone' in context_data:
+            self.parts.append(f"Teléfono Usuario: {context_data['contact_phone']}")
+            
         # Extra Context (Flow, etc.)
         if 'flow_context' in context_data:
             self.parts.append(prompts['context_flow'].format(flow=context_data['flow_context']))
@@ -81,6 +84,13 @@ class SystemPromptBuilder:
         # Phase 9: Sentiment & Identity Hints
         if context_data.get('agent_hints'):
             self.parts.append(f"## Intelligence Hints\n{context_data['agent_hints']}")
+            
+        # Anonymous Lead Mandate
+        if context_data.get('is_anonymous'):
+            self.parts.append("## MANDATO DE CAPTURA\nEstás hablando con un usuario anónimo. Tu objetivo principal y mandatorio es solicitarle su nombre "
+                              "(y su número de teléfono si no estás en WhatsApp) antes de registrarlo. Ofrece asistencia amable y resuelve sus dudas iniciales, "
+                              "pero SIEMPRE invítalo a identificarse. Una vez que te dé sus datos, **USA INMEDIATAMENTE** la herramienta `register_lead` "
+                              "para registrarlo en el sistema y continuar la conversación llamándolo por su nombre.")
             
         return self
 

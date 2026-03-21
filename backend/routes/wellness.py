@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 wellness_bp = Blueprint('wellness', __name__)
 
 
-@wellness_bp.route('/evaluate/<int:distributor_id>', methods=['POST'])
-def submit_evaluation(distributor_id):
+@wellness_bp.route('/evaluate/<string:distributor_ref>', methods=['POST'])
+def submit_evaluation(distributor_ref):
     """Submit a wellness evaluation — PUBLIC endpoint (no auth).
-    Prospects access this via a personalized link from the distributor.
+    Prospects access this via a personalized link from the distributor (herbalife_id or db id).
     Creates a lead automatically if one doesn't exist.
     """
     db.session.rollback()
@@ -28,6 +28,19 @@ def submit_evaluation(distributor_id):
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
+
+        # Lookup distributor by herbalife_id or db id
+        from models.distributor import Distributor
+        distributor = None
+        if distributor_ref.isdigit():
+            distributor = Distributor.query.get(int(distributor_ref))
+        if not distributor:
+            distributor = Distributor.query.filter_by(herbalife_id=distributor_ref).first()
+            
+        if not distributor:
+            return jsonify({'error': 'Distributor not found'}), 404
+            
+        distributor_id = distributor.id
 
         # Try to find or create a lead for this prospect
         lead_id = data.get('lead_id')

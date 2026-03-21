@@ -24,6 +24,7 @@ class LeadSource(str, Enum):
     MANUAL = 'manual'
     REFERRAL = 'referral'
     SOCIAL_MEDIA = 'social_media'
+    AGENT_CHAT = 'agent_chat'
 
 
 class LeadType(str, Enum):
@@ -87,9 +88,9 @@ class Lead(db.Model):
             'phone': self.phone,
             'country': self.country,
             'city': self.city,
-            'status': self.status.value,
-            'source': self.source.value,
-            'lead_type': self.lead_type.value,
+            'status': self.status.value if hasattr(self.status, 'value') else self.status,
+            'source': self.source.value if hasattr(self.source, 'value') else self.source,
+            'lead_type': self.lead_type.value if hasattr(self.lead_type, 'value') else self.lead_type,
             'notes': self.notes,
             'tags': self.tags,
             'metadata': self.lead_metadata,

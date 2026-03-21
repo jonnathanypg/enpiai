@@ -22,7 +22,10 @@ export const columns: ColumnDef<Lead>[] = [
         header: 'Name',
         cell: ({ row }) => {
             const lead = row.original;
-            const fullName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown';
+            let fullName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim();
+            if (!fullName) {
+                fullName = lead.phone || 'Desconocido';
+            }
             return (
                 <div className="flex flex-col">
                     <Link href={`/contacts/${lead.id}`} className="font-medium hover:underline">
@@ -62,7 +65,8 @@ export const columns: ColumnDef<Lead>[] = [
             );
         },
         cell: ({ row }) => {
-            const score = parseFloat(row.getValue('score'));
+            const rawScore = row.getValue('score') ?? row.original.metadata?.score ?? 0;
+            const score = parseFloat(rawScore as string) || 0;
             const color = score > 80 ? 'text-green-600' : score > 50 ? 'text-yellow-600' : 'text-red-600';
             return <div className={`font-bold ${color}`}>{score}</div>;
         },

@@ -78,7 +78,9 @@ class AgentOrchestrator:
             return ChatOpenAI(
                 model=model,
                 api_key=api_key,
-                temperature=1.0
+                temperature=1.0,
+                max_tokens=None,
+                max_completion_tokens=4096
             )
     
     def _resolve_skills(self, agent: AgentConfig, enabled_features: List[str]) -> List[Any]:
@@ -130,9 +132,11 @@ class AgentOrchestrator:
         context_data = {
             'current_time': datetime.utcnow().strftime('%Y-%m-%d %H:%M (UTC)'),
             'contact_name': state.get('contact_name'),
+            'contact_phone': state.get('contact_phone'),
             'channel': state.get('channel'),
             'flow_context': self._determine_flow_context(state.get('messages', [])),
             'agent_hints': state.get('agent_hints', ''),  # Phase 9: Sentiment/Identity
+            'is_anonymous': state.get('is_anonymous', False),
         }
 
         (
@@ -205,6 +209,7 @@ class AgentOrchestrator:
                         try:
                             # Context Injection
                             g.current_company = self.distributor
+                            g.current_conversation_id = state.get("conversation_id")
                             result = tool_obj.invoke(tool_args)
                         except Exception as e:
                             logger.error(f"Tool error {tool_name}: {e}")
@@ -320,8 +325,10 @@ class AgentOrchestrator:
             "agent_name": agent.name,
             "channel": channel,
             "contact_name": conversation.participant_name or "Usuario",
+            "contact_phone": conversation.participant_id,
             "enabled_features": enabled_features,
             "agent_hints": agent_hints,  # Available in state for prompt builder
+            "is_anonymous": conversation.lead_id is None,
         }
         
         config = {"configurable": {"thread_id": thread_id}}

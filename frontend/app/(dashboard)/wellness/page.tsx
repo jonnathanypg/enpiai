@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/use-auth-store';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -62,6 +63,16 @@ export default function WellnessPage() {
         },
     });
 
+    const user = useAuthStore((s) => s.user) as any;
+    const distributorId = user?.distributor?.herbalife_id || user?.distributor_id || 'demo';
+    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/evaluate/${distributorId}` : '';
+
+    const copyLink = () => {
+        if (!shareUrl) return;
+        navigator.clipboard.writeText(shareUrl);
+        toast.success('Evaluation link copied to clipboard!');
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -72,9 +83,14 @@ export default function WellnessPage() {
                     </p>
                 </div>
                 {/* Placeholder for future modal */}
-                <Button onClick={() => window.open('/evaluate/demo', '_blank')}>
-                    <Activity className="mr-2 h-4 w-4" /> New Evaluation
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={copyLink}>
+                        <FileText className="mr-2 h-4 w-4" /> Copy Share Link
+                    </Button>
+                    <Button onClick={() => window.open(`/evaluate/${distributorId}`, '_blank')}>
+                        <Activity className="mr-2 h-4 w-4" /> New Evaluation
+                    </Button>
+                </div>
             </div>
 
             <Card>

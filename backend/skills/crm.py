@@ -3,7 +3,7 @@ from typing import List
 from langchain_core.tools import StructuredTool
 from flask import g
 from .base_skill import BaseSkill
-from models.lead import Lead, LeadStatus
+from models.lead import Lead, LeadStatus, LeadSource
 from models.customer import Customer
 from extensions import db
 
@@ -59,15 +59,30 @@ class CRMSkill(BaseSkill):
             
         return json.dumps({"status": "not_found", "message": "User not found in records."})
 
-    def register_lead(self, first_name: str, last_name: str, email: str, phone: str = None) -> str:
+    def register_lead(self, first_name: str, phone: str, last_name: str = "", email: str = None) -> str:
         distributor = getattr(g, 'current_company', None)
+        conversation_id = getattr(g, 'current_conversation_id', None)
+        
         if not distributor:
             return "Error: context missing"
             
         try:
-            existing = Lead.query.filter_by(distributor_id=distributor.id, email=email).first()
+            # Check for existing lead by phone first, then email
+            existing = None
+            if phone:
+                existing = Lead.query.filter_by(distributor_id=distributor.id, phone=phone).first()
+            if not existing and email:
+                existing = Lead.query.filter_by(distributor_id=distributor.id, email=email).first()
+                
             if existing:
-                return f"Lead already exists with ID: {existing.id}"
+                # Still link it to current conversation if unlinked
+                if conversation_id:
+                    from models.conversation import Conversation
+                    conv = Conversation.query.get(conversation_id)
+                    if conv and not conv.lead_id:
+                        conv.lead_id = existing.id
+                        db.session.commit()
+                return f"Lead already exists with ID: {existing.id} (Phone/Email matched)."
                 
             new_lead = Lead(
                 distributor_id=distributor.id,
@@ -76,11 +91,19 @@ class CRMSkill(BaseSkill):
                 email=email,
                 phone=phone,
                 status=LeadStatus.NEW,
-                source="agent_chat"
+                source=LeadSource.AGENT_CHAT
             )
             db.session.add(new_lead)
+            db.session.flush() # get ID without committing fully yet
+            
+            if conversation_id:
+                from models.conversation import Conversation
+                conv = Conversation.query.get(conversation_id)
+                if conv:
+                    conv.lead_id = new_lead.id
+                    
             db.session.commit()
-            return f"Successfully registered lead: {first_name} {last_name}"
+            return f"Successfully registered lead: {first_name} {last_name} and linked to the active conversation."
         except Exception as e:
             db.session.rollback()
             return f"Error registering lead: {str(e)}"

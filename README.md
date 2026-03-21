@@ -43,21 +43,19 @@ The platform is designed to be **frictionless** for both distributors and their 
 
 ## 📂 Architecture
 
-The project will be structured as a modular Flask application, with a separate Node.js service for WhatsApp integration.
-
 ```
 /
-├── api-whatsapp/          # Pre-built WhatsApp service
 ├── backend/               # Main Flask application
-│   ├── app.py             # Application Factory & Entry Point
-│   ├── config.py          # Configuration & Environment
-│   ├── routes/            # API Endpoints (Blueprints)
-│   ├── models/            # Database Models (SQLAlchemy)
-│   ├── services/          # Business Logic (LLM, RAG, Agents)
-│   ├── templates/         # HTML Templates (Jinja2)
-│   └── static/            # CSS, JS, Images
+│   ├── app.py             # Entry Point
+│   ├── celery_app.py      # Celery Configuration
+│   ├── routes/            # API Blueprints
+│   ├── models/            # Database Models
+│   ├── services/          # Business Logic
+│   └── skills/            # Agentic Skills
+├── frontend/              # Next.js Application
+├── whatsapp-gateway/      # Node.js WhatsApp Service
 ├── docs/                  # Documentation
-└── migrations/            # Database Migrations (Alembic)
+└── migrations/            # Database Migrations
 ```
 
 ---
@@ -80,33 +78,55 @@ The project will be structured as a modular Flask application, with a separate N
 *   Virtualenv
 *   Git
 
-### Quick Start
+### Quick Start (Automated)
 
 1.  **Clone the repository**
     ```bash
     git clone <your-repo-url>
-    cd <your-repo-name>
+    cd enpiai
     ```
 
-2.  **Setup Backend (Python)**
+2.  **Environment Variables**
+    -   Configure `.env` in `backend/`, `frontend/`, and `whatsapp-gateway/`.
+
+3.  **Run everything**
+    ```bash
+    ./start-local.sh
+    ```
+
+### Manual Startup (Individual Terminals)
+
+If you prefer to run services individually for debugging:
+
+1.  **Terminal 1 (Redis)**
+    ```bash
+    redis-server
+    ```
+
+2.  **Terminal 2 (Backend)**
     ```bash
     cd backend
-    python3 -m venv venv
     source venv/bin/activate
-    pip install -r requirements.txt
-    cp .env.example .env
-    # Edit .env with your database, API keys, etc.
-    flask db upgrade
-    flask run
+    python3 app.py
     ```
 
-3.  **Setup WhatsApp API (Node.js)**
+3.  **Terminal 3 (Celery Worker)**
     ```bash
-    cd ../api-whatsapp
-    npm install
-    cp .env.example .env
-    # Edit .env with your WhatsApp API settings
-    npm start
+    cd backend
+    source venv/bin/activate
+    celery -A celery_app.celery worker --loglevel=info
+    ```
+
+4.  **Terminal 4 (Frontend)**
+    ```bash
+    cd frontend
+    npm run dev
+    ```
+
+5.  **Terminal 5 (WhatsApp Gateway)**
+    ```bash
+    cd whatsapp-gateway
+    npx @agenticnucleus/whatsapp-multitenant
     ```
 
 ---
@@ -117,10 +137,9 @@ This project follows a strict feature-branch workflow.
 
 1.  **Sync**: Always pull the latest `dev`.
 2.  **Branch**: Create `feature/your-feature`.
-3.  **Log**: Document progress in `docs/development_log.md`.
-4.  **Merge**: Pull Request to `dev`.
+3.  **Merge**: Pull Request to `dev`.
 
-See `GEMINI.md` for AI-specific guidelines.
+See `GEMINI.md` for AI-specific guidelines and `AGENTS.md` for information about the multi-agent architecture.
 
 ---
 
