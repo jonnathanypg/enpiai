@@ -2,6 +2,8 @@
 Auth Routes - Registration, Login, JWT refresh, user info.
 Migration Path: Auth will migrate to DID-based cryptographic key exchange.
 """
+import os
+import uuid
 import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify
@@ -9,6 +11,8 @@ from flask_jwt_extended import (
     create_access_token, create_refresh_token,
     jwt_required, get_jwt_identity
 )
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from extensions import db, limiter
 from models.user import User, UserRole
 from models.distributor import Distributor
@@ -228,3 +232,106 @@ def get_current_distributor():
         return user.distributor if user else None
     except Exception:
         return None
+
+@auth_bp.route('/google', methods=['POST'])
+@limiter.limit("5 per minute")
+def google_auth():
+    """Authenticate or auto-register user via Google JWT"""
+    db.session.rollback()
+
+    try:
+        data = request.get_json()
+        token = data.get('credential')
+        if not token:
+            return jsonify({'error': 'Missing credential'}), 400
+
+        client_id = os.environ.get('GOOGLE_CLIENT_ID')
+        try:
+            # Verify the token
+            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
+        except ValueError as e:
+            return jsonify({'error': f'Invalid Google token: {str(e)}'}), 401
+
+        email = idinfo.get('email', '').strip().lower()
+        name = idinfo.get('name', '').strip()
+
+        user = User.query.filter_by(email=email).first()
+
+        # Frictionless Auto-Registration
+        if not user:
+            # Create temporary distributor business
+            distributor = Distributor(
+                name=f"{name}'s Hub",
+                email=email,
+                language='en'
+            )
+            db.session.add(distributor)
+            db.session.flush()
+
+            # Create User
+            user = User(
+                email=email,
+                name=name,
+                role=UserRole.ADMIN,
+                distributor_id=distributor.id,
+                email_verified=True # Verified by Google
+            )
+            # Give random password as they use Google Auth
+            user.set_password(str(uuid.uuid4()))
+            db.session.add(user)
+            db.session.flush()
+
+            # Create default agent 
+            default_agent_data = i18n_service.get_default_agent_data('en')
+            prospect_agent = AgentConfig(
+                distributor_id=distributor.id,
+                name=default_agent_data['name'],
+                description=default_agent_data['description'],
+                agent_type='prospect',
+                is_active=True
+            )
+            db.session.add(prospect_agent)
+            db.session.flush()
+
+            # Features
+            for feat_data in DEFAULT_FEATURES:
+                feature = AgentFeature(
+                    agent_id=prospect_agent.id,
+                    category=feat_data['category'],
+                    name=feat_data['name'],
+                    label=feat_data['label'],
+                    description=feat_data.get('description', ''),
+                    order=feat_data.get('order', 0),
+                    is_enabled=feat_data['name'] in ['whatsapp', 'knowledge_base_search', 'wellness_evaluation', 'conversation_history']
+                )
+                db.session.add(feature)
+
+            db.session.commit()
+            logger.info(f"Auto-registered new user via Google: {email}")
+        else:
+            if not user.is_active:
+                return jsonify({'error': 'Account is deactivated'}), 403
+
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+
+        # Login success payloads
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
+
+        response_user = user.to_dict()
+        if user.distributor:
+            response_user['distributor'] = user.distributor.to_dict()
+
+        return jsonify({
+            'data': {
+                'user': response_user,
+                'access_token': access_token,
+                'refresh_token': refresh_token
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Google auth error: {e}")
+        return jsonify({'error': str(e)}), 500

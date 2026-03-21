@@ -38,12 +38,16 @@ The frontend uses the modern **App Router** architecture.
 - **Google Integration**: Calendar and Gmail APIs for scheduling and automated follow-ups.
 
 ## 5. Current Progress vs. Goals
-- ✅ Project Scaffolding & Core Logic.
-- ✅ Multi-Agent Orchestration.
-- ✅ Hybrid Architecture (SQL + Vector).
-- ✅ WhatsApp Integration.
+- ✅ Project Scaffolding & Core Architecture Logic.
+- ✅ Multi-Agent Orchestration (LangGraph, Failover strategy).
+- ✅ Hybrid Architecture (SQL + Vector Pinecone).
+- ✅ Integración Multi-Tenancy WhatsApp (QR Flow asíncrono, persistencia de conexión por distribuidor).
 - ✅ Backend I18n (EN/ES/FR/PT).
-- 🚧 Frontend Implementation (Core routes ready, specific features in progress).
-- 🚧 Final Deployment/CI-CD Pipelines.
+- ✅ Universal RAG Management (Documentos globales para el Super Administrador y búsqueda concurrente con namespace local).
+- ✅ Agent-Driven Lead Capture (El agente prioriza conseguir nombre y teléfono antes de usar herramientas para registrar el contacto).
+- ✅ Personalized Wellness Evaluation Links (URL pública con ID oficial de Herbalife `herbalife_id` para captura de plomos atribuidos correctamente).
+- ✅ Deployment Scripts: Scripts locales (`start-local.sh`, PM2 ecosystem) listos.
+- 🚧 UI/UX Dashboard Frontend (Tablas de contactos, reportes de evaluación en progreso).
+- 🚧 Generación de PDFs y flujos asíncronos en Celery (Operativos pero puliéndose).
 
-**Verdict**: The project is exceptionally well-structured, following advanced engineering patterns (LangGraph, Failover strategy, IAGS Protocol). It is ready for final feature polishing and deployment stabilization.
+**Verdict**: The project is in an **Advanced / Pre-Production State**. The core "Agentic Infrastructure" (IAGS protocol) is fully functional: the multi-agent orchestrator understands anonymous users, dynamically fetches context from vector DBs, delegates tasks to tools (like `CaptureContact`), and flawlessly receives messages from the custom WhatsApp Gateway (`api-whatsapp/`). The crucial milestone of isolating logic per `distributor_id` (and `herbalife_id` routing) is structurally sound across Next.js, Flask, and Node.js. The next immediate focus should be finalizing frontend UI panels for CRMs and ensuring the Celery infrastructure is rock solid for production.
