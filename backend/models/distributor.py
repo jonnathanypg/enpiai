@@ -101,6 +101,15 @@ class Distributor(db.Model):
     # Status
     is_active = db.Column(db.Boolean, default=True)
     subscription_tier = db.Column(db.Enum(SubscriptionTier), default=SubscriptionTier.FREE)
+    
+    # Billing / dLocal Go
+    subscription_active = db.Column(db.Boolean, default=False)
+    is_courtesy = db.Column(db.Boolean, default=False)
+    subscription_plan_id = db.Column(db.Integer, db.ForeignKey('plans.id'), nullable=True)
+    
+    # Billing relationships
+    subscription_plan = db.relationship('Plan')
+    # Note: `subscriptions` is already defined in the `Subscription` model as a backref/back_populates.
 
     def get_full_system_prompt(self):
         """Generate complete system prompt including persona & business context"""
@@ -152,6 +161,8 @@ class Distributor(db.Model):
             'personal_story': self.personal_story,
             'is_active': self.is_active,
             'subscription_tier': self.subscription_tier.value if self.subscription_tier else 'free',
+            'subscription_active': self.subscription_active,
+            'is_courtesy': self.is_courtesy,
             'whatsapp_connected': self.whatsapp_connected,
             'whatsapp_phone': self.whatsapp_phone,
             'created_at': self.created_at.isoformat() if self.created_at else None,

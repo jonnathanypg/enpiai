@@ -290,3 +290,62 @@ def telegram_webhook():
         db.session.rollback()
         logger.error(f"Telegram webhook error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# dLocal Go Webhook
+# ---------------------------------------------------------------------------
+
+@webhooks_bp.route('/dlocal', methods=['POST'])
+def dlocal_webhook():
+    """
+    Receive payment/subscription updates from dLocal Go.
+    Updates the distributor's subscription_active status based on `external_id`.
+    """
+    try:
+        db.session.rollback()
+    except:
+        pass
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        logger.info(f"dLocal Go Webhook Event: {data}")
+
+        # Try to extract external_id (which we map to distributor_id)
+        external_id = data.get('external_id')
+        status = data.get('status') # Usually "CONFIRMED" or "COMPLETED" or "DECLINED"
+        
+        # Sometimes the payload is an execution object containing a subscription object
+        if not external_id and 'subscription' in data:
+            pass # Fallback if needed.
+
+        if external_id:
+            try:
+                distributor_id = int(external_id)
+                from models.distributor import Distributor
+                distributor = Distributor.query.get(distributor_id)
+                
+                if distributor:
+                    logger.info(f"dLocal Webhook -> Distributor {distributor_id}. Status: {status}")
+                    
+                    if status in ['CONFIRMED', 'COMPLETED', 'ACTIVE']:
+                        distributor.subscription_active = True
+                    elif status in ['DECLINED', 'CANCELLED', 'INACTIVE', 'PAST_DUE']:
+                        distributor.subscription_active = False
+                        
+                    db.session.commit()
+                    return jsonify({'status': 'processed'}), 200
+                else:
+                    logger.warning(f"Distributor not found for external_id: {external_id}")
+            except ValueError:
+                logger.error(f"Invalid external_id format: {external_id}")
+                
+        return jsonify({'status': 'ignored'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"dLocal Go webhook error: {e}")
+        return jsonify({'error': str(e)}), 500

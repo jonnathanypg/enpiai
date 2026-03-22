@@ -42,6 +42,7 @@ const distributorItems: NavItem[] = [
 const adminItems: NavItem[] = [
     { title: 'Dashboard', href: '/admin/dashboard', icon: ShieldCheck },
     { title: 'System Knowledge', href: '/admin/documents', icon: FileText },
+    { title: 'Billing', href: '/admin/billing', icon: CreditCard },
 ];
 
 interface SidebarProps {

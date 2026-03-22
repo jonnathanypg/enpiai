@@ -6,11 +6,11 @@ export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Paths that require authentication
-    const protectedPaths = ['/dashboard', '/leads', '/customers', '/agents', '/settings'];
+    const protectedPaths = ['/dashboard', '/leads', '/customers', '/agents', '/settings', '/subscribe'];
     const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
 
     // Paths that are only for non-authenticated users
-    const authPaths = ['/login', '/register', '/subscribe'];
+    const authPaths = ['/login', '/register'];
     const isAuthPath = authPaths.some((path) => pathname.startsWith(path));
 
     if (isProtected && !token) {

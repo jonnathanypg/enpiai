@@ -154,7 +154,7 @@ export default function DashboardPage() {
                                 Wellness Evaluations
                             </Button>
                         </Link>
-                        <Link href="/subscription">
+                        <Link href="/subscribe">
                             <Button variant="outline" className="w-full justify-start">
                                 <CreditCard className="mr-2 h-4 w-4" />
                                 Manage Subscription
