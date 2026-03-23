@@ -17,6 +17,7 @@ jobs:
         run: |
           echo "📦 Creating deployment archive..."
           tar -czf deploy.tar.gz \
+            --exclude='deploy.tar.gz' \
             --exclude='node_modules' \
             --exclude='.next' \
             --exclude='venv' \
