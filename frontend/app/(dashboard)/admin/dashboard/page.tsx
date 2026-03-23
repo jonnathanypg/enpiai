@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
     Users,
     CreditCard,
@@ -22,6 +23,7 @@ import type { PlatformMetrics } from '@/types';
 
 export default function AdminDashboardPage() {
     const router = useRouter();
+    const { t } = useTranslation();
     const user = useAuthStore((s) => s.user);
 
     // Guard: Only super_admin can access
@@ -43,59 +45,59 @@ export default function AdminDashboardPage() {
     if (user?.role !== 'super_admin') {
         return (
             <div className="flex h-[50vh] items-center justify-center">
-                <p className="text-lg text-muted-foreground">Access Denied. Super Admin only.</p>
+                <p className="text-lg text-muted-foreground">{t('common.accessDenied')}</p>
             </div>
         );
     }
 
     const cards = [
         {
-            title: 'Total Distributors',
+            title: t('adminDashboard.totalDistributors'),
             value: metrics?.total_distributors,
             icon: Building2,
-            description: 'Registered tenants',
+            description: t('adminDashboard.distributorsDesc'),
             color: 'text-blue-500',
         },
         {
-            title: 'Active Subscriptions',
+            title: t('adminDashboard.activeSubscriptions'),
             value: metrics?.active_subscriptions,
             icon: CreditCard,
-            description: 'Active + Trial + Courtesy',
+            description: t('adminDashboard.subscriptionsDesc'),
             color: 'text-green-500',
         },
         {
-            title: 'MRR',
+            title: t('adminDashboard.mrr'),
             value: metrics?.mrr !== undefined ? `$${metrics.mrr.toFixed(2)}` : undefined,
             icon: TrendingUp,
-            description: 'Monthly Recurring Revenue',
+            description: t('adminDashboard.mrrDesc'),
             color: 'text-emerald-500',
         },
         {
-            title: 'Total Leads',
+            title: t('adminDashboard.totalLeads'),
             value: metrics?.total_leads,
             icon: Users,
-            description: 'Across all distributors',
+            description: t('adminDashboard.leadsDesc'),
             color: 'text-orange-500',
         },
         {
-            title: 'Total Customers',
+            title: t('adminDashboard.totalCustomers'),
             value: metrics?.total_customers,
             icon: Users,
-            description: 'Converted leads',
+            description: t('adminDashboard.customersDesc'),
             color: 'text-violet-500',
         },
         {
-            title: 'Total Conversations',
+            title: t('adminDashboard.totalConversations'),
             value: metrics?.total_conversations,
             icon: MessageSquare,
-            description: 'All channels',
+            description: t('adminDashboard.conversationsDesc'),
             color: 'text-cyan-500',
         },
         {
-            title: 'Total Messages',
+            title: t('adminDashboard.totalMessages'),
             value: metrics?.total_messages,
             icon: Activity,
-            description: 'All time',
+            description: t('adminDashboard.messagesDesc'),
             color: 'text-pink-500',
         },
     ];
@@ -105,10 +107,10 @@ export default function AdminDashboardPage() {
             <div>
                 <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
                     <ShieldCheck className="h-7 w-7 text-primary" />
-                    Admin Dashboard
+                    {t('adminDashboard.title')}
                 </h2>
                 <p className="text-muted-foreground">
-                    Platform-wide metrics and management console.
+                    {t('adminDashboard.description')}
                 </p>
             </div>
 
@@ -137,7 +139,7 @@ export default function AdminDashboardPage() {
             {/* System Info */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-sm font-medium">System Information</CardTitle>
+                    <CardTitle className="text-sm font-medium">{t('adminDashboard.systemInfo')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="grid gap-4 md:grid-cols-3">

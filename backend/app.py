@@ -76,6 +76,10 @@ def create_app(config_class=None):
     from routes.payments import payments_bp
     app.register_blueprint(payments_bp, url_prefix='/api/payments')
 
+    # Phase 13: dLocal Go Subscription Billing
+    from routes.billing import billing_bp
+    app.register_blueprint(billing_bp)
+
     from routes.rag import rag_bp
     app.register_blueprint(rag_bp, url_prefix='/api/rag')
     

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import {
     LayoutDashboard,
     Users,
@@ -20,28 +21,28 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/use-auth-store';
 
 interface NavItem {
-    title: string;
+    titleKey: string;
     href: string;
     icon: React.ElementType;
-    adminOnly?: boolean;
 }
 
 // Distributor-only navigation
 const distributorItems: NavItem[] = [
-    { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { title: 'Contacts', href: '/contacts', icon: Users },
-    { title: 'Agent Setup', href: '/agents', icon: Bot },
-    { title: 'Channels', href: '/channels', icon: Radio },
-    { title: 'Documents', href: '/documents', icon: FileText },
-    { title: 'Wellness', href: '/wellness', icon: HeartPulse },
-    { title: 'Playground', href: '/agents/playground', icon: MessageSquare },
-    { title: 'Settings', href: '/settings', icon: Settings },
+    { titleKey: 'sidebar.dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { titleKey: 'sidebar.contacts', href: '/contacts', icon: Users },
+    { titleKey: 'sidebar.agentSetup', href: '/agents', icon: Bot },
+    { titleKey: 'sidebar.channels', href: '/channels', icon: Radio },
+    { titleKey: 'sidebar.documents', href: '/documents', icon: FileText },
+    { titleKey: 'sidebar.wellness', href: '/wellness', icon: HeartPulse },
+    { titleKey: 'sidebar.playground', href: '/agents/playground', icon: MessageSquare },
+    { titleKey: 'sidebar.settings', href: '/settings', icon: Settings },
 ];
 
 // Super Admin-only navigation
 const adminItems: NavItem[] = [
-    { title: 'Dashboard', href: '/admin/dashboard', icon: ShieldCheck },
-    { title: 'System Knowledge', href: '/admin/documents', icon: FileText },
+    { titleKey: 'sidebar.dashboard', href: '/admin/dashboard', icon: ShieldCheck },
+    { titleKey: 'sidebar.systemKnowledge', href: '/admin/documents', icon: FileText },
+    { titleKey: 'sidebar.billing', href: '/admin/billing', icon: CreditCard },
 ];
 
 interface SidebarProps {
@@ -51,6 +52,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     const pathname = usePathname();
+    const { t } = useTranslation();
     const user = useAuthStore((s) => s.user);
     const isSuperAdmin = user?.role === 'super_admin';
 
@@ -103,7 +105,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                                 )}
                             >
                                 <item.icon className="h-5 w-5 shrink-0" />
-                                {!collapsed && item.title}
+                                {!collapsed && t(item.titleKey)}
                             </span>
                         </Link>
                     );

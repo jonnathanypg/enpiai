@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     useReactTable,
     getCoreRowModel,
@@ -12,7 +12,7 @@ import {
     ColumnFiltersState,
 } from '@tanstack/react-table';
 import { useQuery } from '@tanstack/react-query';
-import { columns } from './columns';
+import { getColumns } from './columns';
 import { Input } from '@/components/ui/input';
 import {
     Table,
@@ -27,16 +27,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import apiClient from '@/lib/api-client';
 import type { Lead } from '@/types';
 
+import { useTranslation } from 'react-i18next';
+
 export default function ContactsPage() {
+    const { t } = useTranslation();
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+    const columns = useMemo(() => getColumns(t), [t]);
 
     const { data: leads, isLoading } = useQuery({
         queryKey: ['contacts'],
         queryFn: async () => {
-            // Backend returns { data: [], pagination: ... }
-            // We'll simplify and just use data for client-side table for now
-            // ideally we pass pagination params
             const { data } = await apiClient.get<{ data: Lead[] }>('/leads');
             return data.data;
         },
@@ -60,12 +62,12 @@ export default function ContactsPage() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">Contacts</h2>
+                <h2 className="text-3xl font-bold tracking-tight">{t('contacts.title')}</h2>
             </div>
 
             <div className="flex items-center py-4">
                 <Input
-                    placeholder="Filter names..."
+                    placeholder={t('contacts.filterPlaceholder')}
                     value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
                     onChange={(event) =>
                         table.getColumn('name')?.setFilterValue(event.target.value)
@@ -128,7 +130,7 @@ export default function ContactsPage() {
                                     colSpan={columns.length}
                                     className="h-24 text-center"
                                 >
-                                    No results.
+                                    {t('contacts.noResults')}
                                 </TableCell>
                             </TableRow>
                         )}
@@ -143,7 +145,7 @@ export default function ContactsPage() {
                     onClick={() => table.previousPage()}
                     disabled={!table.getCanPreviousPage()}
                 >
-                    Previous
+                    {t('contacts.previous')}
                 </Button>
                 <Button
                     variant="outline"
@@ -151,7 +153,7 @@ export default function ContactsPage() {
                     onClick={() => table.nextPage()}
                     disabled={!table.getCanNextPage()}
                 >
-                    Next
+                    {t('contacts.next')}
                 </Button>
             </div>
         </div>

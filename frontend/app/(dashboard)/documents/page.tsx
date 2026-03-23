@@ -34,7 +34,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import apiClient from '@/lib/api-client';
 import type { Document } from '@/types';
 
+import { useTranslation } from 'react-i18next';
+
 export default function DocumentsPage() {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -59,12 +62,12 @@ export default function DocumentsPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['documents'] });
-            toast.success('Document uploaded. Processing started.');
+            toast.success(t('common.success', { defaultValue: 'Success' }));
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Upload failed');
+            toast.error(error.response?.data?.error || t('common.error', { defaultValue: 'Error' }));
             setIsUploading(false);
         },
     });
@@ -76,7 +79,7 @@ export default function DocumentsPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['documents'] });
-            toast.success('Document deleted');
+            toast.success(t('common.success', { defaultValue: 'Success' }));
         },
     });
 
@@ -99,9 +102,9 @@ export default function DocumentsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Knowledge Base</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">{t('documents.title')}</h2>
                     <p className="text-muted-foreground">
-                        Upload PDF/TXT documents to train your AI agent.
+                        {t('documents.description')}
                     </p>
                 </div>
             </div>
@@ -113,9 +116,9 @@ export default function DocumentsPage() {
                         <div className="rounded-full bg-background p-4 shadow-sm">
                             <UploadCloud className="h-8 w-8 text-primary" />
                         </div>
-                        <h3 className="mt-4 text-lg font-semibold">Upload Document</h3>
+                        <h3 className="mt-4 text-lg font-semibold">{t('documents.uploadTitle')}</h3>
                         <p className="mb-4 text-sm text-muted-foreground">
-                            PDF, TXT, or MD (Max 10MB)
+                            {t('documents.uploadDesc')}
                         </p>
                         <Button
                             disabled={isUploading}
@@ -123,10 +126,10 @@ export default function DocumentsPage() {
                         >
                             {isUploading ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.saving', { defaultValue: 'Uploading...' })}
                                 </>
                             ) : (
-                                'Select File'
+                                t('documents.selectFile')
                             )}
                         </Button>
                         <input
@@ -142,9 +145,9 @@ export default function DocumentsPage() {
                 {/* Documents List */}
                 <Card className="col-span-2">
                     <CardHeader>
-                        <CardTitle>My Documents</CardTitle>
+                        <CardTitle>{t('documents.myDocuments')}</CardTitle>
                         <CardDescription>
-                            {documents?.length || 0} documents indexed in your personalized knowledge base.
+                            {t('documents.documentsCount', { count: documents?.length || 0 })}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -157,17 +160,17 @@ export default function DocumentsPage() {
                         ) : documents?.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
                                 <FileText className="mb-2 h-8 w-8 opacity-20" />
-                                <p>No documents found.</p>
+                                <p>{t('common.noResults', { defaultValue: 'No documents found.' })}</p>
                             </div>
                         ) : (
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Filename</TableHead>
-                                        <TableHead>Size</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Uploaded</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                        <TableHead>{t('common.name')}</TableHead>
+                                        <TableHead>{t('common.size', { defaultValue: 'Size' })}</TableHead>
+                                        <TableHead>{t('common.status')}</TableHead>
+                                        <TableHead>{t('common.date', { defaultValue: 'Uploaded' })}</TableHead>
+                                        <TableHead className="text-right">{t('common.actions')}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -183,11 +186,11 @@ export default function DocumentsPage() {
                                             <TableCell>
                                                 {doc.is_processed ? (
                                                     <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
-                                                        <CheckCircle2 className="mr-1 h-3 w-3" /> Ready
+                                                        <CheckCircle2 className="mr-1 h-3 w-3" /> {t('common.status', { defaultValue: 'Ready' })}
                                                     </Badge>
                                                 ) : (
                                                     <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">
-                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Processing
+                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" /> {t('common.saving', { defaultValue: 'Processing' })}
                                                     </Badge>
                                                 )}
                                             </TableCell>
@@ -200,7 +203,7 @@ export default function DocumentsPage() {
                                                     size="sm"
                                                     className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                     onClick={() => {
-                                                        if (confirm('Delete this document?')) deleteMutation.mutate(doc.id);
+                                                        if (confirm(t('common.delete', { defaultValue: 'Delete this document?' }))) deleteMutation.mutate(doc.id);
                                                     }}
                                                 >
                                                     <Trash2 className="h-4 w-4" />

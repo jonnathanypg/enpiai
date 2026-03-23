@@ -52,8 +52,9 @@ class Plan(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     is_default = db.Column(db.Boolean, default=False)  # Auto-assigned on registration
 
-    # Rebill Mapping
-    rebill_plan_id = db.Column(db.String(100), nullable=True, unique=True)
+    # dLocal Go Mapping
+    dlocal_plan_id = db.Column(db.String(100), nullable=True, unique=True)
+    dlocal_plan_token = db.Column(db.String(100), nullable=True, unique=True, index=True)
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -111,8 +112,9 @@ class Subscription(db.Model):
     last_payment_at = db.Column(db.DateTime, nullable=True)
     next_payment_at = db.Column(db.DateTime, nullable=True)
 
-    # Rebill Mapping
-    rebill_subscription_id = db.Column(db.String(100), nullable=True, unique=True)
+    # dLocal Go Mapping
+    dlocal_subscription_id = db.Column(db.String(100), nullable=True, unique=True)
+    dlocal_subscription_token = db.Column(db.String(100), nullable=True, unique=True, index=True)
 
     # Metadata
     notes = db.Column(db.Text, nullable=True)  # Super Admin can add notes (e.g. "Courtesy for beta tester")

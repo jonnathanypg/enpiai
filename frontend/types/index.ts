@@ -24,6 +24,8 @@ export interface Distributor {
     city: string | null;
     language: string;
     subscription_tier: string;
+    subscription_active: boolean;
+    is_courtesy: boolean;
     created_at: string;
 }
 
@@ -194,6 +196,8 @@ export interface Plan {
     features: Record<string, unknown> | null;
     is_active: boolean;
     is_default: boolean;
+    dlocal_plan_id: string | null;
+    dlocal_plan_token: string | null;
 }
 
 export interface Subscription {

@@ -17,7 +17,10 @@ import type { DistributorMetrics, Channel } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
+import { useTranslation } from 'react-i18next';
+
 export default function DashboardPage() {
+    const { t } = useTranslation();
     const { data: metrics, isLoading: loadingMetrics } = useQuery({
         queryKey: ['dashboard-metrics'],
         queryFn: async () => {
@@ -36,38 +39,38 @@ export default function DashboardPage() {
 
     const cards = [
         {
-            title: 'Total Leads',
+            title: t('distributorDashboard.totalLeads'),
             value: metrics?.total_leads,
             icon: Users,
-            description: 'All time',
+            description: t('distributorDashboard.allTime'),
         },
         {
-            title: 'Qualified Leads',
+            title: t('distributorDashboard.qualifiedLeads'),
             value: metrics?.qualified_leads,
             icon: UserCheck,
-            description: 'Ready for conversion',
+            description: t('distributorDashboard.readyForConversion'),
         },
         {
-            title: 'Messages Today',
+            title: t('distributorDashboard.messagesToday'),
             value: metrics?.messages_today,
             icon: MessageSquare,
-            description: 'In the last 24h',
+            description: t('distributorDashboard.last24h'),
         },
         {
-            title: 'Conversion Rate',
+            title: t('distributorDashboard.conversionRate'),
             value: metrics?.conversion_rate !== undefined ? `${metrics.conversion_rate}%` : undefined,
             icon: TrendingUp,
-            description: 'Leads to Customers',
+            description: t('distributorDashboard.leadsToCustomers'),
         },
     ];
 
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+                <h2 className="text-3xl font-bold tracking-tight">{t('distributorDashboard.title')}</h2>
                 <div className="flex items-center gap-2">
                     <Link href="/contacts">
-                        <Button>View Contacts</Button>
+                        <Button>{t('distributorDashboard.viewContacts')}</Button>
                     </Link>
                 </div>
             </div>
@@ -100,7 +103,7 @@ export default function DashboardPage() {
                 {/* Channel Status */}
                 <Card className="col-span-4">
                     <CardHeader>
-                        <CardTitle>Communication Channels</CardTitle>
+                        <CardTitle>{t('distributorDashboard.communicationChannels')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loadingChannels ? (
@@ -110,9 +113,9 @@ export default function DashboardPage() {
                             </div>
                         ) : channels?.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-                                <p className="mb-4">No channels connected yet.</p>
+                                <p className="mb-4">{t('distributorDashboard.noChannels')}</p>
                                 <Link href="/channels">
-                                    <Button variant="outline">Connect WhatsApp/Telegram</Button>
+                                    <Button variant="outline">{t('distributorDashboard.connectChannels')}</Button>
                                 </Link>
                             </div>
                         ) : (
@@ -125,7 +128,7 @@ export default function DashboardPage() {
                                             </div>
                                             <div>
                                                 <p className="font-medium capitalize">{channel.channel_type} - {channel.name}</p>
-                                                <p className="text-sm text-muted-foreground capitalize">Status: {channel.status}</p>
+                                                <p className="text-sm text-muted-foreground capitalize">{t('common.status')}: {channel.status}</p>
                                             </div>
                                         </div>
                                         <div className={`h-2.5 w-2.5 rounded-full ${channel.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -139,25 +142,25 @@ export default function DashboardPage() {
                 {/* Recent Activity / Quick Actions Placeholder */}
                 <Card className="col-span-3">
                     <CardHeader>
-                        <CardTitle>Quick Actions</CardTitle>
+                        <CardTitle>{t('distributorDashboard.quickActions')}</CardTitle>
                     </CardHeader>
                     <CardContent className="grid gap-4">
                         <Link href="/agents/playground">
                             <Button variant="outline" className="w-full justify-start">
                                 <MessageSquare className="mr-2 h-4 w-4" />
-                                Test AI Agent
+                                {t('distributorDashboard.testAgent')}
                             </Button>
                         </Link>
                         <Link href="/wellness">
                             <Button variant="outline" className="w-full justify-start">
                                 <Activity className="mr-2 h-4 w-4" />
-                                Wellness Evaluations
+                                {t('distributorDashboard.wellnessEvaluations')}
                             </Button>
                         </Link>
-                        <Link href="/subscription">
+                        <Link href="/subscribe">
                             <Button variant="outline" className="w-full justify-start">
                                 <CreditCard className="mr-2 h-4 w-4" />
-                                Manage Subscription
+                                {t('distributorDashboard.manageSubscription')}
                             </Button>
                         </Link>
                     </CardContent>

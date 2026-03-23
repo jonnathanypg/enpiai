@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { GoogleLogin } from '@react-oauth/google';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
     const router = useRouter();
+    const { t, i18n } = useTranslation();
     const login = useAuthStore((s) => s.login);
     const setLanguage = useAuthStore((s) => s.setLanguage);
     const [isLoading, setIsLoading] = useState(false);
@@ -60,11 +62,14 @@ export default function RegisterPage() {
 
             login(res.user, res.access_token, res.refresh_token);
             setLanguage(values.language || 'en');
-            toast.success('Account created successfully!');
+            // Also sync i18n UI language with registration preference
+            i18n.changeLanguage(values.language || 'en');
+            localStorage.setItem('i18nextLng', values.language || 'en');
+            toast.success(t('auth.accountCreated'));
             router.push('/dashboard');
         } catch (err: unknown) {
             const error = err as { response?: { data?: { error?: string } } };
-            toast.error(error.response?.data?.error || 'Registration failed');
+            toast.error(error.response?.data?.error || t('auth.registrationFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -79,9 +84,8 @@ export default function RegisterPage() {
             const res = data.data;
 
             login(res.user, res.access_token, res.refresh_token);
-            // Default to EN or the browser language if available later
             setLanguage('en'); 
-            toast.success('Google authentication successful!');
+            toast.success(t('auth.googleAuthSuccess'));
 
             if (res.user.role === 'super_admin') {
                 router.push('/admin/dashboard');
@@ -90,7 +94,7 @@ export default function RegisterPage() {
             }
         } catch (err: unknown) {
             const error = err as { response?: { data?: { error?: string } } };
-            toast.error(error.response?.data?.error || 'Google sign-up failed');
+            toast.error(error.response?.data?.error || t('auth.googleSignupFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -100,17 +104,17 @@ export default function RegisterPage() {
         <Card className="border-border/50 shadow-xl">
             <CardHeader className="text-center">
                 <CardTitle className="text-2xl font-bold tracking-tight">
-                    Create Account
+                    {t('auth.createAccount')}
                 </CardTitle>
                 <CardDescription>
-                    Start automating your Herbalife business today
+                    {t('auth.createAccountDescription')}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="mb-4 flex justify-center">
                     <GoogleLogin
                         onSuccess={handleGoogleSuccess}
-                        onError={() => toast.error('Google Sign-In failed')}
+                        onError={() => toast.error(t('auth.googleLoginFailed'))}
                         theme="outline"
                         width="100%"
                         text="signup_with"
@@ -122,14 +126,14 @@ export default function RegisterPage() {
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
                         <span className="bg-background px-2 text-muted-foreground">
-                            Or continue with email
+                            {t('auth.orContinueWithEmail')}
                         </span>
                     </div>
                 </div>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Your Name</Label>
+                            <Label htmlFor="name">{t('auth.yourName')}</Label>
                             <Input
                                 id="name"
                                 placeholder="John Doe"
@@ -141,7 +145,7 @@ export default function RegisterPage() {
                             )}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="distributor_name">Business Name</Label>
+                            <Label htmlFor="distributor_name">{t('auth.businessName')}</Label>
                             <Input
                                 id="distributor_name"
                                 placeholder="My Wellness Co."
@@ -156,7 +160,7 @@ export default function RegisterPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">{t('common.email')}</Label>
                         <Input
                             id="email"
                             type="email"
@@ -169,7 +173,7 @@ export default function RegisterPage() {
                         )}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">{t('common.password')}</Label>
                         <Input
                             id="password"
                             type="password"
@@ -184,7 +188,7 @@ export default function RegisterPage() {
                         )}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="language">Preferred Language</Label>
+                        <Label htmlFor="language">{t('auth.preferredLanguage')}</Label>
                         <select
                             id="language"
                             {...register('language')}
@@ -193,20 +197,19 @@ export default function RegisterPage() {
                         >
                             <option value="en">English</option>
                             <option value="es">Español</option>
-                            <option value="fr">Français</option>
                             <option value="pt">Português</option>
                         </select>
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? 'Creating account...' : 'Create Account'}
+                        {isLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
                     </Button>
                 </form>
             </CardContent>
             <CardFooter className="flex justify-center">
                 <p className="text-sm text-muted-foreground">
-                    Already have an account?{' '}
+                    {t('auth.alreadyHaveAccount')}{' '}
                     <Link href="/login" className="text-primary underline-offset-4 hover:underline">
-                        Sign in
+                        {t('auth.signInLink')}
                     </Link>
                 </p>
             </CardFooter>

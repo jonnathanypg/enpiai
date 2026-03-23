@@ -35,7 +35,10 @@ interface DistributorSettings {
     llm_model: string | null;
 }
 
+import { useTranslation } from 'react-i18next';
+
 export default function SettingsPage() {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [showApiKey, setShowApiKey] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -60,18 +63,18 @@ export default function SettingsPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['distributor-settings'] });
-            toast.success('Settings saved — your profile has been updated.');
+            toast.success(t('common.success', { defaultValue: 'Settings saved — your profile has been updated.' }));
             setForm({});
         },
         onError: (error: unknown) => {
-            const message = (error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to save settings';
+            const message = (error as { response?: { data?: { error?: string } } })?.response?.data?.error || t('common.error', { defaultValue: 'Failed to save settings' });
             toast.error(message);
         },
     });
 
     const handleSave = () => {
         if (Object.keys(form).length === 0) {
-            toast.info('No changes to save.');
+            toast.info(t('common.noChanges', { defaultValue: 'No changes to save.' }));
             return;
         }
         updateMutation.mutate(form);
@@ -103,14 +106,14 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-4xl space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">{t('settings.title')}</h2>
                     <p className="text-muted-foreground">
-                        Manage your profile and distributor preferences.
+                        {t('settings.description')}
                     </p>
                 </div>
                 <Button onClick={handleSave} disabled={updateMutation.isPending}>
                     <Save className="mr-2 h-4 w-4" />
-                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    {updateMutation.isPending ? t('common.saving') : t('common.save')}
                 </Button>
             </div>
 
@@ -119,22 +122,22 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <User className="h-5 w-5" />
-                        Personal Information
+                        {t('settings.personalInfo')}
                     </CardTitle>
-                    <CardDescription>Your basic profile and contact details.</CardDescription>
+                    <CardDescription>{t('settings.personalInfoDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
+                        <Label htmlFor="name">{t('common.name')}</Label>
                         <Input
                             id="name"
                             value={formData.name || ''}
                             onChange={(e) => handleChange('name', e.target.value)}
-                            placeholder="Your full name"
+                            placeholder={t('common.name')}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">{t('common.email')}</Label>
                         <Input
                             id="email"
                             type="email"
@@ -144,7 +147,7 @@ export default function SettingsPage() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
+                        <Label htmlFor="phone">{t('common.phone')}</Label>
                         <Input
                             id="phone"
                             value={formData.phone || ''}
@@ -153,12 +156,12 @@ export default function SettingsPage() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="personal_story">Personal Story</Label>
+                        <Label htmlFor="personal_story">{t('settings.personalStory')}</Label>
                         <Input
                             id="personal_story"
                             value={formData.personal_story || ''}
                             onChange={(e) => handleChange('personal_story', e.target.value)}
-                            placeholder="Brief description about you..."
+                            placeholder={t('settings.personalStoryPlaceholder')}
                         />
                     </div>
                 </CardContent>
@@ -169,18 +172,18 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Building2 className="h-5 w-5" />
-                        Business Information
+                        {t('settings.businessInfo')}
                     </CardTitle>
-                    <CardDescription>Your Herbalife distributor business details.</CardDescription>
+                    <CardDescription>{t('settings.businessInfoDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
-                        <Label htmlFor="business_name">Business Name</Label>
+                        <Label htmlFor="business_name">{t('settings.businessName')}</Label>
                         <Input
                             id="business_name"
                             value={formData.business_name || ''}
                             onChange={(e) => handleChange('business_name', e.target.value)}
-                            placeholder="Your business name"
+                            placeholder={t('settings.businessName')}
                         />
                     </div>
                     <div className="space-y-2">
@@ -193,7 +196,7 @@ export default function SettingsPage() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="website">Website</Label>
+                        <Label htmlFor="website">{t('settings.website')}</Label>
                         <Input
                             id="website"
                             value={formData.website || ''}
@@ -218,26 +221,26 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Globe className="h-5 w-5" />
-                        Localization
+                        {t('settings.localization')}
                     </CardTitle>
-                    <CardDescription>Region and language preferences.</CardDescription>
+                    <CardDescription>{t('settings.localizationDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-3">
                     <div className="space-y-2">
-                        <Label htmlFor="language">Language</Label>
+                        <Label htmlFor="language">{t('settings.language')}</Label>
                         <select
                             id="language"
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             value={formData.language || 'en'}
                             onChange={(e) => handleChange('language', e.target.value)}
                         >
-                            <option value="en">English</option>
-                            <option value="es">Español</option>
-                            <option value="pt">Português</option>
+                            <option value="en">{t('common.english')}</option>
+                            <option value="es">{t('common.spanish')}</option>
+                            <option value="pt">{t('common.portuguese')}</option>
                         </select>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="country">Country</Label>
+                        <Label htmlFor="country">{t('settings.country')}</Label>
                         <Input
                             id="country"
                             value={formData.country || ''}
@@ -246,7 +249,7 @@ export default function SettingsPage() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="city">City</Label>
+                        <Label htmlFor="city">{t('settings.city')}</Label>
                         <Input
                             id="city"
                             value={formData.city || ''}
@@ -262,11 +265,10 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Key className="h-5 w-5" />
-                        API Access
+                        {t('settings.apiAccess')}
                     </CardTitle>
                     <CardDescription>
-                        Use this key to access the OpenAI-compatible API endpoint for external integrations
-                        (LibreChat, TypingMind, etc.).
+                        {t('settings.apiAccessDesc')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -275,7 +277,7 @@ export default function SettingsPage() {
                             <Input
                                 readOnly
                                 type={showApiKey ? 'text' : 'password'}
-                                value={settings?.api_key || 'No API key generated'}
+                                value={settings?.api_key || t('settings.noApiKey')}
                                 className="pr-20 font-mono text-sm"
                             />
                         </div>
@@ -283,7 +285,7 @@ export default function SettingsPage() {
                             variant="outline"
                             size="icon"
                             onClick={() => setShowApiKey(!showApiKey)}
-                            title={showApiKey ? 'Hide' : 'Show'}
+                            title={showApiKey ? t('common.hide') : t('common.show')}
                         >
                             {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
@@ -291,7 +293,7 @@ export default function SettingsPage() {
                             variant="outline"
                             size="icon"
                             onClick={copyApiKey}
-                            title="Copy to clipboard"
+                            title={t('common.copy')}
                             disabled={!settings?.api_key}
                         >
                             {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
@@ -300,14 +302,14 @@ export default function SettingsPage() {
                     <Separator className="my-4" />
                     <div className="rounded-lg bg-muted/50 p-4">
                         <p className="text-sm text-muted-foreground">
-                            <strong>Endpoint:</strong>{' '}
+                            <strong>{t('settings.endpoint')}:</strong>{' '}
                             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
                                 {typeof window !== 'undefined' ? window.location.origin.replace(':3000', ':5000') : 'http://localhost:5000'}
                                 /api/openai-compat/v1/chat/completions
                             </code>
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            <strong>Header:</strong>{' '}
+                            <strong>{t('settings.header')}:</strong>{' '}
                             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
                                 Authorization: Bearer {'<your-api-key>'}
                             </code>

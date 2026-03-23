@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { GoogleLogin } from '@react-oauth/google';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
     const router = useRouter();
+    const { t } = useTranslation();
     const login = useAuthStore((s) => s.login);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -51,7 +53,7 @@ export default function LoginPage() {
             const res = data.data;
 
             login(res.user, res.access_token, res.refresh_token);
-            toast.success('Welcome back!');
+            toast.success(t('auth.welcomeBackToast'));
 
             // Smart redirect based on role
             if (res.user.role === 'super_admin') {
@@ -61,7 +63,7 @@ export default function LoginPage() {
             }
         } catch (err: unknown) {
             const error = err as { response?: { data?: { error?: string } } };
-            toast.error(error.response?.data?.error || 'Login failed');
+            toast.error(error.response?.data?.error || t('auth.loginFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -76,7 +78,7 @@ export default function LoginPage() {
             const res = data.data;
 
             login(res.user, res.access_token, res.refresh_token);
-            toast.success('Welcome back!');
+            toast.success(t('auth.welcomeBackToast'));
 
             // Smart redirect based on role
             if (res.user.role === 'super_admin') {
@@ -86,7 +88,7 @@ export default function LoginPage() {
             }
         } catch (err: unknown) {
             const error = err as { response?: { data?: { error?: string } } };
-            toast.error(error.response?.data?.error || 'Google login failed');
+            toast.error(error.response?.data?.error || t('auth.googleLoginFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -96,15 +98,15 @@ export default function LoginPage() {
         <Card className="border-border/50 shadow-xl">
             <CardHeader className="text-center">
                 <CardTitle className="text-2xl font-bold tracking-tight">
-                    Welcome Back
+                    {t('auth.welcomeBack')}
                 </CardTitle>
-                <CardDescription>Sign in to your EnpiAI account</CardDescription>
+                <CardDescription>{t('auth.signInDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="mb-4 flex justify-center">
                     <GoogleLogin
                         onSuccess={handleGoogleSuccess}
-                        onError={() => toast.error('Google Sign-In failed')}
+                        onError={() => toast.error(t('auth.googleLoginFailed'))}
                         theme="outline"
                         width="100%"
                         text="continue_with"
@@ -116,13 +118,13 @@ export default function LoginPage() {
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
                         <span className="bg-background px-2 text-muted-foreground">
-                            Or continue with email
+                            {t('auth.orContinueWithEmail')}
                         </span>
                     </div>
                 </div>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">{t('common.email')}</Label>
                         <Input
                             id="email"
                             type="email"
@@ -135,7 +137,7 @@ export default function LoginPage() {
                         )}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">{t('common.password')}</Label>
                         <Input
                             id="password"
                             type="password"
@@ -150,15 +152,15 @@ export default function LoginPage() {
                         )}
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? 'Signing in...' : 'Sign In'}
+                        {isLoading ? t('auth.signingIn') : t('auth.signIn')}
                     </Button>
                 </form>
             </CardContent>
             <CardFooter className="flex justify-center">
                 <p className="text-sm text-muted-foreground">
-                    Don&apos;t have an account?{' '}
+                    {t('auth.dontHaveAccount')}{' '}
                     <Link href="/register" className="text-primary underline-offset-4 hover:underline">
-                        Register
+                        {t('auth.register')}
                     </Link>
                 </p>
             </CardFooter>

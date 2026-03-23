@@ -18,7 +18,10 @@ interface AgentPersona {
     personality_prompt: string | null;
 }
 
+import { useTranslation } from 'react-i18next';
+
 export default function AgentSetupPage() {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
 
     const { data: settings, isLoading } = useQuery({
@@ -49,12 +52,12 @@ export default function AgentSetupPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['distributor-settings'] });
-            toast.success('Agent updated successfully.');
+            toast.success(t('common.save') + ' ' + t('common.success', { defaultValue: 'Success' }));
         },
         onError: (error: unknown) => {
             const message =
                 (error as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-                'Failed to save';
+                t('common.error', { defaultValue: 'Failed to save' });
             toast.error(message);
         },
     });
@@ -73,25 +76,23 @@ export default function AgentSetupPage() {
             <div>
                 <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
                     <Bot className="h-7 w-7 text-primary" />
-                    Agent Setup
+                    {t('agentSetup.title')}
                 </h2>
                 <p className="text-muted-foreground">
-                    Personalize your AI assistant. These settings define how the agent
-                    introduces itself and behaves in conversations with your leads.
+                    {t('agentSetup.description')}
                 </p>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Assistant Profile</CardTitle>
+                    <CardTitle>{t('agentSetup.profileTitle')}</CardTitle>
                     <CardDescription>
-                        Give your agent a name and personality. Both fields are optional —
-                        the agent works perfectly with default settings.
+                        {t('agentSetup.profileDescription')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
-                        <Label htmlFor="agent_name">Agent Name</Label>
+                        <Label htmlFor="agent_name">{t('agentSetup.agentName')}</Label>
                         <Input
                             id="agent_name"
                             placeholder="e.g. Luna, Max, Asistente"
@@ -99,26 +100,24 @@ export default function AgentSetupPage() {
                             onChange={(e) => setAgentName(e.target.value)}
                         />
                         <p className="text-xs text-muted-foreground">
-                            The name your agent will use when greeting customers.
-                            Leave blank for the default &quot;Asistente&quot;.
+                            {t('agentSetup.agentNameHelp')}
                         </p>
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="persona">
-                            Personality / Custom Instructions{' '}
-                            <span className="text-muted-foreground">(optional)</span>
+                            {t('agentSetup.agentPersonality')}{' '}
+                            <span className="text-muted-foreground">({t('common.optional', { defaultValue: 'optional' })})</span>
                         </Label>
                         <Textarea
                             id="persona"
-                            placeholder="e.g. You are a friendly wellness coach who specializes in nutrition. Always greet users warmly and ask about their health goals."
+                            placeholder={t('agentSetup.agentPersonalityPlaceholder')}
                             value={persona}
                             onChange={(e) => setPersona(e.target.value)}
                             rows={5}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Describe how you want the agent to behave. If left empty, the
-                            agent will use a professional, friendly default style.
+                            {t('agentSetup.agentPersonalityHelp')}
                         </p>
                     </div>
 
@@ -130,12 +129,12 @@ export default function AgentSetupPage() {
                         {saveMutation.isPending ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving...
+                                {t('common.saving', { defaultValue: 'Saving...' })}
                             </>
                         ) : (
                             <>
                                 <Save className="mr-2 h-4 w-4" />
-                                Save Changes
+                                {t('agentSetup.saveChanges')}
                             </>
                         )}
                     </Button>
