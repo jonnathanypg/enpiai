@@ -1,4 +1,4 @@
-name: Deploy to Alibaba Cloud ECS
+name: Deploy to Contabo
 
 on:
   push:
@@ -12,13 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Install SSH key
-        run: |
-          mkdir -p ~/.ssh/
-          echo "${{ secrets.ALI_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan ${{ secrets.ALI_HOST }} >> ~/.ssh/known_hosts
 
       - name: Create deployment archive
         run: |
@@ -36,20 +29,27 @@ jobs:
             .
           echo "Archive size: $(du -h /tmp/deploy.tar.gz | cut -f1)"
 
-      - name: Transfer archive to ECS
-        run: |
-          echo "🚀 Uploading archive to server..."
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa /tmp/deploy.tar.gz ${{ secrets.ALI_USER }}@${{ secrets.ALI_HOST }}:/tmp/deploy.tar.gz
+      - name: Copy archive to Contabo
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: root
+          password: ${{ secrets.CONTABO_PASSWORD }}
+          source: "/tmp/deploy.tar.gz"
+          target: "/tmp"
 
-      - name: Extract and deploy on server
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.ALI_USER }}@${{ secrets.ALI_HOST }} "
+      - name: Extract and deploy on Contabo
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: root
+          password: ${{ secrets.CONTABO_PASSWORD }}
+          script: |
             echo '📂 Extracting deployment archive...'
-            mkdir -p ~/kindicoreai
-            cd ~/kindicoreai
+            mkdir -p ~/enpiai
+            cd ~/enpiai
             tar -xzf /tmp/deploy.tar.gz --overwrite
             rm /tmp/deploy.tar.gz
             echo '⚙️ Running deployment script...'
             chmod +x deploy.sh
             ./deploy.sh
-          "
