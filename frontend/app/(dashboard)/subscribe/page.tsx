@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Check, ShieldCheck, Loader2, CreditCard, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,9 +19,10 @@ import { toast } from 'sonner';
 import type { Plan } from '@/types';
 
 export default function SubscribePage() {
+    const { t } = useTranslation();
     const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
 
-    const { data: plans = [], isLoading, error } = useQuery({
+    const { data: plans = [], isLoading } = useQuery({
         queryKey: ['billing-plans'],
         queryFn: async () => {
             const { data } = await apiClient.get('/billing/plans');
@@ -39,14 +41,14 @@ export default function SubscribePage() {
         },
         onSuccess: (data) => {
             if (data.subscribe_url) {
-                toast.success('Redirigiendo a la pasarela de pago...');
+                toast.success(t('subscribe.redirectingToGateway'));
                 window.location.href = data.subscribe_url;
             } else {
-                toast.error('No se pudo generar la URL de pago. Contacta al administrador.');
+                toast.error(t('subscribe.paymentUrlError'));
             }
         },
         onError: (error: any) => {
-            toast.error(error?.response?.data?.error || 'Error al iniciar el proceso de suscripción.');
+            toast.error(error?.response?.data?.error || t('subscribe.subscriptionError'));
         },
     });
 
@@ -71,11 +73,10 @@ export default function SubscribePage() {
                     <Sparkles className="h-7 w-7 text-primary" />
                 </div>
                 <h1 className="text-4xl font-bold tracking-tight">
-                    Activa tu Licencia
+                    {t('subscribe.title')}
                 </h1>
                 <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                    Para acceder a todas las herramientas de automatización, CRM e Inteligencia Artificial,
-                    selecciona el plan que mejor se adapte a tu negocio.
+                    {t('subscribe.subtitle')}
                 </p>
             </div>
 
@@ -88,11 +89,15 @@ export default function SubscribePage() {
                             className="flex flex-col relative overflow-hidden border-2 hover:border-primary/50 transition-colors"
                         >
                             {plan.is_default && (
-                                <Badge className="absolute top-3 right-3">Recomendado</Badge>
+                                <Badge className="absolute top-3 right-3">{t('common.recommended')}</Badge>
                             )}
                             <CardHeader>
-                                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                                <CardDescription>{plan.description}</CardDescription>
+                                <CardTitle className="text-xl">
+                                    {t(`planNames.${plan.name}`, plan.name)}
+                                </CardTitle>
+                                <CardDescription>
+                                    {t(`planDescriptions.${plan.name}`, plan.description || '')}
+                                </CardDescription>
                             </CardHeader>
                             <CardContent className="flex-1">
                                 <div className="mb-6 flex items-baseline gap-1">
@@ -100,7 +105,7 @@ export default function SubscribePage() {
                                         ${plan.price_monthly}
                                     </span>
                                     <span className="text-sm text-muted-foreground">
-                                        {plan.currency} / mes
+                                        {plan.currency} {t('common.perMonth')}
                                     </span>
                                 </div>
                                 {plan.features && (
@@ -109,7 +114,11 @@ export default function SubscribePage() {
                                             <li key={key} className="flex items-center text-sm">
                                                 <Check className="mr-2 h-4 w-4 text-green-500 shrink-0" />
                                                 <span className="capitalize">
-                                                    {key.replace(/_/g, ' ')}: {String(value)}
+                                                    {t(`planFeatures.${key.replace(/ /g, '_')}`, key.replace(/_/g, ' '))}: {
+                                                        typeof value === 'boolean' 
+                                                            ? t(`planFeatures.${value}`) 
+                                                            : String(value)
+                                                    }
                                                 </span>
                                             </li>
                                         ))}
@@ -126,12 +135,12 @@ export default function SubscribePage() {
                                     {subscribeMutation.isPending && selectedPlanId === plan.id ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Redirigiendo...
+                                            {t('subscribe.redirecting')}
                                         </>
                                     ) : (
                                         <>
                                             <CreditCard className="mr-2 h-4 w-4" />
-                                            Suscribirse
+                                            {t('subscribe.subscribeButton')}
                                         </>
                                     )}
                                 </Button>
@@ -142,7 +151,7 @@ export default function SubscribePage() {
             ) : (
                 <Card className="p-12 text-center">
                     <p className="text-muted-foreground text-lg">
-                        No hay planes disponibles en este momento. Contacta al administrador de la plataforma.
+                        {t('subscribe.noPlans')}
                     </p>
                 </Card>
             )}
@@ -154,10 +163,9 @@ export default function SubscribePage() {
                         <ShieldCheck className="h-8 w-8 text-primary" />
                     </div>
                     <div className="space-y-2">
-                        <h3 className="text-lg font-semibold">Pago Seguro con dLocal Go</h3>
+                        <h3 className="text-lg font-semibold">{t('subscribe.securePaymentTitle')}</h3>
                         <p className="text-muted-foreground">
-                            Todos los pagos son procesados de forma segura a través de dLocal Go, la pasarela de pagos líder en Latinoamérica.
-                            Tu información financiera nunca se almacena en nuestros servidores.
+                            {t('subscribe.securePaymentDescription')}
                         </p>
                     </div>
                 </CardContent>

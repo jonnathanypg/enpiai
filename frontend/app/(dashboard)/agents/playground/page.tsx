@@ -18,7 +18,10 @@ interface ChatMessage {
     timestamp: Date;
 }
 
+import { useTranslation } from 'react-i18next';
+
 export default function PlaygroundPage() {
+    const { t } = useTranslation();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -50,7 +53,7 @@ export default function PlaygroundPage() {
                 data?.choices?.[0]?.message?.content ||
                 data?.data?.content ||
                 data?.content ||
-                'No response received.';
+                t('playground.noResponse', { defaultValue: 'No response received.' });
 
             const assistantMsg: ChatMessage = {
                 id: `assistant-${Date.now()}`,
@@ -65,9 +68,8 @@ export default function PlaygroundPage() {
                 (error as { response?: { data?: { error?: { message?: string }; error_message?: string } } })
                     ?.response?.data?.error?.message ||
                 (error as { response?: { data?: { error_message?: string } } })?.response?.data?.error_message ||
-                'Failed to get response from agent';
+                t('common.error', { defaultValue: 'Failed to get response' });
             toast.error(message);
-            // Remove the "thinking" indicator
         },
     });
 
@@ -96,7 +98,7 @@ export default function PlaygroundPage() {
 
     const clearChat = () => {
         setMessages([]);
-        toast.info('Conversation history has been reset.');
+        toast.info(t('playground.clearSuccess', { defaultValue: 'Conversation reset.' }));
     };
 
     return (
@@ -106,15 +108,15 @@ export default function PlaygroundPage() {
                 <div>
                     <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
                         <Sparkles className="h-7 w-7 text-primary" />
-                        Agent Playground
+                        {t('playground.title')}
                     </h2>
                     <p className="text-muted-foreground">
-                        Test your AI agent in real-time. Messages are sent to your configured agent.
+                        {t('playground.description')}
                     </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={clearChat} disabled={messages.length === 0}>
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Clear Chat
+                    {t('playground.clearChat')}
                 </Button>
             </div>
 
@@ -123,11 +125,11 @@ export default function PlaygroundPage() {
                 <CardHeader className="border-b px-6 py-3">
                     <CardTitle className="flex items-center gap-2 text-sm font-medium">
                         <Bot className="h-4 w-4 text-primary" />
-                        Live Agent Chat
+                        {t('playground.liveAgentChat')}
                         {chatMutation.isPending && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                Thinking...
+                                {t('common.saving', { defaultValue: 'Thinking...' })}
                             </span>
                         )}
                     </CardTitle>
@@ -138,9 +140,9 @@ export default function PlaygroundPage() {
                     {messages.length === 0 ? (
                         <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
                             <Bot className="mb-4 h-16 w-16 opacity-20" />
-                            <p className="text-lg font-medium">No messages yet</p>
+                            <p className="text-lg font-medium">{t('common.noResults', { defaultValue: 'No messages yet' })}</p>
                             <p className="text-sm">
-                                Send a message to start testing your agent.
+                                {t('playground.startTesting')}
                             </p>
                         </div>
                     ) : (
@@ -211,7 +213,7 @@ export default function PlaygroundPage() {
                     <div className="flex gap-2">
                         <Input
                             ref={inputRef}
-                            placeholder="Type a message to test your agent..."
+                            placeholder={t('playground.typeMessage')}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
@@ -231,7 +233,7 @@ export default function PlaygroundPage() {
                         </Button>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground">
-                        Press Enter to send. This playground uses your configured agent and RAG knowledge base.
+                        {t('playground.helpText')}
                     </p>
                 </div>
             </Card>

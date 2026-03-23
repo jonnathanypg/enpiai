@@ -32,26 +32,28 @@ import { channelsService } from '@/services/channels-service';
 import type { Channel } from '@/types';
 
 // ─── Helpers ───────────────────────────────────────────────────────
+import { useTranslation } from 'react-i18next';
+
 function StatusBadge({ status }: { status: string }) {
+    const { t } = useTranslation();
     if (status === 'active' || status === 'connected') {
         return (
             <Badge variant="outline" className="border-green-500 text-green-600">
-                <CheckCircle2 className="mr-1 h-3 w-3" /> Connected
+                <CheckCircle2 className="mr-1 h-3 w-3" /> {t('channels.connected')}
             </Badge>
         );
     }
     return (
         <Badge variant="outline" className="border-yellow-500 text-yellow-600">
-            <AlertCircle className="mr-1 h-3 w-3" /> Not Connected
+            <AlertCircle className="mr-1 h-3 w-3" /> {t('channels.notConnected')}
         </Badge>
     );
 }
 
-// ─── Page ──────────────────────────────────────────────────────────
 export default function ChannelsPage() {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
 
-    // Existing channels
     const { data: channels, isLoading } = useQuery({
         queryKey: ['channels'],
         queryFn: async () => {
@@ -60,12 +62,10 @@ export default function ChannelsPage() {
         },
     });
 
-    // Derive existing channels by type
     const whatsappChannel = channels?.find((c) => c.channel_type === 'whatsapp');
     const telegramChannel = channels?.find((c) => c.channel_type === 'telegram');
     const emailChannel = channels?.find((c) => c.channel_type === 'email');
 
-    // ── Save / Create Channel ──
     const saveMutation = useMutation({
         mutationFn: async (payload: {
             id?: number;
@@ -90,12 +90,12 @@ export default function ChannelsPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['channels'] });
-            toast.success('Channel saved successfully.');
+            toast.success(t('common.save') + ' ' + t('common.success', { defaultValue: 'Success' }));
         },
         onError: (error: unknown) => {
             const message =
                 (error as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-                'Failed to save channel';
+                t('common.error', { defaultValue: 'Failed to save channel' });
             toast.error(message);
         },
     });
@@ -116,18 +116,15 @@ export default function ChannelsPage() {
             <div>
                 <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
                     <Radio className="h-7 w-7 text-primary" />
-                    Channels
+                    {t('channels.title')}
                 </h2>
                 <p className="text-muted-foreground">
-                    Connect your messaging channels so your AI agent can talk to your
-                    leads automatically.
+                    {t('channels.description')}
                 </p>
             </div>
 
-            {/* ─── WhatsApp ─── */}
             <WhatsAppCard channel={whatsappChannel} />
 
-            {/* ─── Telegram ─── */}
             <TelegramCard
                 channel={telegramChannel}
                 onSave={(token) =>
@@ -141,7 +138,6 @@ export default function ChannelsPage() {
                 isSaving={saveMutation.isPending}
             />
 
-            {/* ─── Email / SMTP ─── */}
             <EmailCard
                 channel={emailChannel}
                 onSave={(creds) =>
@@ -155,16 +151,13 @@ export default function ChannelsPage() {
                 isSaving={saveMutation.isPending}
             />
 
-            {/* ─── Google (Calendar / Gmail) ─── */}
             <GoogleCard />
         </div>
     );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// WhatsApp Card (QR-based via api-whatsapp service)
-// ═══════════════════════════════════════════════════════════════════
 function WhatsAppCard({ channel }: { channel?: Channel }) {
+    const { t } = useTranslation();
     const [isConnecting, setIsConnecting] = useState(false);
     const [qrCode, setQrCode] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState(false);
@@ -172,7 +165,6 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
     const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
 
-    // Check initial WhatsApp status on mount
     useEffect(() => {
         const checkStatus = async () => {
             try {
@@ -186,7 +178,6 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
         checkStatus();
     }, []);
 
-    // Poll for WhatsApp connection status when QR is showing
     useEffect(() => {
         if (!isPolling || !qrCode) return;
 
@@ -198,16 +189,15 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                     setIsPolling(false);
                     setIsConnected(true);
                     if (result.phone) setConnectedPhone(result.phone);
-                    toast.success('WhatsApp connected successfully!');
+                    toast.success(t('common.success', { defaultValue: 'Success' }));
                 } else {
-                    // Try to refresh the QR code in case it expired
                     try {
                         const qrResult = await channelsService.getWhatsAppQR();
                         if (qrResult.qr) {
                             setQrCode(qrResult.qr);
                         }
                     } catch {
-                        // QR might not be ready yet, ignore
+                        // ignore
                     }
                 }
             } catch (error) {
@@ -216,14 +206,13 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
         }, 3000);
 
         return () => clearInterval(interval);
-    }, [isPolling, qrCode]);
+    }, [isPolling, qrCode, t]);
 
     const handleConnect = async () => {
         setIsConnecting(true);
         try {
             await channelsService.initWhatsApp();
 
-            // Wait a bit then fetch QR
             setTimeout(async () => {
                 try {
                     const qrResult = await channelsService.getWhatsAppQR();
@@ -233,13 +222,13 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                     }
                 } catch (error) {
                     console.error('Failed to get QR:', error);
-                    toast.error('Could not generate QR code. Try again.');
+                    toast.error(t('common.error', { defaultValue: 'Error' }));
                 }
                 setIsConnecting(false);
             }, 2500);
         } catch (error) {
             console.error('Failed to init WhatsApp:', error);
-            toast.error('Could not start WhatsApp session. Make sure the service is running.');
+            toast.error(t('common.error', { defaultValue: 'Error' }));
             setIsConnecting(false);
         }
     };
@@ -252,10 +241,10 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
             setIsPolling(false);
             setIsConnected(false);
             setConnectedPhone(null);
-            toast.success('WhatsApp disconnected.');
+            toast.success(t('common.success', { defaultValue: 'Disconnected' }));
         } catch (error) {
             console.error('Failed to disconnect WhatsApp:', error);
-            toast.error('Error disconnecting WhatsApp.');
+            toast.error(t('common.error', { defaultValue: 'Error' }));
         } finally {
             setIsDisconnecting(false);
         }
@@ -275,20 +264,19 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                         <Smartphone className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                        <CardTitle className="text-base">WhatsApp</CardTitle>
-                        <CardDescription>Connect via QR code scan</CardDescription>
+                        <CardTitle className="text-base">{t('channels.whatsappTitle')}</CardTitle>
+                        <CardDescription>{t('channels.whatsappDesc')}</CardDescription>
                     </div>
                 </div>
                 <StatusBadge status={isConnected ? 'connected' : 'inactive'} />
             </CardHeader>
             <CardContent>
                 {isConnected ? (
-                    /* ─── Connected State ─── */
                     <div className="space-y-4">
                         <Alert className="bg-green-500/10 border-green-500/20">
                             <CheckCircle2 className="h-4 w-4 text-green-600" />
                             <AlertDescription className="text-green-700 dark:text-green-400">
-                                WhatsApp is connected.{' '}
+                                {t('channels.connected')}{' '}
                                 {connectedPhone && (
                                     <strong>{connectedPhone}</strong>
                                 )}
@@ -305,15 +293,14 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                             ) : (
                                 <Unplug className="h-4 w-4 mr-2" />
                             )}
-                            {isDisconnecting ? 'Disconnecting...' : 'Disconnect WhatsApp'}
+                            {isDisconnecting ? t('common.saving', { defaultValue: 'Disconnecting...' }) : t('common.delete', { defaultValue: 'Disconnect WhatsApp' })}
                         </Button>
                     </div>
                 ) : qrCode ? (
-                    /* ─── QR Code State ─── */
                     <div className="space-y-4">
                         <div className="text-center">
                             <p className="text-sm text-muted-foreground mb-4">
-                                Scan this QR code with WhatsApp to connect
+                                {t('channels.whatsappDesc')}
                             </p>
                             <div className="bg-white p-4 rounded-lg inline-block shadow-sm border">
                                 <img
@@ -328,7 +315,7 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                             </div>
                             <p className="text-xs text-muted-foreground mt-4 flex items-center justify-center gap-1">
                                 <RefreshCw className="h-3 w-3 animate-spin" />
-                                Waiting for connection...
+                                {t('common.saving', { defaultValue: 'Waiting for connection...' })}
                             </p>
                         </div>
                         <Button
@@ -336,16 +323,15 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                             onClick={handleCancel}
                             className="w-full"
                         >
-                            Cancel
+                            {t('common.cancel', { defaultValue: 'Cancel' })}
                         </Button>
                     </div>
                 ) : (
-                    /* ─── Disconnected State ─── */
                     <div className="space-y-4">
                         <Alert>
                             <XCircle className="h-4 w-4" />
                             <AlertDescription>
-                                WhatsApp is not connected. Connect a number to start receiving messages from your leads.
+                                {t('channels.whatsappNotConnected')}
                             </AlertDescription>
                         </Alert>
                         <Button
@@ -358,7 +344,7 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                             ) : (
                                 <QrCode className="h-4 w-4 mr-2" />
                             )}
-                            {isConnecting ? 'Generating QR...' : 'Connect WhatsApp'}
+                            {isConnecting ? t('common.saving', { defaultValue: 'Generating QR...' }) : t('channels.connectWhatsapp')}
                         </Button>
                     </div>
                 )}
@@ -367,9 +353,6 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
     );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Telegram Card
-// ═══════════════════════════════════════════════════════════════════
 function TelegramCard({
     channel,
     onSave,
@@ -379,6 +362,7 @@ function TelegramCard({
     onSave: (token: string) => void;
     isSaving: boolean;
 }) {
+    const { t } = useTranslation();
     const [token, setToken] = useState('');
 
     return (
@@ -389,24 +373,24 @@ function TelegramCard({
                         <MessageCircle className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                        <CardTitle className="text-base">Telegram</CardTitle>
-                        <CardDescription>Paste your bot token from @BotFather</CardDescription>
+                        <CardTitle className="text-base">{t('channels.telegramTitle')}</CardTitle>
+                        <CardDescription>{t('channels.telegramDesc')}</CardDescription>
                     </div>
                 </div>
                 <StatusBadge status={channel?.status || 'inactive'} />
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor="telegram_token">Bot Token</Label>
+                    <Label htmlFor="telegram_token">{t('common.token', { defaultValue: 'Bot Token' })}</Label>
                     <Input
                         id="telegram_token"
                         type="password"
-                        placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                        placeholder={t('channels.telegramTokenPlaceholder')}
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                        Get your token from{' '}
+                        {t('channels.getTokenHelp')}{' '}
                         <a
                             href="https://t.me/BotFather"
                             target="_blank"
@@ -428,16 +412,13 @@ function TelegramCard({
                     ) : (
                         <Save className="mr-2 h-4 w-4" />
                     )}
-                    {channel ? 'Update Token' : 'Connect Telegram'}
+                    {channel ? t('common.save') : t('channels.connectTelegram')}
                 </Button>
             </CardContent>
         </Card>
     );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Email / SMTP Card
-// ═══════════════════════════════════════════════════════════════════
 function EmailCard({
     channel,
     onSave,
@@ -447,6 +428,7 @@ function EmailCard({
     onSave: (creds: Record<string, string>) => void;
     isSaving: boolean;
 }) {
+    const { t } = useTranslation();
     const [host, setHost] = useState('');
     const [port, setPort] = useState('587');
     const [user, setUser] = useState('');
@@ -460,8 +442,8 @@ function EmailCard({
                         <Mail className="h-5 w-5 text-orange-600" />
                     </div>
                     <div>
-                        <CardTitle className="text-base">Email (SMTP)</CardTitle>
-                        <CardDescription>Send emails from your own address</CardDescription>
+                        <CardTitle className="text-base">{t('channels.emailTitle')}</CardTitle>
+                        <CardDescription>{t('channels.emailDesc')}</CardDescription>
                     </div>
                 </div>
                 <StatusBadge status={channel?.status || 'inactive'} />
@@ -469,7 +451,7 @@ function EmailCard({
             <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                        <Label htmlFor="smtp_host">SMTP Host</Label>
+                        <Label htmlFor="smtp_host">{t('common.host', { defaultValue: 'SMTP Host' })}</Label>
                         <Input
                             id="smtp_host"
                             placeholder="smtp.gmail.com"
@@ -478,7 +460,7 @@ function EmailCard({
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="smtp_port">Port</Label>
+                        <Label htmlFor="smtp_port">{t('common.port', { defaultValue: 'Port' })}</Label>
                         <Input
                             id="smtp_port"
                             placeholder="587"
@@ -487,7 +469,7 @@ function EmailCard({
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="smtp_user">Email / Username</Label>
+                        <Label htmlFor="smtp_user">{t('common.user', { defaultValue: 'Email / Username' })}</Label>
                         <Input
                             id="smtp_user"
                             placeholder="you@gmail.com"
@@ -496,7 +478,7 @@ function EmailCard({
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="smtp_pass">Password / App Password</Label>
+                        <Label htmlFor="smtp_pass">{t('common.password')}</Label>
                         <Input
                             id="smtp_pass"
                             type="password"
@@ -523,17 +505,15 @@ function EmailCard({
                     ) : (
                         <Save className="mr-2 h-4 w-4" />
                     )}
-                    {channel ? 'Update SMTP' : 'Connect Email'}
+                    {channel ? t('common.save') : t('channels.connectEmail')}
                 </Button>
             </CardContent>
         </Card>
     );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Google Card (Calendar / Gmail OAuth)
-// ═══════════════════════════════════════════════════════════════════
 function GoogleCard() {
+    const { t } = useTranslation();
     const { data: settings } = useQuery({
         queryKey: ['distributor-settings'],
         queryFn: async () => {
@@ -551,10 +531,9 @@ function GoogleCard() {
             const { data } = await apiClient.get<{ data: { authorization_url: string } }>(
                 '/auth/google/login'
             );
-            // Open in same window (will redirect back after OAuth)
             window.location.href = data.data.authorization_url;
         } catch {
-            toast.error('Google login is not configured yet. Contact your administrator.');
+            toast.error(t('common.error', { defaultValue: 'Error' }));
         }
     };
 
@@ -583,8 +562,8 @@ function GoogleCard() {
                         </svg>
                     </div>
                     <div>
-                        <CardTitle className="text-base">Google</CardTitle>
-                        <CardDescription>Calendar &amp; Gmail integration</CardDescription>
+                        <CardTitle className="text-base">{t('channels.googleTitle')}</CardTitle>
+                        <CardDescription>{t('channels.googleDesc')}</CardDescription>
                     </div>
                 </div>
                 <StatusBadge status={isConnected ? 'active' : 'inactive'} />
@@ -592,14 +571,12 @@ function GoogleCard() {
             <CardContent>
                 {isConnected ? (
                     <p className="text-sm text-green-600">
-                        ✓ Google account connected. Calendar scheduling and Gmail are
-                        available.
+                        ✓ {t('channels.connected')}
                     </p>
                 ) : (
                     <>
                         <p className="mb-4 text-sm text-muted-foreground">
-                            Connect your Google account to enable automatic meeting
-                            scheduling (Google Calendar) and email sending (Gmail).
+                            {t('channels.googleIntegrationDesc')}
                         </p>
                         <Button onClick={handleGoogleLogin} variant="outline" className="w-full">
                             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -620,7 +597,7 @@ function GoogleCard() {
                                     fill="#EA4335"
                                 />
                             </svg>
-                            Sign in with Google
+                            {t('channels.signInWithGoogle')}
                         </Button>
                     </>
                 )}

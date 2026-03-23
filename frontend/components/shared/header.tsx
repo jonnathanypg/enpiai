@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
 import { Moon, Sun, LogOut, Menu, User as UserIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import {
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/store/use-auth-store';
+import { LanguageSwitcher } from './language-switcher';
 
 interface HeaderProps {
     onMobileMenuToggle: () => void;
@@ -21,6 +23,7 @@ interface HeaderProps {
 
 export function Header({ onMobileMenuToggle }: HeaderProps) {
     const router = useRouter();
+    const { t } = useTranslation();
     const { theme, setTheme } = useTheme();
     const user = useAuthStore((s) => s.user);
     const logout = useAuthStore((s) => s.logout);
@@ -56,6 +59,9 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
 
             {/* Right side actions */}
             <div className="flex items-center gap-2">
+                {/* Language Switcher */}
+                <LanguageSwitcher />
+
                 {/* Theme toggle */}
                 <Button
                     variant="ghost"
@@ -81,12 +87,12 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                     <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={() => router.push('/settings')}>
                             <UserIcon className="mr-2 h-4 w-4" />
-                            Profile
+                            {t('common.profile')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={handleLogout}>
                             <LogOut className="mr-2 h-4 w-4" />
-                            Log out
+                            {t('common.logOut')}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

@@ -3,15 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
     FileText,
     Upload,
     Trash2,
     Loader2,
-    ShieldCheck,
     Globe,
     File,
-    AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -46,6 +45,7 @@ function formatFileSize(bytes: number): string {
 
 export default function AdminDocumentsPage() {
     const router = useRouter();
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const user = useAuthStore((s) => s.user);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,10 +75,10 @@ export default function AdminDocumentsPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-documents'] });
-            toast.success('Document deleted.');
+            toast.success(t('adminDocuments.documentDeleted'));
         },
         onError: () => {
-            toast.error('Failed to delete document.');
+            toast.error(t('adminDocuments.deleteError'));
         },
     });
 
@@ -97,11 +97,11 @@ export default function AdminDocumentsPage() {
             });
 
             queryClient.invalidateQueries({ queryKey: ['admin-documents'] });
-            toast.success(`"${file.name}" uploaded and processing started.`);
+            toast.success(t('adminDocuments.uploadSuccess', { name: file.name }));
         } catch (error: unknown) {
             const message =
                 (error as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-                'Upload failed';
+                t('adminDocuments.uploadError');
             toast.error(message);
         } finally {
             setIsUploading(false);
@@ -112,7 +112,7 @@ export default function AdminDocumentsPage() {
     if (user?.role !== 'super_admin') {
         return (
             <div className="flex h-[50vh] items-center justify-center">
-                <p className="text-lg text-muted-foreground">Access Denied.</p>
+                <p className="text-lg text-muted-foreground">{t('common.accessDenied')}</p>
             </div>
         );
     }
@@ -124,10 +124,10 @@ export default function AdminDocumentsPage() {
                 <div>
                     <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
                         <Globe className="h-7 w-7 text-primary" />
-                        System Knowledge
+                        {t('adminDocuments.title')}
                     </h2>
                     <p className="text-muted-foreground">
-                        Upload documents to the universal RAG memory. All distributor agents will use this knowledge.
+                        {t('adminDocuments.description')}
                     </p>
                 </div>
                 <div>
@@ -148,7 +148,7 @@ export default function AdminDocumentsPage() {
                         ) : (
                             <Upload className="h-4 w-4" />
                         )}
-                        {isUploading ? 'Uploading...' : 'Upload Document'}
+                        {isUploading ? t('adminDocuments.uploading') : t('adminDocuments.uploadButton')}
                     </Button>
                 </div>
             </div>
@@ -159,9 +159,9 @@ export default function AdminDocumentsPage() {
             <Alert className="bg-blue-500/10 border-blue-500/20">
                 <Globe className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-700 dark:text-blue-300">
-                    Documents uploaded here form the <strong>global knowledge base</strong>.
-                    All distributor AI agents will access this information alongside their own private documents.
-                    Supported formats: <strong>PDF, TXT, MD</strong>.
+                    {t('adminDocuments.knowledgeBaseNote')}
+                    {' '}
+                    {t('adminDocuments.supportedFormats')}
                 </AlertDescription>
             </Alert>
 
@@ -177,10 +177,10 @@ export default function AdminDocumentsPage() {
                     <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                         <FileText className="h-12 w-12 text-muted-foreground/40 mb-4" />
                         <p className="text-lg font-medium text-muted-foreground">
-                            No system documents yet
+                            {t('adminDocuments.noDocuments')}
                         </p>
                         <p className="text-sm text-muted-foreground/70 mt-1">
-                            Upload PDF, TXT or MD files to build the universal knowledge base.
+                            {t('adminDocuments.noDocumentsNote')}
                         </p>
                     </CardContent>
                 </Card>
@@ -200,7 +200,7 @@ export default function AdminDocumentsPage() {
                                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
                                             <span>{formatFileSize(doc.file_size)}</span>
                                             <span>·</span>
-                                            <span>{doc.chunk_count} chunks</span>
+                                            <span>{doc.chunk_count} {t('adminDocuments.chunks')}</span>
                                             <span>·</span>
                                             <span>
                                                 {new Date(doc.created_at).toLocaleDateString()}
@@ -213,7 +213,7 @@ export default function AdminDocumentsPage() {
                                                         : 'border-yellow-500 text-yellow-600'
                                                 }
                                             >
-                                                {doc.is_processed ? 'Indexed' : 'Processing'}
+                                                {doc.is_processed ? t('adminDocuments.indexed') : t('adminDocuments.processing')}
                                             </Badge>
                                         </div>
                                     </div>
@@ -223,7 +223,7 @@ export default function AdminDocumentsPage() {
                                     size="icon"
                                     className="text-destructive hover:text-destructive shrink-0"
                                     onClick={() => {
-                                        if (confirm(`Delete "${doc.original_filename}"?`)) {
+                                        if (confirm(t('adminDocuments.deleteConfirm', { name: doc.original_filename }))) {
                                             deleteMutation.mutate(doc.id);
                                         }
                                     }}

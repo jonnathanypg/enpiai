@@ -42,7 +42,10 @@ import {
 import apiClient from '@/lib/api-client';
 import type { WellnessEvaluation } from '@/types';
 
+import { useTranslation } from 'react-i18next';
+
 export default function WellnessPage() {
+    const { t } = useTranslation();
     const { data: evaluations, isLoading } = useQuery({
         queryKey: ['evaluations'],
         queryFn: async () => {
@@ -56,10 +59,10 @@ export default function WellnessPage() {
             return apiClient.post(`/wellness/evaluations/${id}/pdf`);
         },
         onSuccess: () => {
-            toast.success('PDF generation started. Check your details shortly.');
+            toast.success(t('common.success', { defaultValue: 'PDF generation started. Check your details shortly.' }));
         },
         onError: () => {
-            toast.error('Failed to trigger PDF generation.');
+            toast.error(t('common.error', { defaultValue: 'Failed to trigger PDF generation.' }));
         },
     });
 
@@ -70,33 +73,33 @@ export default function WellnessPage() {
     const copyLink = () => {
         if (!shareUrl) return;
         navigator.clipboard.writeText(shareUrl);
-        toast.success('Evaluation link copied to clipboard!');
+        toast.success(t('common.success', { defaultValue: 'Evaluation link copied to clipboard!' }));
     };
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Wellness Center</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">{t('wellness.title')}</h2>
                     <p className="text-muted-foreground">
-                        Manage evaluations and generate health reports.
+                        {t('wellness.description')}
                     </p>
                 </div>
                 {/* Placeholder for future modal */}
                 <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={copyLink}>
-                        <FileText className="mr-2 h-4 w-4" /> Copy Share Link
+                        <FileText className="mr-2 h-4 w-4" /> {t('wellness.copyLink')}
                     </Button>
                     <Button onClick={() => window.open(`/evaluate/${distributorId}`, '_blank')}>
-                        <Activity className="mr-2 h-4 w-4" /> New Evaluation
+                        <Activity className="mr-2 h-4 w-4" /> {t('wellness.newEvaluation')}
                     </Button>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Recent Evaluations</CardTitle>
-                    <CardDescription>A list of all wellness checks submitted by prospects and customers.</CardDescription>
+                    <CardTitle>{t('wellness.recentEvaluations')}</CardTitle>
+                    <CardDescription>{t('wellness.recentEvaluationsDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
@@ -108,17 +111,17 @@ export default function WellnessPage() {
                     ) : evaluations?.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
                             <Activity className="mb-2 h-8 w-8 opacity-20" />
-                            <p>No evaluations found.</p>
+                            <p>{t('common.noResults', { defaultValue: 'No evaluations found.' })}</p>
                         </div>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Contact</TableHead>
-                                    <TableHead>Goal</TableHead>
+                                    <TableHead>{t('common.date')}</TableHead>
+                                    <TableHead>{t('common.contact', { defaultValue: 'Contact' })}</TableHead>
+                                    <TableHead>{t('common.goal', { defaultValue: 'Goal' })}</TableHead>
                                     <TableHead>BMI</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="text-right">{t('common.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -129,7 +132,7 @@ export default function WellnessPage() {
                                         </TableCell>
                                         <TableCell>
                                             <Link href={`/contacts/${ev.lead_id || ev.customer_id}`} className="hover:underline">
-                                                Evaluation #{ev.id}
+                                                {t('wellness.evaluation')} #{ev.id}
                                             </Link>
                                         </TableCell>
                                         <TableCell>{ev.primary_goal}</TableCell>
@@ -146,12 +149,12 @@ export default function WellnessPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
                                                     <DropdownMenuItem onClick={() => generatePdfMutation.mutate(ev.id)}>
-                                                        <FileText className="mr-2 h-4 w-4" /> Generate PDF
+                                                        <FileText className="mr-2 h-4 w-4" /> {t('wellness.generatePdf')}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem>
-                                                        <Link href={`/contacts/${ev.lead_id || ev.customer_id}`}>View Contact</Link>
+                                                        <Link href={`/contacts/${ev.lead_id || ev.customer_id}`}>{t('wellness.viewContact')}</Link>
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>

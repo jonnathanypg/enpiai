@@ -77,6 +77,15 @@ def create_plan():
             logger.warning(f"dLocal Go plan creation skipped: {dlocal_err}")
             
         # 2. Save in DB (always)
+        features = data.get('features', {
+            "analytics_enabled": False,
+            "channels": "whatsapp",
+            "max_agents": 1,
+            "max_documents": 10,
+            "max_leads": 100,
+            "rag_enabled": True
+        })
+        
         new_plan = Plan(
             name=name,
             description=description,
@@ -85,7 +94,8 @@ def create_plan():
             currency=currency,
             dlocal_plan_id=dlocal_plan_id,
             dlocal_plan_token=plan_token,
-            is_active=True
+            is_active=True,
+            features=features
         )
         db.session.add(new_plan)
         db.session.commit()

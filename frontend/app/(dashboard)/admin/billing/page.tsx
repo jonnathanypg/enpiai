@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
     CreditCard,
     Plus,
@@ -62,6 +63,7 @@ interface AdminDistributor {
 
 export default function AdminBillingPage() {
     const router = useRouter();
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const user = useAuthStore((s) => s.user);
     const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
@@ -113,12 +115,12 @@ export default function AdminBillingPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-plans'] });
-            toast.success('Plan creado exitosamente.');
+            toast.success(t('admin.planCreated'));
             setIsPlanDialogOpen(false);
             setPlanData({ name: '', description: '', amount: 29.99, currency: 'USD', frequency_type: 'MONTHLY' });
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Error al crear el plan.');
+            toast.error(error.response?.data?.error || t('admin.planCreateError'));
         }
     });
 
@@ -129,7 +131,7 @@ export default function AdminBillingPage() {
             try {
                 parsedFeatures = JSON.parse(data.features || '{}');
             } catch(e) {
-                throw { response: { data: { error: 'Formato JSON inválido en las características (features)' } } };
+                throw { response: { data: { error: t('admin.invalidFeaturesJson') } } };
             }
             await apiClient.put(`/billing/plans/${id}`, {
                 name: data.name,
@@ -140,11 +142,11 @@ export default function AdminBillingPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-plans'] });
-            toast.success('Plan actualizado.');
+            toast.success(t('admin.planUpdated'));
             setEditingPlanId(null);
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Error al actualizar.');
+            toast.error(error.response?.data?.error || t('admin.planUpdateError'));
         }
     });
 
@@ -155,10 +157,10 @@ export default function AdminBillingPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-plans'] });
-            toast.success('Plan desactivado.');
+            toast.success(t('admin.planDeactivated'));
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Error al eliminar.');
+            toast.error(error.response?.data?.error || t('admin.planDeleteError'));
         }
     });
 
@@ -170,13 +172,13 @@ export default function AdminBillingPage() {
         },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['admin-distributors'] });
-            toast.success('Cuenta de cortesía creada.');
+            toast.success(t('admin.courtesyCreated'));
             setIsCourtesyDialogOpen(false);
             setCourtesyData({ name: '', email: '' });
-            alert(`Cuenta Creada!\nEmail: ${data.email}\nPassword Temporal: ${data.temp_password}\n\nPor favor copia estos datos ahora.`);
+            alert(t('admin.accountCreatedAlert', { email: data.email, password: data.temp_password }));
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Error al crear la cuenta.');
+            toast.error(error.response?.data?.error || t('admin.courtesyCreateError'));
         }
     });
 
@@ -197,10 +199,10 @@ export default function AdminBillingPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-distributors'] });
-            toast.success('Estado de cortesía actualizado.');
+            toast.success(t('admin.courtesyToggled'));
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Error al actualizar cortesía.');
+            toast.error(error.response?.data?.error || t('admin.courtesyToggleError'));
         }
     });
 
@@ -210,7 +212,7 @@ export default function AdminBillingPage() {
             name: plan.name,
             description: plan.description || '',
             price_monthly: plan.price_monthly,
-            features: plan.features ? JSON.stringify(plan.features, null, 2) : '{\n  "analytics enabled": false,\n  "channels": "whatsapp",\n  "max agents": 1,\n  "max documents": 10,\n  "max leads": 100,\n  "rag enabled": true\n}'
+            features: plan.features ? JSON.stringify(plan.features, null, 2) : '{\n  "analytics_enabled": false,\n  "channels": "whatsapp",\n  "max_agents": 1,\n  "max_documents": 10,\n  "max_leads": 100,\n  "rag_enabled": true\n}'
         });
     };
 
@@ -227,7 +229,7 @@ export default function AdminBillingPage() {
     if (user?.role !== 'super_admin') {
         return (
             <div className="flex h-[50vh] items-center justify-center">
-                <p className="text-lg text-muted-foreground">Acceso denegado.</p>
+                <p className="text-lg text-muted-foreground">{t('common.accessDenied')}</p>
             </div>
         );
     }
@@ -239,10 +241,10 @@ export default function AdminBillingPage() {
                 <div>
                     <h2 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
                         <CreditCard className="h-7 w-7 text-primary" />
-                        Facturación y Licencias
+                        {t('admin.billingTitle')}
                     </h2>
                     <p className="text-muted-foreground">
-                        Gestiona los planes de suscripción, la integración con dLocal Go y las cuentas de cortesía.
+                        {t('admin.billingDescription')}
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -251,7 +253,7 @@ export default function AdminBillingPage() {
                         <DialogTrigger asChild>
                             <Button variant="outline" className="gap-2">
                                 <Key className="h-4 w-4" />
-                                Cuenta de Cortesía
+                                {t('admin.courtesyAccount')}
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -260,29 +262,28 @@ export default function AdminBillingPage() {
                                 createCourtesyMutation.mutate(courtesyData);
                             }}>
                                 <DialogHeader>
-                                    <DialogTitle>Crear Cuenta de Cortesía</DialogTitle>
+                                    <DialogTitle>{t('admin.createCourtesyTitle')}</DialogTitle>
                                     <DialogDescription>
-                                        Crea un nuevo distribuidor que podrá usar la plataforma sin pasar por la pasarela de pago.
-                                        Se generará una contraseña temporal.
+                                        {t('admin.createCourtesyDescription')}
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="c-name">Nombre del Distribuidor</Label>
+                                        <Label htmlFor="c-name">{t('admin.distributorName')}</Label>
                                         <Input 
                                             id="c-name" 
-                                            placeholder="Juan Pérez" 
+                                            placeholder="John Doe" 
                                             required 
                                             value={courtesyData.name}
                                             onChange={e => setCourtesyData({...courtesyData, name: e.target.value})}
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="c-email">Correo Electrónico</Label>
+                                        <Label htmlFor="c-email">{t('common.email')}</Label>
                                         <Input 
                                             id="c-email" 
                                             type="email" 
-                                            placeholder="juan@ejemplo.com" 
+                                            placeholder="john@example.com" 
                                             required 
                                             value={courtesyData.email}
                                             onChange={e => setCourtesyData({...courtesyData, email: e.target.value})}
@@ -291,7 +292,7 @@ export default function AdminBillingPage() {
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" disabled={createCourtesyMutation.isPending}>
-                                        {createCourtesyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Crear Cuenta'}
+                                        {createCourtesyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('common.create')}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -303,7 +304,7 @@ export default function AdminBillingPage() {
                         <DialogTrigger asChild>
                             <Button className="gap-2">
                                 <Plus className="h-4 w-4" />
-                                Nuevo Plan
+                                {t('admin.newPlan')}
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -312,35 +313,34 @@ export default function AdminBillingPage() {
                                 createPlanMutation.mutate(planData);
                             }}>
                                 <DialogHeader>
-                                    <DialogTitle>Crear Plan de Suscripción</DialogTitle>
+                                    <DialogTitle>{t('admin.createPlanTitle')}</DialogTitle>
                                     <DialogDescription>
-                                        Se intentará sincronizar el plan con dLocal Go automáticamente.
-                                        Si las credenciales no están configuradas, el plan se guardará localmente.
+                                        {t('admin.createPlanDescription')}
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="p-name">Nombre del Plan</Label>
+                                        <Label htmlFor="p-name">{t('admin.planName')}</Label>
                                         <Input 
                                             id="p-name" 
-                                            placeholder="Licencia Personal" 
+                                            placeholder={t('admin.planNamePlaceholder')} 
                                             required 
                                             value={planData.name}
                                             onChange={e => setPlanData({...planData, name: e.target.value})}
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="p-desc">Descripción</Label>
+                                        <Label htmlFor="p-desc">{t('admin.planDescription')}</Label>
                                         <Textarea 
                                             id="p-desc" 
-                                            placeholder="Acceso completo para 1 distribuidor..." 
+                                            placeholder={t('admin.planDescriptionPlaceholder')} 
                                             value={planData.description}
                                             onChange={e => setPlanData({...planData, description: e.target.value})}
                                         />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="grid gap-2">
-                                            <Label htmlFor="p-amount">Precio Mensual (USD)</Label>
+                                            <Label htmlFor="p-amount">{t('admin.monthlyPrice')}</Label>
                                             <Input 
                                                 id="p-amount" 
                                                 type="number" 
@@ -351,14 +351,14 @@ export default function AdminBillingPage() {
                                             />
                                         </div>
                                         <div className="grid gap-2">
-                                            <Label>Frecuencia</Label>
-                                            <Badge variant="secondary" className="w-fit mt-2">MENSUAL</Badge>
+                                            <Label>{t('admin.frequency')}</Label>
+                                            <Badge variant="secondary" className="w-fit mt-2">{t('admin.monthly')}</Badge>
                                         </div>
                                     </div>
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" disabled={createPlanMutation.isPending}>
-                                        {createPlanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Crear Plan'}
+                                        {createPlanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('admin.createPlanButton')}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -372,10 +372,10 @@ export default function AdminBillingPage() {
                 <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
                         <Package className="h-5 w-5" />
-                        Planes de Suscripción
+                        {t('admin.plansTitle')}
                     </CardTitle>
                     <CardDescription>
-                        Todos los planes disponibles. Los inactivos no se mostrarán a los distribuidores.
+                        {t('admin.plansDescription')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -385,18 +385,18 @@ export default function AdminBillingPage() {
                         </div>
                     ) : !plans?.length ? (
                         <div className="text-center py-12 text-muted-foreground">
-                            No hay planes creados aún. Haz clic en &quot;Nuevo Plan&quot; para comenzar.
+                            {t('admin.noPlans')}
                         </div>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Nombre</TableHead>
-                                    <TableHead>Descripción</TableHead>
-                                    <TableHead>Precio</TableHead>
-                                    <TableHead>dLocal Token</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
+                                    <TableHead>{t('common.name')}</TableHead>
+                                    <TableHead>{t('common.description')}</TableHead>
+                                    <TableHead>{t('common.price')}</TableHead>
+                                    <TableHead>{t('admin.dLocalToken')}</TableHead>
+                                    <TableHead>{t('common.status')}</TableHead>
+                                    <TableHead className="text-right">{t('common.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -409,7 +409,7 @@ export default function AdminBillingPage() {
                                                     onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                                                     className="h-8 w-40"
                                                 />
-                                            ) : plan.name}
+                                            ) : t(`planNames.${plan.name}`, plan.name)}
                                         </TableCell>
                                         <TableCell className="max-w-[300px]">
                                             {editingPlanId === plan.id ? (
@@ -418,22 +418,30 @@ export default function AdminBillingPage() {
                                                         value={editData.description}
                                                         onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                                                         className="h-8"
-                                                        placeholder="Descripción breve..."
+                                                        placeholder={t('admin.shortDescription')}
                                                     />
                                                     <Textarea
                                                         value={editData.features}
                                                         onChange={(e) => setEditData({ ...editData, features: e.target.value })}
                                                         className="min-h-[140px] font-mono text-[10px]"
-                                                        placeholder='{"rag enabled": true}'
+                                                        placeholder='{"rag_enabled": true}'
                                                     />
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="truncate block">{plan.description || '—'}</span>
+                                                    <span className="truncate block">
+                                                        {t(`planDescriptions.${plan.name}`, plan.description || '—')}
+                                                    </span>
                                                     {plan.features && (
-                                                        <pre className="text-[10px] text-muted-foreground bg-secondary/30 p-2 rounded mt-1 overflow-x-auto max-w-[280px]">
-                                                            {JSON.stringify(plan.features, null, 2)}
-                                                        </pre>
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {Object.entries(plan.features as any).map(([k, v]) => (
+                                                                <Badge key={k} variant="outline" className="text-[10px] py-0 h-5 px-1.5 font-normal">
+                                                                    {t(`planFeatures.${k.replace(/ /g, '_')}`, k.replace(/_/g, ' '))}: {
+                                                                        typeof v === 'boolean' ? t(`planFeatures.${v}`) : String(v)
+                                                                    }
+                                                                </Badge>
+                                                            ))}
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
@@ -447,17 +455,17 @@ export default function AdminBillingPage() {
                                                     onChange={(e) => setEditData({ ...editData, price_monthly: parseFloat(e.target.value) })}
                                                     className="h-8 w-24"
                                                 />
-                                            ) : `$${plan.price_monthly}/mes`}
+                                            ) : `$${plan.price_monthly}${t('common.perMonth')}`}
                                         </TableCell>
                                         <TableCell className="font-mono text-xs opacity-60">
                                             {plan.dlocal_plan_token
                                                 ? `${plan.dlocal_plan_token.substring(0, 12)}...`
-                                                : <span className="text-yellow-600">Local</span>
+                                                : <span className="text-yellow-600">{t('admin.local')}</span>
                                             }
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={plan.is_active ? "default" : "secondary"}>
-                                                {plan.is_active ? 'Activo' : 'Inactivo'}
+                                                {plan.is_active ? t('common.active') : t('common.inactive')}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -500,7 +508,7 @@ export default function AdminBillingPage() {
                                                             variant="ghost"
                                                             className="h-8 w-8 text-destructive hover:text-destructive"
                                                             onClick={() => {
-                                                                if (confirm(`¿Desactivar el plan "${plan.name}"?`)) {
+                                                                if (confirm(t('admin.deactivatePlanConfirm', { name: plan.name }))) {
                                                                     deletePlanMutation.mutate(plan.id);
                                                                 }
                                                             }}
@@ -525,10 +533,10 @@ export default function AdminBillingPage() {
                 <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
                         <Users className="h-5 w-5" />
-                        Distribuidores y Accesos
+                        {t('admin.distributorsTitle')}
                     </CardTitle>
                     <CardDescription>
-                        Gestiona el acceso de todos los distribuidores registrados. Puedes otorgar o revocar la membresía de cortesía manualmente.
+                        {t('admin.distributorsDescription')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -538,17 +546,17 @@ export default function AdminBillingPage() {
                         </div>
                     ) : !distributors?.length ? (
                         <div className="text-center py-12 text-muted-foreground">
-                            No hay distribuidores registrados aún.
+                            {t('admin.noDistributors')}
                         </div>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Distribuidor</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Plan Actual</TableHead>
-                                    <TableHead>Suscripción</TableHead>
-                                    <TableHead className="text-right">Licencia Cortesía</TableHead>
+                                    <TableHead>{t('admin.distributor')}</TableHead>
+                                    <TableHead>{t('common.email')}</TableHead>
+                                    <TableHead>{t('admin.currentPlan')}</TableHead>
+                                    <TableHead>{t('admin.subscription')}</TableHead>
+                                    <TableHead className="text-right">{t('admin.courtesyLicense')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -557,7 +565,7 @@ export default function AdminBillingPage() {
                                         <TableCell>
                                             <div className="font-medium">{dist.name}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                Registrado: {new Date(dist.created_at).toLocaleDateString()}
+                                                {t('admin.registered')}: {new Date(dist.created_at).toLocaleDateString()}
                                             </div>
                                         </TableCell>
                                         <TableCell>{dist.user_email || '—'}</TableCell>
@@ -570,9 +578,9 @@ export default function AdminBillingPage() {
                                         </TableCell>
                                         <TableCell>
                                             {dist.subscription_active ? (
-                                                <Badge className="bg-green-500 tracking-wide text-[10px] uppercase">Activa</Badge>
+                                                <Badge className="bg-green-500 tracking-wide text-[10px] uppercase">{t('common.active')}</Badge>
                                             ) : (
-                                                <Badge variant="secondary" className="tracking-wide text-[10px] uppercase">Inactiva</Badge>
+                                                <Badge variant="secondary" className="tracking-wide text-[10px] uppercase">{t('common.inactive')}</Badge>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -603,17 +611,16 @@ export default function AdminBillingPage() {
                     <CardHeader>
                         <CardTitle className="text-sm flex items-center gap-2 text-green-700">
                             <ShieldCheck className="h-4 w-4" />
-                            Estado de Integración
+                            {t('admin.integrationStatus')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-2">
                             <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            <span className="font-medium">dLocal Go API Configurada</span>
+                            <span className="font-medium">{t('admin.dLocalConfigured')}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                            El sistema se comunica con el entorno configurado en tu archivo .env.
-                            Si las credenciales no están completas, los planes se guardarán solo localmente.
+                            {t('admin.integrationNote')}
                         </p>
                     </CardContent>
                 </Card>
@@ -622,13 +629,12 @@ export default function AdminBillingPage() {
                     <CardHeader>
                         <CardTitle className="text-sm flex items-center gap-2 text-blue-700">
                             <Users className="h-4 w-4" />
-                            Cuentas de Cortesía
+                            {t('admin.courtesyTitle')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm">
-                            Las cuentas de cortesía evitan el proceso de pago completamente. 
-                            Útil para VIPs, pruebas internas o distribuidores en periodo de gracia.
+                            {t('admin.courtesyNote')}
                         </p>
                     </CardContent>
                 </Card>

@@ -12,14 +12,14 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import type { Lead } from '@/types';
+import { TFunction } from 'i18next';
 
-export const columns: ColumnDef<Lead>[] = [
+export const getColumns = (t: TFunction): ColumnDef<Lead>[] => [
     {
         accessorKey: 'name',
-        header: 'Name',
+        header: t('common.name'),
         cell: ({ row }) => {
             const lead = row.original;
             let fullName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim();
@@ -38,14 +38,14 @@ export const columns: ColumnDef<Lead>[] = [
     },
     {
         accessorKey: 'status',
-        header: 'Status',
+        header: t('common.status'),
         cell: ({ row }) => {
             const status = row.getValue('status') as string;
             const variant =
                 status === 'qualified'
                     ? 'default'
                     : status === 'converted'
-                        ? 'outline' // Green? Shadcn default doesn't have success.
+                        ? 'outline'
                         : 'secondary';
 
             return <Badge variant={variant} className="capitalize">{status}</Badge>;
@@ -73,7 +73,7 @@ export const columns: ColumnDef<Lead>[] = [
     },
     {
         accessorKey: 'source',
-        header: 'Source',
+        header: t('admin.distributor'),
         cell: ({ row }) => <div className="capitalize">{row.getValue('source')}</div>,
     },
     {
@@ -85,18 +85,18 @@ export const columns: ColumnDef<Lead>[] = [
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
+                            <span className="sr-only">{t('common.actions')}</span>
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(lead.phone || '')}>
-                            <Phone className="mr-2 h-4 w-4" /> Copy Phone
+                            <Phone className="mr-2 h-4 w-4" /> {t('common.save')} Phone
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <Link href={`/contacts/${lead.id}`}>
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
+                            <DropdownMenuItem>{t('distributorDashboard.viewContacts')}</DropdownMenuItem>
                         </Link>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -104,3 +104,4 @@ export const columns: ColumnDef<Lead>[] = [
         },
     },
 ];
+
