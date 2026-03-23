@@ -16,7 +16,7 @@ jobs:
       - name: Create deployment archive
         run: |
           echo "📦 Creating deployment archive..."
-          tar -czf /tmp/deploy.tar.gz \
+          tar -czf deploy.tar.gz \
             --exclude='node_modules' \
             --exclude='.next' \
             --exclude='venv' \
@@ -27,7 +27,7 @@ jobs:
             --exclude='.DS_Store' \
             --exclude='*.pyc' \
             .
-          echo "Archive size: $(du -h /tmp/deploy.tar.gz | cut -f1)"
+          echo "Archive size: $(du -h deploy.tar.gz | cut -f1)"
 
       - name: Copy archive to Contabo
         uses: appleboy/scp-action@v0.1.4
@@ -35,7 +35,7 @@ jobs:
           host: ${{ secrets.CONTABO_HOST }}
           username: root
           password: ${{ secrets.CONTABO_PASSWORD }}
-          source: "/tmp/deploy.tar.gz"
+          source: "deploy.tar.gz"
           target: "/tmp"
 
       - name: Extract and deploy on Contabo
