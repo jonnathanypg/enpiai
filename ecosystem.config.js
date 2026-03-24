@@ -42,7 +42,8 @@ module.exports = {
         {
             name: "enpiai-whatsapp",
             cwd: "./whatsapp-gateway",
-            script: "run.js",
+            script: "npx",
+            args: "-y @agenticnucleus/whatsapp-multitenant",
             env: {
                 PORT: 3001
             }

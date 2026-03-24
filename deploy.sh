@@ -25,10 +25,20 @@ source venv/bin/activate
 pip install -r requirements.txt
 cd ..
 
-# 3. WhatsApp Gateway (No build needed for npx mode)
+# 3. WhatsApp Gateway (Standalone Mode A via npx)
 echo "📱 Preparing WhatsApp Gateway..."
+mkdir -p whatsapp-gateway
 cd whatsapp-gateway
-# Just ensure .env exists or other setup if needed
+if [ ! -f ".env" ]; then
+    echo "⚠️ Warning: whatsapp-gateway/.env not found. Creating a template..."
+    echo "MYSQL_HOST=localhost" > .env
+    echo "MYSQL_USER=root" >> .env
+    echo "MYSQL_PASSWORD=" >> .env
+    echo "MYSQL_DATABASE=enpiai" >> .env
+    echo "BACKEND_URL=http://localhost:5000" >> .env
+    echo "PORT=3001" >> .env
+    echo "❗️ IMPORTANT: Please edit whatsapp-gateway/.env with your real DB credentials before PM2 starts."
+fi
 cd ..
 
 # 4. Reload Processes
