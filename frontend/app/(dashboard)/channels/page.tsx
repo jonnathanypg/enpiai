@@ -100,6 +100,20 @@ export default function ChannelsPage() {
         },
     });
 
+    const deleteChannelMutation = useMutation({
+        mutationFn: async (channelId: number) => {
+            const { data } = await apiClient.delete(`/channels/${channelId}`);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['channels'] });
+            toast.success(t('channels.disconnected'));
+        },
+        onError: () => {
+            toast.error(t('common.error', { defaultValue: 'Error' }));
+        },
+    });
+
     if (isLoading) {
         return (
             <div className="mx-auto max-w-3xl space-y-6">
@@ -136,6 +150,8 @@ export default function ChannelsPage() {
                     })
                 }
                 isSaving={saveMutation.isPending}
+                onDisconnect={() => telegramChannel?.id && deleteChannelMutation.mutate(telegramChannel.id)}
+                isDisconnecting={deleteChannelMutation.isPending}
             />
 
             <EmailCard
@@ -149,6 +165,8 @@ export default function ChannelsPage() {
                     })
                 }
                 isSaving={saveMutation.isPending}
+                onDisconnect={() => emailChannel?.id && deleteChannelMutation.mutate(emailChannel.id)}
+                isDisconnecting={deleteChannelMutation.isPending}
             />
 
             <GoogleCard />
@@ -357,13 +375,18 @@ function TelegramCard({
     channel,
     onSave,
     isSaving,
+    onDisconnect,
+    isDisconnecting,
 }: {
     channel?: Channel;
     onSave: (token: string) => void;
     isSaving: boolean;
+    onDisconnect: () => void;
+    isDisconnecting: boolean;
 }) {
     const { t } = useTranslation();
     const [token, setToken] = useState('');
+    const isConnected = channel?.status === 'active';
 
     return (
         <Card>
@@ -380,40 +403,66 @@ function TelegramCard({
                 <StatusBadge status={channel?.status || 'inactive'} />
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="telegram_token">{t('common.token', { defaultValue: 'Bot Token' })}</Label>
-                    <Input
-                        id="telegram_token"
-                        type="password"
-                        placeholder={t('channels.telegramTokenPlaceholder')}
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                        {t('channels.getTokenHelp')}{' '}
-                        <a
-                            href="https://t.me/BotFather"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary underline"
+                {isConnected ? (
+                    <div className="space-y-4">
+                        <Alert className="bg-green-500/10 border-green-500/20">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-700 dark:text-green-400">
+                                ✓ {t('channels.connected')}
+                            </AlertDescription>
+                        </Alert>
+                        <Button
+                            variant="destructive"
+                            onClick={onDisconnect}
+                            disabled={isDisconnecting}
+                            className="w-full"
                         >
-                            @BotFather
-                            <ExternalLink className="ml-0.5 inline h-3 w-3" />
-                        </a>
-                    </p>
-                </div>
-                <Button
-                    onClick={() => onSave(token)}
-                    disabled={!token.trim() || isSaving}
-                    className="w-full"
-                >
-                    {isSaving ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                    )}
-                    {channel ? t('common.save') : t('channels.connectTelegram')}
-                </Button>
+                            {isDisconnecting ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Unplug className="h-4 w-4 mr-2" />
+                            )}
+                            {t('channels.disconnect')}
+                        </Button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="space-y-2">
+                            <Label htmlFor="telegram_token">{t('common.token', { defaultValue: 'Bot Token' })}</Label>
+                            <Input
+                                id="telegram_token"
+                                type="password"
+                                placeholder={t('channels.telegramTokenPlaceholder')}
+                                value={token}
+                                onChange={(e) => setToken(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                {t('channels.getTokenHelp')}{' '}
+                                <a
+                                    href="https://t.me/BotFather"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary underline"
+                                >
+                                    @BotFather
+                                    <ExternalLink className="ml-0.5 inline h-3 w-3" />
+                                </a>
+                            </p>
+                        </div>
+                        <Button
+                            onClick={() => onSave(token)}
+                            disabled={!token.trim() || isSaving}
+                            className="w-full"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="mr-2 h-4 w-4" />
+                            )}
+                            {channel ? t('common.save') : t('channels.connectTelegram')}
+                        </Button>
+                    </>
+                )}
             </CardContent>
         </Card>
     );
@@ -423,16 +472,21 @@ function EmailCard({
     channel,
     onSave,
     isSaving,
+    onDisconnect,
+    isDisconnecting,
 }: {
     channel?: Channel;
     onSave: (creds: Record<string, string>) => void;
     isSaving: boolean;
+    onDisconnect: () => void;
+    isDisconnecting: boolean;
 }) {
     const { t } = useTranslation();
     const [host, setHost] = useState('');
     const [port, setPort] = useState('587');
     const [user, setUser] = useState('');
     const [pass, setPass] = useState('');
+    const isConnected = channel?.status === 'active';
 
     return (
         <Card>
@@ -449,64 +503,90 @@ function EmailCard({
                 <StatusBadge status={channel?.status || 'inactive'} />
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="smtp_host">{t('common.host', { defaultValue: 'SMTP Host' })}</Label>
-                        <Input
-                            id="smtp_host"
-                            placeholder="smtp.gmail.com"
-                            value={host}
-                            onChange={(e) => setHost(e.target.value)}
-                        />
+                {isConnected ? (
+                    <div className="space-y-4">
+                        <Alert className="bg-green-500/10 border-green-500/20">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-700 dark:text-green-400">
+                                ✓ {t('channels.connected')}
+                            </AlertDescription>
+                        </Alert>
+                        <Button
+                            variant="destructive"
+                            onClick={onDisconnect}
+                            disabled={isDisconnecting}
+                            className="w-full"
+                        >
+                            {isDisconnecting ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Unplug className="h-4 w-4 mr-2" />
+                            )}
+                            {t('channels.disconnect')}
+                        </Button>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="smtp_port">{t('common.port', { defaultValue: 'Port' })}</Label>
-                        <Input
-                            id="smtp_port"
-                            placeholder="587"
-                            value={port}
-                            onChange={(e) => setPort(e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="smtp_user">{t('common.user', { defaultValue: 'Email / Username' })}</Label>
-                        <Input
-                            id="smtp_user"
-                            placeholder="you@gmail.com"
-                            value={user}
-                            onChange={(e) => setUser(e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="smtp_pass">{t('common.password')}</Label>
-                        <Input
-                            id="smtp_pass"
-                            type="password"
-                            placeholder="••••••••"
-                            value={pass}
-                            onChange={(e) => setPass(e.target.value)}
-                        />
-                    </div>
-                </div>
-                <Button
-                    onClick={() =>
-                        onSave({
-                            smtp_host: host,
-                            smtp_port: port,
-                            smtp_user: user,
-                            smtp_password: pass,
-                        })
-                    }
-                    disabled={!host.trim() || !user.trim() || !pass.trim() || isSaving}
-                    className="w-full"
-                >
-                    {isSaving ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                    )}
-                    {channel ? t('common.save') : t('channels.connectEmail')}
-                </Button>
+                ) : (
+                    <>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="smtp_host">{t('common.host', { defaultValue: 'SMTP Host' })}</Label>
+                                <Input
+                                    id="smtp_host"
+                                    placeholder="smtp.gmail.com"
+                                    value={host}
+                                    onChange={(e) => setHost(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="smtp_port">{t('common.port', { defaultValue: 'Port' })}</Label>
+                                <Input
+                                    id="smtp_port"
+                                    placeholder="587"
+                                    value={port}
+                                    onChange={(e) => setPort(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="smtp_user">{t('common.user', { defaultValue: 'Email / Username' })}</Label>
+                                <Input
+                                    id="smtp_user"
+                                    placeholder="you@gmail.com"
+                                    value={user}
+                                    onChange={(e) => setUser(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="smtp_pass">{t('common.password')}</Label>
+                                <Input
+                                    id="smtp_pass"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={pass}
+                                    onChange={(e) => setPass(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <Button
+                            onClick={() =>
+                                onSave({
+                                    smtp_host: host,
+                                    smtp_port: port,
+                                    smtp_user: user,
+                                    smtp_password: pass,
+                                })
+                            }
+                            disabled={!host.trim() || !user.trim() || !pass.trim() || isSaving}
+                            className="w-full"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="mr-2 h-4 w-4" />
+                            )}
+                            {channel ? t('common.save') : t('channels.connectEmail')}
+                        </Button>
+                    </>
+                )}
             </CardContent>
         </Card>
     );
@@ -514,17 +594,71 @@ function EmailCard({
 
 function GoogleCard() {
     const { t } = useTranslation();
+    const queryClient = useQueryClient();
+
     const { data: settings } = useQuery({
         queryKey: ['distributor-settings'],
         queryFn: async () => {
-            const { data } = await apiClient.get<{ data: { google_credentials?: unknown } }>(
+            const { data } = await apiClient.get<{ data: { google_connected?: boolean; google_calendar_id?: string } }>(
                 '/distributors/settings'
             );
             return data.data;
         },
     });
 
-    const isConnected = !!settings?.google_credentials;
+    const isConnected = !!settings?.google_connected;
+
+    const { data: calendarData, isLoading: isLoadingCalendars } = useQuery({
+        queryKey: ['google-calendars'],
+        queryFn: async () => {
+            const { data } = await apiClient.get<{
+                data: {
+                    calendars: Array<{
+                        id: string;
+                        summary: string;
+                        primary: boolean;
+                        backgroundColor: string;
+                        description: string;
+                    }>;
+                    selected_calendar_id: string | null;
+                };
+            }>('/auth/google/calendars');
+            return data.data;
+        },
+        enabled: isConnected,
+    });
+
+    const selectCalendarMutation = useMutation({
+        mutationFn: async (calendarId: string) => {
+            const { data } = await apiClient.post('/auth/google/calendars/select', {
+                calendar_id: calendarId,
+            });
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['distributor-settings'] });
+            queryClient.invalidateQueries({ queryKey: ['google-calendars'] });
+            toast.success(t('channels.calendarSaved'));
+        },
+        onError: () => {
+            toast.error(t('common.error', { defaultValue: 'Error' }));
+        },
+    });
+
+    const disconnectGoogleMutation = useMutation({
+        mutationFn: async () => {
+            const { data } = await apiClient.post('/auth/google/disconnect');
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['distributor-settings'] });
+            queryClient.invalidateQueries({ queryKey: ['google-calendars'] });
+            toast.success(t('channels.disconnected'));
+        },
+        onError: () => {
+            toast.error(t('common.error', { defaultValue: 'Error' }));
+        },
+    });
 
     const handleGoogleLogin = async () => {
         try {
@@ -537,28 +671,18 @@ function GoogleCard() {
         }
     };
 
+    const selectedId = calendarData?.selected_calendar_id || '';
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
                         <svg className="h-5 w-5" viewBox="0 0 24 24">
-                            <path
-                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                                fill="#4285F4"
-                            />
-                            <path
-                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                                fill="#34A853"
-                            />
-                            <path
-                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                                fill="#FBBC05"
-                            />
-                            <path
-                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                                fill="#EA4335"
-                            />
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                         </svg>
                     </div>
                     <div>
@@ -570,9 +694,60 @@ function GoogleCard() {
             </CardHeader>
             <CardContent>
                 {isConnected ? (
-                    <p className="text-sm text-green-600">
-                        ✓ {t('channels.connected')}
-                    </p>
+                    <div className="space-y-4">
+                        <Alert className="bg-green-500/10 border-green-500/20">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-700 dark:text-green-400">
+                                ✓ {t('channels.connected')}
+                            </AlertDescription>
+                        </Alert>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                            <Label>{t('channels.selectCalendar')}</Label>
+                            <p className="text-xs text-muted-foreground">
+                                {t('channels.selectCalendarDesc')}
+                            </p>
+                            {isLoadingCalendars ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    {t('channels.loadingCalendars')}
+                                </div>
+                            ) : (
+                                <select
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    value={selectedId}
+                                    onChange={(e) => selectCalendarMutation.mutate(e.target.value)}
+                                    disabled={selectCalendarMutation.isPending}
+                                >
+                                    <option value="">{t('channels.selectCalendar')}...</option>
+                                    {calendarData?.calendars?.map((cal) => (
+                                        <option key={cal.id} value={cal.id}>
+                                            {cal.summary}
+                                            {cal.primary ? ` (${t('channels.primaryCalendar')})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+
+                        <Separator />
+
+                        <Button
+                            variant="destructive"
+                            onClick={() => disconnectGoogleMutation.mutate()}
+                            disabled={disconnectGoogleMutation.isPending}
+                            className="w-full"
+                        >
+                            {disconnectGoogleMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Unplug className="h-4 w-4 mr-2" />
+                            )}
+                            {t('channels.disconnectGoogle')}
+                        </Button>
+                    </div>
                 ) : (
                     <>
                         <p className="mb-4 text-sm text-muted-foreground">
@@ -580,22 +755,10 @@ function GoogleCard() {
                         </p>
                         <Button onClick={handleGoogleLogin} variant="outline" className="w-full">
                             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                                <path
-                                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                                    fill="#4285F4"
-                                />
-                                <path
-                                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                                    fill="#34A853"
-                                />
-                                <path
-                                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                                    fill="#FBBC05"
-                                />
-                                <path
-                                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                                    fill="#EA4335"
-                                />
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                             </svg>
                             {t('channels.signInWithGoogle')}
                         </Button>
@@ -605,3 +768,4 @@ function GoogleCard() {
         </Card>
     );
 }
+

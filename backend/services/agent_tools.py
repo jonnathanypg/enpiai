@@ -141,6 +141,24 @@ def register_lead(first_name: str, last_name: str, email: str, phone: str = None
         )
         db.session.add(new_lead)
         db.session.commit()
+
+        # Notify distributor about new lead
+        try:
+            from models.user import User
+            dist_user = User.query.filter_by(distributor_id=distributor.id).first()
+            if dist_user:
+                email_service.send_new_lead_notification(
+                    to_email=dist_user.email,
+                    distributor_name=distributor.name,
+                    lead_name=f"{first_name} {last_name}",
+                    lead_email=email or "",
+                    lead_phone=phone or "",
+                    source="AI Agent Chat",
+                    lang=distributor.language or 'en'
+                )
+        except Exception as mail_err:
+            logger.warning(f"Lead notification email failed (non-blocking): {mail_err}")
+
         return f"Successfully registered lead: {first_name} {last_name}"
     except Exception as e:
         db.session.rollback()

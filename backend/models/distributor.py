@@ -56,6 +56,8 @@ class Distributor(db.Model):
 
     # Google OAuth credentials (per-distributor, via Gmail login)
     google_credentials = db.Column(EncryptedJSON, nullable=True)
+    # Selected Google Calendar ID (defaults to 'primary' if not set)
+    google_calendar_id = db.Column(db.String(255), nullable=True)
 
     # Pinecone RAG Configuration
     pinecone_index = db.Column(db.String(255), nullable=True)
@@ -165,6 +167,8 @@ class Distributor(db.Model):
             'is_courtesy': self.is_courtesy,
             'whatsapp_connected': self.whatsapp_connected,
             'whatsapp_phone': self.whatsapp_phone,
+            'google_connected': self.google_credentials is not None and bool(self.google_credentials),
+            'google_calendar_id': self.google_calendar_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

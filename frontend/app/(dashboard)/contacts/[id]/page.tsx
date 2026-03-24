@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     User,
@@ -33,8 +34,8 @@ import { LeadTimeline } from '@/components/features/lead-timeline';
 import apiClient from '@/lib/api-client';
 import type { UnifiedContact } from '@/types';
 
-export default function UnifiedContactPage({ params }: { params: { id: string } }) {
-    const { id } = params;
+export default function UnifiedContactPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
 
     const { data: contact, isLoading } = useQuery({
         queryKey: ['unified-contact', id],
@@ -57,6 +58,7 @@ export default function UnifiedContactPage({ params }: { params: { id: string } 
 
     const initials = `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`;
     const statusColor = profile.status === 'qualified' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700';
+    const evals = contact.evaluations || [];
 
     return (
         <div className="space-y-6">
@@ -116,7 +118,7 @@ export default function UnifiedContactPage({ params }: { params: { id: string } 
                     </Card>
 
                     {/* Wellness Summary (If available) */}
-                    {contact.evaluations.length > 0 && (
+                    {evals.length > 0 && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
@@ -126,11 +128,11 @@ export default function UnifiedContactPage({ params }: { params: { id: string } 
                             <CardContent className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Latest BMI:</span>
-                                    <span className="font-bold">{contact.evaluations[0].bmi?.toFixed(1)}</span>
+                                    <span className="font-bold">{evals[0].bmi?.toFixed(1) || 'N/A'}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Goal:</span>
-                                    <span>{contact.evaluations[0].primary_goal}</span>
+                                    <span>{evals[0].primary_goal || 'None'}</span>
                                 </div>
                                 <Button variant="link" className="px-0 text-primary">View Full Report</Button>
                             </CardContent>

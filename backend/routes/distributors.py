@@ -112,3 +112,33 @@ def update_agent_persona():
         db.session.rollback()
         logger.error(f"Update agent persona error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@distributors_bp.route('/public/<string:distributor_ref>', methods=['GET'])
+def get_public_profile(distributor_ref):
+    """
+    Get public distributor profile (name, business_name, language).
+    Pivotal for setting the language on the public wellness evaluation form.
+    """
+    try:
+        # Lookup distributor by herbalife_id or db id
+        distributor = None
+        if distributor_ref.isdigit():
+            distributor = Distributor.query.get(int(distributor_ref))
+        if not distributor:
+            distributor = Distributor.query.filter_by(herbalife_id=distributor_ref).first()
+            
+        if not distributor:
+            return jsonify({'error': 'Distributor not found'}), 404
+            
+        public_data = {
+            'id': distributor.id,
+            'name': distributor.name,
+            'business_name': distributor.business_name,
+            'language': distributor.language or 'en'
+        }
+        
+        return jsonify({'data': public_data}), 200
+
+    except Exception as e:
+        logger.error(f"Get public profile error: {e}")
+        return jsonify({'error': str(e)}), 500

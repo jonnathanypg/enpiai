@@ -6,8 +6,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'EnpiAI - Intelligent Workforce',
-  description: 'AI-Powered Business Automation for Herbalife Distributors',
+  title: 'EnpiAI — Asistente IA para Distribuidores Herbalife',
+  description: 'Automatiza tu negocio Herbalife con agentes IA 24/7. Captura leads, realiza evaluaciones de bienestar y agenda citas automáticamente.',
 };
 
 export default function RootLayout({

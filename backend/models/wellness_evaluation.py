@@ -30,6 +30,14 @@ class WellnessEvaluation(db.Model):
     # Calculated
     bmi = db.Column(db.Float, nullable=True)
 
+    # Vital signs (from reference diagnosticador)
+    blood_pressure = db.Column(EncryptedString(50), nullable=True)   # e.g. "120/80"
+    pulse = db.Column(db.Integer, nullable=True)                     # bpm
+    energy_level = db.Column(db.Integer, nullable=True)              # 1-10 scale
+
+    # Symptoms (list of checked symptom labels) — encrypted at rest
+    symptoms = db.Column(EncryptedJSON, nullable=True)   # e.g. ["Headache", "Fatigue"]
+
     # Health & Lifestyle (PHI — encrypted at rest)
     health_conditions = db.Column(EncryptedJSON, nullable=True)   # e.g. ["diabetes", "hypertension"]
     medications = db.Column(EncryptedString(2000), nullable=True)
@@ -53,10 +61,14 @@ class WellnessEvaluation(db.Model):
     sleep_hours = db.Column(db.Float, nullable=True)
     sleep_quality = db.Column(db.String(50), nullable=True)  # poor, fair, good, excellent
 
+    # Observations / free-text notes
+    observations = db.Column(db.Text, nullable=True)
+
     # Source
     source = db.Column(db.String(50), default='web_form')  # web_form, conversational, manual
 
-    # AI-generated recommendations
+    # AI-generated outputs
+    diagnosis = db.Column(db.Text, nullable=True)
     recommendations = db.Column(db.Text, nullable=True)
     recommended_products = db.Column(db.JSON, default=list)
 
@@ -93,18 +105,45 @@ class WellnessEvaluation(db.Model):
         else:
             return 'Obesidad'
 
+    def _resolve_contact_info(self):
+        """Resolve name and email from linked lead or customer."""
+        name = None
+        email = None
+        try:
+            if self.lead_id and self.lead:
+                first = self.lead.first_name or ''
+                last = self.lead.last_name or ''
+                name = f"{first} {last}".strip() or None
+                email = self.lead.email
+            elif self.customer_id and self.customer:
+                first = self.customer.first_name or ''
+                last = self.customer.last_name or ''
+                name = f"{first} {last}".strip() or None
+                email = self.customer.email
+        except Exception:
+            pass
+        return name, email
+
     def to_dict(self):
+        contact_name, contact_email = self._resolve_contact_info()
         return {
             'id': self.id,
             'distributor_id': self.distributor_id,
             'lead_id': self.lead_id,
             'customer_id': self.customer_id,
+            'contact_name': contact_name,
+            'first_name': contact_name,
+            'email': contact_email,
             'age': self.age,
             'gender': self.gender,
             'height_cm': self.height_cm,
             'weight_kg': self.weight_kg,
             'bmi': self.bmi,
             'bmi_category': self.get_bmi_category(),
+            'blood_pressure': self.blood_pressure,
+            'pulse': self.pulse,
+            'energy_level': self.energy_level,
+            'symptoms': self.symptoms,
             'health_conditions': self.health_conditions,
             'medications': self.medications,
             'allergies': self.allergies,
@@ -118,7 +157,9 @@ class WellnessEvaluation(db.Model):
             'motivation': self.motivation,
             'sleep_hours': self.sleep_hours,
             'sleep_quality': self.sleep_quality,
+            'observations': self.observations,
             'source': self.source,
+            'diagnosis': self.diagnosis,
             'recommendations': self.recommendations,
             'recommended_products': self.recommended_products,
             'pdf_report_path': self.pdf_report_path,
