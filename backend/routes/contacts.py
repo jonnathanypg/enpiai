@@ -78,7 +78,7 @@ def get_unified_profile(identifier):
             'customer': None,
             'conversations': [],
             'appointments': [],
-            'wellness_evaluations': [],
+            'evaluations': [],
             'timeline': []
         }
 
@@ -129,6 +129,20 @@ def get_unified_profile(identifier):
                     'summary': f"Appointment: {appt.title} ({appt.status.value})"
                 })
 
+            # Wellness evaluations for lead
+            evals = WellnessEvaluation.query.filter_by(
+                distributor_id=distributor_id,
+                lead_id=lead.id
+            ).order_by(WellnessEvaluation.created_at.desc()).limit(5).all()
+
+            for ev in evals:
+                profile['evaluations'].append(ev.to_dict())
+                timeline.append({
+                    'type': 'wellness_evaluation',
+                    'date': ev.created_at.isoformat() if ev.created_at else None,
+                    'summary': f"Wellness eval — BMI: {ev.bmi}, Goal: {ev.primary_goal}"
+                })
+
         # Customer data
         if customer:
             profile['customer'] = customer.to_dict()
@@ -160,7 +174,7 @@ def get_unified_profile(identifier):
             ).order_by(WellnessEvaluation.created_at.desc()).limit(5).all()
 
             for ev in evals:
-                profile['wellness_evaluations'].append(ev.to_dict())
+                profile['evaluations'].append(ev.to_dict())
                 timeline.append({
                     'type': 'wellness_evaluation',
                     'date': ev.created_at.isoformat() if ev.created_at else None,

@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, User, Building2, Globe, Key, Eye, EyeOff, Copy, Check } from 'lucide-react';
+import { Save, User, Building2, Globe } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
+import { useAuthStore } from '@/store/use-auth-store';
 
 interface DistributorSettings {
     id: number;
@@ -40,8 +41,6 @@ import { useTranslation } from 'react-i18next';
 export default function SettingsPage() {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const [showApiKey, setShowApiKey] = useState(false);
-    const [copied, setCopied] = useState(false);
 
     const { data: settings, isLoading } = useQuery({
         queryKey: ['distributor-settings'],
@@ -50,6 +49,8 @@ export default function SettingsPage() {
             return data.data;
         },
     });
+
+    const updateUser = useAuthStore(state => state.updateUser);
 
     const [form, setForm] = useState<Partial<DistributorSettings>>({});
 
@@ -63,6 +64,15 @@ export default function SettingsPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['distributor-settings'] });
+            
+            // Sync specific globally-needed fields like herbalife_id
+            if (form.herbalife_id !== undefined || form.name !== undefined) {
+                updateUser({
+                    herbalife_id: form.herbalife_id,
+                    name: form.name
+                } as any);
+            }
+            
             toast.success(t('common.success', { defaultValue: 'Settings saved — your profile has been updated.' }));
             setForm({});
         },
@@ -82,14 +92,6 @@ export default function SettingsPage() {
 
     const handleChange = (field: keyof DistributorSettings, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
-    };
-
-    const copyApiKey = async () => {
-        if (settings?.api_key) {
-            await navigator.clipboard.writeText(settings.api_key);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        }
     };
 
     if (isLoading) {
@@ -256,64 +258,6 @@ export default function SettingsPage() {
                             onChange={(e) => handleChange('city', e.target.value)}
                             placeholder="Quito"
                         />
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* API Key */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Key className="h-5 w-5" />
-                        {t('settings.apiAccess')}
-                    </CardTitle>
-                    <CardDescription>
-                        {t('settings.apiAccessDesc')}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                            <Input
-                                readOnly
-                                type={showApiKey ? 'text' : 'password'}
-                                value={settings?.api_key || t('settings.noApiKey')}
-                                className="pr-20 font-mono text-sm"
-                            />
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setShowApiKey(!showApiKey)}
-                            title={showApiKey ? t('common.hide') : t('common.show')}
-                        >
-                            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={copyApiKey}
-                            title={t('common.copy')}
-                            disabled={!settings?.api_key}
-                        >
-                            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                    </div>
-                    <Separator className="my-4" />
-                    <div className="rounded-lg bg-muted/50 p-4">
-                        <p className="text-sm text-muted-foreground">
-                            <strong>{t('settings.endpoint')}:</strong>{' '}
-                            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                                {typeof window !== 'undefined' ? window.location.origin.replace(':3000', ':5000') : 'http://localhost:5000'}
-                                /api/openai-compat/v1/chat/completions
-                            </code>
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            <strong>{t('settings.header')}:</strong>{' '}
-                            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                                Authorization: Bearer {'<your-api-key>'}
-                            </code>
-                        </p>
                     </div>
                 </CardContent>
             </Card>

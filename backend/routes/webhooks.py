@@ -17,6 +17,12 @@ from models.channel import Channel, ChannelType
 
 logger = logging.getLogger(__name__)
 
+# Import email service for notifications
+try:
+    from services.email_service import email_service
+except ImportError:
+    email_service = None
+
 webhooks_bp = Blueprint('webhooks', __name__)
 
 
@@ -333,8 +339,27 @@ def dlocal_webhook():
                     
                     if status in ['CONFIRMED', 'COMPLETED', 'ACTIVE']:
                         distributor.subscription_active = True
+                        # Send subscription activated email
+                        if email_service:
+                            try:
+                                user = None
+                                from models.user import User
+                                user = User.query.filter_by(distributor_id=distributor_id).first()
+                                if user:
+                                    email_service.send_subscription_activated(user.email, distributor.name, lang=distributor.language or 'en')
+                            except Exception as mail_err:
+                                logger.warning(f"Subscription activated email failed: {mail_err}")
                     elif status in ['DECLINED', 'CANCELLED', 'INACTIVE', 'PAST_DUE']:
                         distributor.subscription_active = False
+                        # Send subscription deactivated email
+                        if email_service:
+                            try:
+                                from models.user import User
+                                user = User.query.filter_by(distributor_id=distributor_id).first()
+                                if user:
+                                    email_service.send_subscription_deactivated(user.email, distributor.name, reason=status, lang=distributor.language or 'en')
+                            except Exception as mail_err:
+                                logger.warning(f"Subscription deactivated email failed: {mail_err}")
                         
                     db.session.commit()
                     return jsonify({'status': 'processed'}), 200

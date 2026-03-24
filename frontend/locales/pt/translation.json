@@ -14,6 +14,8 @@
     "status": "Status",
     "active": "Ativo",
     "inactive": "Inativo",
+    "yes": "Sim",
+    "no": "Não",
     "name": "Nome",
     "description": "Descrição",
     "price": "Preço",
@@ -85,7 +87,25 @@
     "securePaymentDescription": "Todos os pagamentos são processados de forma segura através do dLocal Go, o gateway de pagamentos líder na América Latina. Suas informações financeiras nunca são armazenadas em nossos servidores.",
     "redirectingToGateway": "Redirecionando para o gateway de pagamento...",
     "paymentUrlError": "Não foi possível gerar a URL de pagamento. Entre em contato com o administrador.",
-    "subscriptionError": "Erro ao iniciar o processo de assinatura."
+    "subscriptionError": "Erro ao iniciar o processo de assinatura.",
+    "membership": {
+      "title": "Minha Assinatura",
+      "subtitle": "Gerencie os detalhes da sua assinatura ativa e licença.",
+      "activePlan": "Plano Ativo",
+      "status": "Status",
+      "startDate": "Ativado em",
+      "nextBilling": "Próxima cobrança em",
+      "courtesy": "Licença de Cortesia",
+      "active": "Ativa",
+      "pending": "Pendente",
+      "pastDue": "Pagamento Atrasado",
+      "cancelled": "Cancelada",
+      "upgrade": "Melhorar Plano",
+    "backToMembership": "Voltar para Assinatura",
+      "cancel": "Cancelar Assinatura",
+      "features": "Recursos Incluídos",
+      "noExpiry": "Sem Expiração"
+    }
   },
   "admin": {
     "billingTitle": "Faturamento e Licenças",
@@ -208,7 +228,7 @@
     "last24h": "Nas últimas 24h",
     "leadsToCustomers": "Prospectos a Clientes",
     "communicationChannels": "Canais de Comunicação",
-    "noChannels": "Nenhum canal conectado ainda.",
+    "noChannels": "Nenhum canal conectado aún.",
     "connectChannels": "Conectar WhatsApp/Telegram",
     "quickActions": "Ações Rápidas",
     "testAgent": "Testar Agente IA",
@@ -226,7 +246,7 @@
     "title": "Configuração do Agente",
     "description": "Personalize seu assistente de IA. Estas configurações definem como o agente se apresenta e se comporta nas conversas com seus prospectos.",
     "profileTitle": "Perfil do Assistente",
-    "profileDescription": "Dê um nome e personalidade ao seu agente. Ambos os campos são opcionais — o agente funciona perfeitamente com as configurações padrão.",
+    "profileDescription": "Dê um nome e personalidade ao seu agente. Ambos os campos son opcionales — o agente funciona perfeitamente com as configurações padrão.",
     "agentName": "Nome do Agente",
     "agentNameLabel": "Assistente",
     "agentNameHelp": "O nome que seu agente usará ao cumprimentar os clientes. Deixe em branco para o padrão \"Assistente\".",
@@ -255,7 +275,15 @@
     "connectTelegram": "Conectar Telegram",
     "connectEmail": "Conectar E-mail",
     "googleIntegrationDesc": "Conecte sua conta do Google para ativar o agendamento automático de reuniões (Google Calendar) e o envio de e-mails (Gmail).",
-    "signInWithGoogle": "Entrar com o Google"
+    "signInWithGoogle": "Entrar com o Google",
+    "selectCalendar": "Selecionar Calendário",
+    "selectCalendarDesc": "Escolha qual calendário seu agente de IA usará para agendamentos:",
+    "calendarSaved": "Calendário salvo com sucesso",
+    "loadingCalendars": "Carregando calendários...",
+    "primaryCalendar": "Principal",
+    "disconnectGoogle": "Desconectar Google",
+    "disconnect": "Desconectar",
+    "disconnected": "Desconectado com sucesso"
   },
   "documents": {
     "title": "Base de Conhecimento",
@@ -270,9 +298,10 @@
     "title": "Centro de Bem-estar",
     "description": "Gerencie avaliações e gere relatórios de saúde.",
     "copyShareLink": "Copiar Link de Compartilhamento",
-    "newEvaluation": "Nueva Evaluación",
+    "newEvaluation": "Nova Avaliação",
+    "copyLink": "Copiar Link",
     "recentEvaluations": "Avaliações Recentes",
-    "recentEvaluationsDesc": "Uma lista de todos los chequeos de bienestar enviados por prospectos y clientes.",
+    "recentEvaluationsDesc": "Uma lista de todos os exames de bem-estar enviados por prospectos e clientes.",
     "noEvaluations": "Nenhuma avaliação encontrada.",
     "evaluation": "Avaliação",
     "generatePdf": "Gerar PDF",
@@ -318,5 +347,211 @@
     "noApiKey": "Nenhuma chave API gerada",
     "endpoint": "Endpoint",
     "header": "Cabeçalho"
+  },
+  "home": {
+    "nav": {
+      "features": "Recursos",
+      "howItWorks": "Como Funciona",
+      "pricing": "Assinatura"
+    },
+    "hero": {
+      "badge": "Para Distribuidores Independentes Herbalife",
+      "title": "Seu Assistente Virtual",
+      "titleAccent": "Potencializado por IA",
+      "description": "Automatize a captura de leads, atendimento ao cliente, agenda e avaliações de bem-estar — tudo com agentes de IA que trabalham 24/7 para o seu negócio Herbalife via WhatsApp e Telegram.",
+      "cta": "Ativar Licença",
+      "signIn": "Entrar",
+      "trustNoCard": "Soberania Total de Dados",
+      "trustSetup": "Configuração em 5 minutos",
+      "trustChannels": "Pronto para WhatsApp e Telegram"
+    },
+    "features": {
+      "badge": "RECURSOS DA PLATAFORMA",
+      "title": "Tudo o que Você Precisa para",
+      "titleAccent": "Crescer",
+      "description": "Uma suíte completa de ferramentas de IA projetada especificamente para distribuidores independentes Herbalife.",
+      "items": {
+        "agents": {
+          "title": "Agentes Virtuais de IA",
+          "description": "Agentes de IA personalizáveis que gerenciam conversas no WhatsApp e Telegram 24 horas por dia."
+        },
+        "channels": {
+          "title": "Mensagens Multicanal",
+          "description": "Conecte WhatsApp, Telegram e Web Chat em um só lugar."
+        },
+        "wellness": {
+          "title": "Avaliações de Bem-estar",
+          "description": "Compartilhe um link personalizado para que os prospects concluam a avaliação. Obtenha relatórios de IMC automaticamente."
+        },
+        "crm": {
+          "title": "CRM e Gestão de Leads",
+          "description": "Acompanhe cada prospect. Sua IA captura dados de leads automaticamente das conversas."
+        },
+        "scheduling": {
+          "title": "Agendamento Inteligente",
+          "description": "Google Calendar integrado. Seu agente de IA pode verificar disponibilidade e agendar reuniões."
+        },
+        "knowledge": {
+          "title": "Base de Conhecimento (RAG)",
+          "description": "Faça upload de seus catálogos de produtos e listas de preços. Seu agente responde com precisão."
+        }
+      }
+    },
+    "howItWorks": {
+      "badge": "COMO FUNCIONA",
+      "title": "Pronto e Funcionando em",
+      "titleAccent": "Minutos",
+      "steps": {
+        "step1": {
+          "title": "Crie Sua Conta",
+          "description": "Inscreva-se em segundos. Seu agente de IA personalizado é criado automaticamente."
+        },
+        "step2": {
+          "title": "Treine Seu Agente",
+          "description": "Envie seus documentos Herbalife e conecte o WhatsApp. Seu agente aprende instantaneamente."
+        },
+        "step3": {
+          "title": "Cresça no Piloto Automático",
+          "description": "Sua IA gerencia consultas, captura leads e envia avaliações de bem-estar — 24/7."
+        }
+      }
+    },
+    "stats": {
+      "alwaysAvailable": "Sempre Ativo",
+      "channels": "Mais Prospecção",
+      "setupTime": "Tempo Economizado Semanal",
+      "conversations": "Privacidade Total"
+    },
+    "security": {
+      "badge": "SEGURANÇA E PRIVACIDADE",
+      "title": "Seus Dados,",
+      "titleAccent": "Suas Regras",
+      "description": "Levamos a soberania dos dados a sério. Seus dados de clientes são criptografados de ponta a ponta e cada distribuidor possui dados isolados.",
+      "encryption": {
+        "title": "Criptografia de Ponta a Ponta",
+        "description": "Todos os dados PII criptografados no nível da aplicação antes do armazenamento."
+      },
+      "isolation": {
+        "title": "Isolamento Multi-tenant",
+        "description": "Os dados de cada distribuidor são completamente separados."
+      },
+      "i18n": {
+        "title": "Suporte Multilíngue",
+        "description": "Suporte total da plataforma para inglês, espanhol e português."
+      },
+      "mockup": {
+        "agentName": "Agente IA",
+        "agentGreeting": "Olá! Sou seu assistente virtual Herbalife. Como posso ajudá-lo?",
+        "customerName": "Cliente",
+        "customerQuery": "Quero informações sobre os shakes de proteína",
+        "agentResponse": "Excelente! Temos a Fórmula 1 com 21 vitaminas e minerais...",
+        "leadCaptured": "Lead Capturado Automaticamente",
+        "leadDetails": "Lead salvo • Notificação por email enviada • CRM atualizado ✓"
+      }
+    },
+    "cta": {
+      "badge": "COMECE HOJE MESMO",
+      "title": "Pronto para Automatizar seu",
+      "titleAccent": "Negócio Herbalife?",
+      "description": "Junte-se a milhares de distribuidores independentes Herbalife que estão usando IA para crescer mais rápido do que nunca.",
+      "button": "Ative seu Assistente IA — Agora",
+      "footer": "Solução Premium • Suporte Multicanal • Dados Seguros"
+    },
+    "footer": {
+      "legal": "Não afiliado à Herbalife International."
+    }
+  },
+  "wellnessForm": {
+    "title": "Avaliação de Bem-Estar Gratuita",
+    "subtitle": "Obtenha uma análise de saúde personalizada e plano de nutrição em menos de 2 minutos.",
+    "bullet1": "Cálculo do Índice de Massa Corporal (IMC)",
+    "bullet2": "Diagnóstico de Saúde com IA",
+    "bullet3": "Recomendações de Produtos Personalizadas",
+    "startNow": "Começar Agora",
+    "aboutYou": "Sobre Você",
+    "age": "Idade",
+    "gender": "Gênero",
+    "female": "Feminino",
+    "male": "Masculino",
+    "measurements": "Medidas e Sinais Vitais",
+    "height": "Altura (cm)",
+    "weight": "Peso (kg)",
+    "bloodPressure": "Pressão Arterial",
+    "bloodPressurePlaceholder": "ex. 120/80",
+    "pulse": "Pulso (bpm)",
+    "pulsePlaceholder": "ex. 72",
+    "energyLevel": "Nível de Energia (1-10)",
+    "symptomsTitle": "Sintomas",
+    "symptomsSubtitle": "Selecione todos os sintomas que se aplicam a você.",
+    "symptomsDigestive": "Digestivos",
+    "s1": "Dor ou desconforto abdominal",
+    "s2": "Náusea ou vômito",
+    "s3": "Azia",
+    "s4": "Inchaço ou distensão",
+    "s5": "Diarreia",
+    "s6": "Constipação",
+    "s7": "Indigestão",
+    "symptomsCardiovascular": "Cardiovasculares",
+    "s8": "Hipertensão ou pressão alta",
+    "s9": "Palpitações",
+    "s10": "Fadiga ou tontura",
+    "s11": "Má circulação nas extremidades",
+    "symptomsMusculoskeletal": "Musculoesqueléticos",
+    "s12": "Dor ou peso nas pernas",
+    "s13": "Dor nas articulações",
+    "s14": "Rigidez ou inflamação",
+    "s15": "Fraqueza óssea",
+    "s16": "Problemas musculares",
+    "s17": "Artrite",
+    "s18": "Osteoporose",
+    "s19": "Fraturas frequentes",
+    "symptomsRespiratory": "Respiratórios",
+    "s20": "Tosse persistente",
+    "s21": "Dificuldade para respirar ou falta de ar",
+    "s22": "Congestão nasal ou das vias respiratórias",
+    "s23": "Chiado ou bronquite",
+    "s24": "Resfriados frequentes",
+    "symptomsGeneral": "Gerais",
+    "s25": "Fadiga geral ou baixo rendimento",
+    "s26": "Infecções ou resfriados frequentes",
+    "s27": "Sensação de fraqueza",
+    "s28": "Alergias",
+    "s29": "Mal-estar geral sem causa aparente",
+    "lifestyle": "Estilo de Vida e Metas",
+    "primaryGoal": "Meta Principal",
+    "goalPlaceholder": "ex. Perder peso, Ganhar músculo",
+    "activityLevel": "Nível de Atividade",
+    "sedentary": "Sedentário (Pouco ou nenhum exercício)",
+    "light": "Leve (Exercício 1-3 vezes/semana)",
+    "moderate": "Moderado (Exercício 4-5 vezes/semana)",
+    "active": "Ativo (Exercício diário)",
+    "veryActive": "Muito Ativo (Exercício intenso)",
+    "mealsPerDay": "Refeições por Dia",
+    "observations": "Observações Adicionais",
+    "observationsPlaceholder": "Qualquer informação de saúde adicional...",
+    "almostDone": "Quase Lá!",
+    "whereToSend": "Para onde devemos enviar seus resultados?",
+    "firstName": "Nome",
+    "email": "E-mail",
+    "phone": "Telefone (WhatsApp)",
+    "back": "Voltar",
+    "next": "Próximo",
+    "analyzing": "Gerando seu diagnóstico...",
+    "getResults": "Obter Meus Resultados",
+    "resultsTitle": "Resultados da Análise de Bem-Estar",
+    "resultsDate": "Data",
+    "personalData": "Dados Pessoais",
+    "measurementsResult": "Medições",
+    "bmi": "IMC",
+    "bmiCategory": "Estado",
+    "reportedSymptoms": "Sintomas Relatados",
+    "noSymptoms": "Nenhum sintoma relatado",
+    "diagnosisTitle": "Diagnóstico",
+    "recommendationsTitle": "Recomendações",
+    "noDiagnosis": "Nenhum diagnóstico foi gerado.",
+    "noRecommendations": "Nenhuma recomendação foi gerada.",
+    "startNew": "Iniciar Nova Avaliação",
+    "printResults": "Imprimir Resultados",
+    "step": "Passo"
   }
 }

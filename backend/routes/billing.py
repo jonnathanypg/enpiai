@@ -7,8 +7,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models.user import User, UserRole
 from models.distributor import Distributor
-from models.subscription import Plan
+from models.subscription import Plan, Subscription, SubscriptionStatus, PlanInterval
 from services.dlocal_service import DLocalGoService
+from services.email_service import email_service
 from werkzeug.security import generate_password_hash
 
 logger = logging.getLogger(__name__)
@@ -232,6 +233,78 @@ def get_checkout_url():
         return jsonify({'error': str(e)}), 500
 
 
+@billing_bp.route('/my-subscription', methods=['GET'])
+@jwt_required()
+def get_my_subscription():
+    """
+    Returns the current distributor's active subscription details.
+    """
+    db.session.rollback()
+    identity = get_jwt_identity()
+    user = User.query.get(int(identity))
+    distributor = user.distributor
+    
+    if not distributor:
+        return jsonify({'error': 'No distributor attached to this user'}), 400
+
+    # 1. Check if it's a courtesy account
+    if distributor.is_courtesy:
+        # Mock a subscription object for courtesy users
+        # Find the default plan to show what features they have
+        plan = Plan.query.filter_by(is_default=True).first()
+        if not plan:
+            plan = Plan.query.first() # Fallback
+            
+        return jsonify({
+            'status': 'courtesy',
+            'is_active': True,
+            'plan_name': plan.name if plan else 'Courtesy',
+            'plan_description': plan.description if plan else 'Premium features enabled',
+            'price': 0,
+            'currency': 'USD',
+            'features': plan.features if plan else {},
+            'start_date': distributor.created_at.isoformat() if distributor.created_at else None,
+            'next_payment_at': None,
+            'notes': 'Courtesy account granted by administrator'
+        }), 200
+
+    # 2. Check for an actual subscription record
+    # Since dLocal subscriptions are asynchronous, we might have distributor.subscription_plan_id
+    # but not a row in the 'subscriptions' table yet, or vice versa.
+    sub = Subscription.query.filter_by(distributor_id=distributor.id).order_by(Subscription.created_at.desc()).first()
+    
+    if not sub:
+        # Check if they have a plan_id assigned but no record (should be rare)
+        if distributor.subscription_plan_id:
+            plan = Plan.query.get(distributor.subscription_plan_id)
+            return jsonify({
+                'status': 'pending',
+                'is_active': distributor.subscription_active,
+                'plan_name': plan.name,
+                'plan_description': plan.description,
+                'price': plan.price_monthly,
+                'currency': plan.currency,
+                'features': plan.features,
+                'start_date': None,
+                'next_payment_at': None
+            }), 200
+            
+        return jsonify({'status': 'none', 'is_active': False}), 200
+
+    return jsonify({
+        'status': sub.status.value,
+        'is_active': sub.is_active,
+        'plan_name': sub.plan.name if sub.plan else 'Unknown',
+        'plan_description': sub.plan.description if sub.plan else '',
+        'price': sub.plan.price_monthly if sub.plan else 0,
+        'currency': sub.plan.currency if sub.plan else 'USD',
+        'features': sub.plan.features if sub.plan else {},
+        'start_date': sub.start_date.isoformat() if sub.start_date else None,
+        'next_payment_at': sub.next_payment_at.isoformat() if sub.next_payment_at else None,
+        'notes': sub.notes
+    }), 200
+
+
 # ──────────────────────────────────────────────
 # COURTESY ACCOUNTS (Super Admin)
 # ──────────────────────────────────────────────
@@ -281,6 +354,12 @@ def create_courtesy_account():
         
         db.session.add(user)
         db.session.commit()
+
+        # Send courtesy account credentials email
+        try:
+            email_service.send_courtesy_account_created(email, name, temp_pass, lang=distributor.language or 'en')
+        except Exception as mail_err:
+            logger.warning(f"Courtesy email failed (non-blocking): {mail_err}")
         
         return jsonify({
             'message': 'Courtesy account generated successfully. The user will not hit the paywall.',

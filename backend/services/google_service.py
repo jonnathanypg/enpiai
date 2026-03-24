@@ -59,6 +59,37 @@ class GoogleService:
     # -------------------------------------------------------------------
     # Calendar
     # -------------------------------------------------------------------
+    def list_calendars(self, distributor):
+        """
+        List all calendars for the connected Google account.
+        Returns a list of {id, summary, primary, backgroundColor}.
+        """
+        try:
+            from googleapiclient.discovery import build
+
+            creds = self._get_credentials(distributor)
+            if not creds:
+                return {'error': 'Google Calendar not connected'}
+
+            service = build('calendar', 'v3', credentials=creds)
+            calendar_list = service.calendarList().list().execute()
+
+            calendars = []
+            for cal in calendar_list.get('items', []):
+                calendars.append({
+                    'id': cal['id'],
+                    'summary': cal.get('summary', 'Untitled'),
+                    'primary': cal.get('primary', False),
+                    'backgroundColor': cal.get('backgroundColor', '#4285f4'),
+                    'description': cal.get('description', ''),
+                })
+
+            return {'calendars': calendars}
+
+        except Exception as e:
+            logger.error(f"List calendars error: {e}")
+            return {'error': str(e)}
+
     def check_availability(self, distributor, date_str, timezone='America/Guayaquil'):
         """
         Check calendar availability for a date.
@@ -79,6 +110,7 @@ class GoogleService:
                 return {'error': 'Google Calendar not connected'}
 
             service = build('calendar', 'v3', credentials=creds)
+            calendar_id = getattr(distributor, 'google_calendar_id', None) or 'primary'
 
             # Parse date
             target_date = datetime.strptime(date_str, '%Y-%m-%d')
@@ -87,7 +119,7 @@ class GoogleService:
 
             # Get events for the day
             events_result = service.events().list(
-                calendarId='primary',
+                calendarId=calendar_id,
                 timeMin=time_min,
                 timeMax=time_max,
                 singleEvents=True,
@@ -155,6 +187,7 @@ class GoogleService:
                 return {'error': 'Google Calendar not connected'}
 
             service = build('calendar', 'v3', credentials=creds)
+            calendar_id = getattr(distributor, 'google_calendar_id', None) or 'primary'
 
             end_datetime = start_datetime + timedelta(minutes=duration_minutes)
 
@@ -175,7 +208,7 @@ class GoogleService:
                 event['attendees'] = [{'email': attendee_email}]
 
             created_event = service.events().insert(
-                calendarId='primary',
+                calendarId=calendar_id,
                 body=event,
                 sendUpdates='all' if attendee_email else 'none'
             ).execute()

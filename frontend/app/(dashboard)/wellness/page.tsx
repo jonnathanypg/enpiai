@@ -1,13 +1,14 @@
 'use client';
 
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Activity,
     Calendar,
     User,
     ArrowRight,
     MoreHorizontal,
-    FileText
+    FileText,
+    Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -46,6 +47,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function WellnessPage() {
     const { t } = useTranslation();
+    const queryClient = useQueryClient();
     const { data: evaluations, isLoading } = useQuery({
         queryKey: ['evaluations'],
         queryFn: async () => {
@@ -66,12 +68,33 @@ export default function WellnessPage() {
         },
     });
 
+    const deleteEvaluationMutation = useMutation({
+        mutationFn: async (id: number) => {
+            return apiClient.delete(`/wellness/evaluations/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['evaluations'] });
+            toast.success(t('common.success', { defaultValue: 'Evaluation deleted.' }));
+        },
+        onError: () => {
+            toast.error(t('common.error', { defaultValue: 'Failed to delete evaluation.' }));
+        },
+    });
+
     const user = useAuthStore((s) => s.user) as any;
-    const distributorId = user?.distributor?.herbalife_id || user?.distributor_id || 'demo';
-    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/evaluate/${distributorId}` : '';
+    const distributorId = user?.distributor?.herbalife_id
+        || user?.distributor?.id
+        || user?.distributor_id
+        || '';
+    const shareUrl = typeof window !== 'undefined' && distributorId
+        ? `${window.location.origin}/evaluate/${distributorId}`
+        : '';
 
     const copyLink = () => {
-        if (!shareUrl) return;
+        if (!shareUrl) {
+            toast.error(t('common.error', { defaultValue: 'Distributor ID not available. Set it in Settings.' }));
+            return;
+        }
         navigator.clipboard.writeText(shareUrl);
         toast.success(t('common.success', { defaultValue: 'Evaluation link copied to clipboard!' }));
     };
@@ -87,10 +110,13 @@ export default function WellnessPage() {
                 </div>
                 {/* Placeholder for future modal */}
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={copyLink}>
+                    <Button variant="outline" onClick={copyLink} disabled={!distributorId}>
                         <FileText className="mr-2 h-4 w-4" /> {t('wellness.copyLink')}
                     </Button>
-                    <Button onClick={() => window.open(`/evaluate/${distributorId}`, '_blank')}>
+                    <Button
+                        onClick={() => distributorId && window.open(`/evaluate/${distributorId}`, '_blank')}
+                        disabled={!distributorId}
+                    >
                         <Activity className="mr-2 h-4 w-4" /> {t('wellness.newEvaluation')}
                     </Button>
                 </div>
@@ -131,8 +157,11 @@ export default function WellnessPage() {
                                             {format(new Date(ev.created_at), 'MMM d, yyyy')}
                                         </TableCell>
                                         <TableCell>
-                                            <Link href={`/contacts/${ev.lead_id || ev.customer_id}`} className="hover:underline">
-                                                {t('wellness.evaluation')} #{ev.id}
+                                            <Link
+                                                href={`/contacts/${ev.lead_id ? 'lead:' + ev.lead_id : 'customer:' + ev.customer_id}`}
+                                                className="hover:underline"
+                                            >
+                                                {(ev as any).contact_name || t('wellness.evaluation') + ' #' + ev.id}
                                             </Link>
                                         </TableCell>
                                         <TableCell>{ev.primary_goal}</TableCell>
@@ -153,8 +182,16 @@ export default function WellnessPage() {
                                                     <DropdownMenuItem onClick={() => generatePdfMutation.mutate(ev.id)}>
                                                         <FileText className="mr-2 h-4 w-4" /> {t('wellness.generatePdf')}
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem>
-                                                        <Link href={`/contacts/${ev.lead_id || ev.customer_id}`}>{t('wellness.viewContact')}</Link>
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href={`/contacts/${ev.lead_id ? 'lead:' + ev.lead_id : 'customer:' + ev.customer_id}`}>
+                                                            {t('wellness.viewContact')}
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="text-destructive focus:text-destructive"
+                                                        onClick={() => deleteEvaluationMutation.mutate(ev.id)}
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" /> {t('common.delete', { defaultValue: 'Delete' })}
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>

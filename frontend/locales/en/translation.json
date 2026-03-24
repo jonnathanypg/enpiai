@@ -14,6 +14,8 @@
     "status": "Status",
     "active": "Active",
     "inactive": "Inactive",
+    "yes": "Yes",
+    "no": "No",
     "name": "Name",
     "description": "Description",
     "price": "Price",
@@ -85,7 +87,25 @@
     "securePaymentDescription": "All payments are securely processed through dLocal Go, the leading payment gateway in Latin America. Your financial information is never stored on our servers.",
     "redirectingToGateway": "Redirecting to payment gateway...",
     "paymentUrlError": "Could not generate payment URL. Contact the administrator.",
-    "subscriptionError": "Error starting the subscription process."
+    "subscriptionError": "Error starting the subscription process.",
+    "membership": {
+      "title": "My Membership",
+      "subtitle": "Manage your active subscription and license details.",
+      "activePlan": "Active Plan",
+      "status": "Status",
+      "startDate": "Activated on",
+      "nextBilling": "Next billing on",
+      "courtesy": "Courtesy License",
+      "active": "Active",
+      "pending": "Pending",
+      "pastDue": "Past Due",
+      "cancelled": "Cancelled",
+      "upgrade": "Upgrade Plan",
+    "backToMembership": "Back to Membership",
+      "cancel": "Cancel Subscription",
+      "features": "Included Features",
+      "noExpiry": "No Expiration"
+    }
   },
   "admin": {
     "billingTitle": "Billing & Licenses",
@@ -255,7 +275,15 @@
     "connectTelegram": "Connect Telegram",
     "connectEmail": "Connect Email",
     "googleIntegrationDesc": "Connect your Google account to enable automatic meeting scheduling (Google Calendar) and email sending (Gmail).",
-    "signInWithGoogle": "Sign in with Google"
+    "signInWithGoogle": "Sign in with Google",
+    "selectCalendar": "Select Calendar",
+    "selectCalendarDesc": "Choose which calendar your AI agent will use for scheduling:",
+    "calendarSaved": "Calendar saved successfully",
+    "loadingCalendars": "Loading calendars...",
+    "primaryCalendar": "Primary",
+    "disconnectGoogle": "Disconnect Google",
+    "disconnect": "Disconnect",
+    "disconnected": "Disconnected successfully"
   },
   "documents": {
     "title": "Knowledge Base",
@@ -271,6 +299,7 @@
     "description": "Manage evaluations and generate health reports.",
     "copyShareLink": "Copy Share Link",
     "newEvaluation": "New Evaluation",
+    "copyLink": "Copy Link",
     "recentEvaluations": "Recent Evaluations",
     "recentEvaluationsDesc": "A list of all wellness checks submitted by prospects and customers.",
     "noEvaluations": "No evaluations found.",
@@ -318,5 +347,211 @@
     "noApiKey": "No API key generated",
     "endpoint": "Endpoint",
     "header": "Header"
+  },
+  "home": {
+    "nav": {
+      "features": "Features",
+      "howItWorks": "How It Works",
+      "pricing": "Subscription"
+    },
+    "hero": {
+      "badge": "For Independent Herbalife Distributors",
+      "title": "Your AI-Powered",
+      "titleAccent": "Virtual Assistant",
+      "description": "Automate lead capture, customer support, scheduling, and wellness evaluations — all powered by AI agents that work 24/7 for your Herbalife business via WhatsApp & Telegram.",
+      "cta": "Get Started",
+      "signIn": "Sign In",
+      "trustNoCard": "Full Data Sovereignty",
+      "trustSetup": "Setup in 5 minutes",
+      "trustChannels": "WhatsApp & Telegram ready"
+    },
+    "features": {
+      "badge": "PLATFORM FEATURES",
+      "title": "Everything You Need to",
+      "titleAccent": "Grow",
+      "description": "A complete suite of AI tools designed specifically for independent Herbalife distributors.",
+      "items": {
+        "agents": {
+          "title": "AI Virtual Agents",
+          "description": "Customizable AI agents that handle WhatsApp & Telegram conversations 24/7."
+        },
+        "channels": {
+          "title": "Multi-Channel Messaging",
+          "description": "Connect WhatsApp, Telegram, and Web Chat in one place."
+        },
+        "wellness": {
+          "title": "Wellness Evaluations",
+          "description": "Share a personalized link for prospects to complete their assessment. Get BMI reports automatically."
+        },
+        "crm": {
+          "title": "CRM & Lead Management",
+          "description": "Track every prospect. Your AI captures lead data automatically from conversations."
+        },
+        "scheduling": {
+          "title": "Smart Scheduling",
+          "description": "Integrated Google Calendar. Your AI agent can check availability and schedule meetings."
+        },
+        "knowledge": {
+          "title": "Knowledge Base (RAG)",
+          "description": "Upload your product catalogs and pricing sheets. Your agent answers accurately."
+        }
+      }
+    },
+    "howItWorks": {
+      "badge": "HOW IT WORKS",
+      "title": "Up and Running in",
+      "titleAccent": "Minutes",
+      "steps": {
+        "step1": {
+          "title": "Create Your Account",
+          "description": "Sign up in seconds. Your personalized AI agent is created automatically."
+        },
+        "step2": {
+          "title": "Train Your Agent",
+          "description": "Upload product documents and connect WhatsApp. Your agent learns instantly."
+        },
+        "step3": {
+          "title": "Grow on Autopilot",
+          "description": "Your AI handles inquiries, captures leads, and sends wellness evaluations — 24/7."
+        }
+      }
+    },
+    "stats": {
+      "alwaysAvailable": "Always Active",
+      "channels": "More Prospecting",
+      "setupTime": "Time Saved Weekly",
+      "conversations": "Full Privacy"
+    },
+    "security": {
+      "badge": "SECURITY & PRIVACY",
+      "title": "Your Data,",
+      "titleAccent": "Your Rules",
+      "description": "We take data sovereignty seriously. Your customer data is encrypted end-to-end, and each distributor has isolated data.",
+      "encryption": {
+        "title": "End-to-End Encryption",
+        "description": "All PII encrypted at application level before storage."
+      },
+      "isolation": {
+        "title": "Multi-Tenant Isolation",
+        "description": "Each distributor's data is completely separated."
+      },
+      "i18n": {
+        "title": "Multi-Language Support",
+        "description": "Full platform support for English, Spanish, and Portuguese."
+      },
+      "mockup": {
+        "agentName": "AI Agent",
+        "agentGreeting": "Hi! I'm your Herbalife virtual assistant. How can I help you?",
+        "customerName": "Customer",
+        "customerQuery": "I'd like information about protein shakes",
+        "agentResponse": "Excellent! We have Formula 1 with 21 vitamins and minerals...",
+        "leadCaptured": "Auto Lead Captured",
+        "leadDetails": "Lead saved • Email notification sent • CRM updated ✓"
+      }
+    },
+    "cta": {
+      "badge": "GET STARTED TODAY",
+      "title": "Ready to Automate Your",
+      "titleAccent": "Herbalife Business?",
+      "description": "Join thousands of independent Herbalife distributors who are using AI to grow faster than ever.",
+      "button": "Activate Your AI Assistant — Now",
+      "footer": "Premium Solution • Multi-channel Support • Secure Data"
+    },
+    "footer": {
+      "legal": "Not affiliated with Herbalife International."
+    }
+  },
+  "wellnessForm": {
+    "title": "Free Wellness Check",
+    "subtitle": "Get a personalized health analysis and nutrition plan in under 2 minutes.",
+    "bullet1": "Body Mass Index (BMI) Calculation",
+    "bullet2": "AI-Powered Health Diagnosis",
+    "bullet3": "Personalized Product Recommendations",
+    "startNow": "Start Now",
+    "aboutYou": "About You",
+    "age": "Age",
+    "gender": "Gender",
+    "female": "Female",
+    "male": "Male",
+    "measurements": "Measurements & Vitals",
+    "height": "Height (cm)",
+    "weight": "Weight (kg)",
+    "bloodPressure": "Blood Pressure",
+    "bloodPressurePlaceholder": "e.g. 120/80",
+    "pulse": "Pulse (bpm)",
+    "pulsePlaceholder": "e.g. 72",
+    "energyLevel": "Energy Level (1-10)",
+    "symptomsTitle": "Symptoms",
+    "symptomsSubtitle": "Select all symptoms that apply to you.",
+    "symptomsDigestive": "Digestive",
+    "s1": "Abdominal pain or discomfort",
+    "s2": "Nausea or vomiting",
+    "s3": "Heartburn",
+    "s4": "Bloating or swelling",
+    "s5": "Diarrhea",
+    "s6": "Constipation",
+    "s7": "Indigestion",
+    "symptomsCardiovascular": "Cardiovascular",
+    "s8": "Hypertension or high blood pressure",
+    "s9": "Palpitations",
+    "s10": "Fatigue or dizziness",
+    "s11": "Poor circulation in extremities",
+    "symptomsMusculoskeletal": "Musculoskeletal",
+    "s12": "Pain or heaviness in legs",
+    "s13": "Joint pain",
+    "s14": "Stiffness or inflammation",
+    "s15": "Bone weakness",
+    "s16": "Muscle problems",
+    "s17": "Arthritis",
+    "s18": "Osteoporosis",
+    "s19": "Frequent fractures",
+    "symptomsRespiratory": "Respiratory",
+    "s20": "Persistent cough",
+    "s21": "Difficulty breathing or shortness of breath",
+    "s22": "Nasal or airway congestion",
+    "s23": "Wheezing or bronchitis",
+    "s24": "Frequent colds",
+    "symptomsGeneral": "General",
+    "s25": "General fatigue or low performance",
+    "s26": "Frequent infections or colds",
+    "s27": "Feeling of weakness",
+    "s28": "Allergies",
+    "s29": "General malaise without apparent cause",
+    "lifestyle": "Lifestyle & Goals",
+    "primaryGoal": "Primary Goal",
+    "goalPlaceholder": "e.g. Lose weight, Gain muscle",
+    "activityLevel": "Activity Level",
+    "sedentary": "Sedentary (Little or no exercise)",
+    "light": "Light (Exercise 1-3 times/week)",
+    "moderate": "Moderate (Exercise 4-5 times/week)",
+    "active": "Active (Daily exercise)",
+    "veryActive": "Very Active (Intense exercise)",
+    "mealsPerDay": "Meals per Day",
+    "observations": "Additional Observations",
+    "observationsPlaceholder": "Any additional health information...",
+    "almostDone": "Almost Done!",
+    "whereToSend": "Where should we send your results?",
+    "firstName": "First Name",
+    "email": "Email",
+    "phone": "Phone (WhatsApp)",
+    "back": "Back",
+    "next": "Next",
+    "analyzing": "Generating your diagnosis...",
+    "getResults": "Get My Results",
+    "resultsTitle": "Wellness Analysis Results",
+    "resultsDate": "Date",
+    "personalData": "Personal Data",
+    "measurementsResult": "Measurements",
+    "bmi": "BMI",
+    "bmiCategory": "Status",
+    "reportedSymptoms": "Reported Symptoms",
+    "noSymptoms": "No symptoms reported",
+    "diagnosisTitle": "Diagnosis",
+    "recommendationsTitle": "Recommendations",
+    "noDiagnosis": "No diagnosis was generated.",
+    "noRecommendations": "No recommendations were generated.",
+    "startNew": "Start New Evaluation",
+    "printResults": "Print Results",
+    "step": "Step"
   }
 }

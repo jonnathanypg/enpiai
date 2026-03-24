@@ -1,0 +1,7 @@
+{
+    "watch": ["backend", "models", "routes", "controllers", "ai"],
+    "ext": "js,json",
+    "ignore": ["node_modules"],
+    "exec": "node backend/server.js"
+  }
+  

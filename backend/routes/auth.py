@@ -18,6 +18,7 @@ from models.user import User, UserRole
 from models.distributor import Distributor
 from models.agent_config import AgentConfig, AgentFeature, DEFAULT_FEATURES
 from services.i18n_service import i18n_service
+from services.email_service import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,12 @@ def register():
         refresh_token = create_refresh_token(identity=str(user.id))
 
         logger.info(f"New distributor registered: {distributor_name} ({email})")
+
+        # Send welcome email notification
+        try:
+            email_service.send_welcome_email(email, name, distributor_name, lang=distributor.language or 'en')
+        except Exception as mail_err:
+            logger.warning(f"Welcome email failed (non-blocking): {mail_err}")
 
         return jsonify({
             'data': {
@@ -308,6 +315,12 @@ def google_auth():
 
             db.session.commit()
             logger.info(f"Auto-registered new user via Google: {email}")
+
+            # Send Google welcome email notification
+            try:
+                email_service.send_google_welcome_email(email, name, lang=distributor.language or 'en')
+            except Exception as mail_err:
+                logger.warning(f"Google welcome email failed (non-blocking): {mail_err}")
         else:
             if not user.is_active:
                 return jsonify({'error': 'Account is deactivated'}), 403

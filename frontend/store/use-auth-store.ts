@@ -9,6 +9,7 @@ interface AuthState {
     language: string;
     login: (user: User, accessToken: string, refreshToken: string) => void;
     logout: () => void;
+    updateUser: (userUpdates: Partial<User>) => void;
     setLanguage: (lang: string) => void;
     hydrated: boolean;
 }
@@ -30,6 +31,20 @@ export const useAuthStore = create<AuthState>()(
                 Cookies.remove('refresh_token');
                 set({ user: null, isAuthenticated: false });
             },
+            updateUser: (userUpdates) => set((state) => {
+                if (!state.user) return { user: null };
+                const currentUser = state.user as any;
+                return {
+                    user: {
+                        ...currentUser,
+                        ...userUpdates,
+                        distributor: {
+                            ...(currentUser.distributor || {}),
+                            ...userUpdates
+                        }
+                    }
+                };
+            }),
             setLanguage: (lang) => set({ language: lang }),
         }),
         {

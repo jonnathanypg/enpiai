@@ -1,49 +1,98 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
 
-const evaluationSchema = z.object({
-    // Personal
-    first_name: z.string().min(2, 'Name is required'),
-    email: z.string().email('Valid email required'),
-    phone: z.string().min(8, 'Phone required'),
-    age: z.string().min(1, 'Age is required'),
-    gender: z.enum(['male', 'female', 'other']),
-    height_cm: z.string().min(1, 'Height is required'),
-    weight_kg: z.string().min(1, 'Weight is required'),
+// ── Symptom definitions (keyed to translation file) ──────────────────────
+const SYMPTOM_GROUPS = [
+    {
+        category: 'symptomsDigestive',
+        items: ['s1', 's2', 's3', 's4', 's5', 's6', 's7'],
+    },
+    {
+        category: 'symptomsCardiovascular',
+        items: ['s8', 's9', 's10', 's11'],
+    },
+    {
+        category: 'symptomsMusculoskeletal',
+        items: ['s12', 's13', 's14', 's15', 's16', 's17', 's18', 's19'],
+    },
+    {
+        category: 'symptomsRespiratory',
+        items: ['s20', 's21', 's22', 's23', 's24'],
+    },
+    {
+        category: 'symptomsGeneral',
+        items: ['s25', 's26', 's27', 's28', 's29'],
+    },
+];
 
-    // Lifestyle
-    primary_goal: z.string().min(1, 'Goal is required'),
+// ── Zod Schema ────────────────────────────────────────────────────────────
+const evaluationSchema = z.object({
+    // Step 1 – Personal
+    age: z.string().min(1, 'Required'),
+    gender: z.enum(['male', 'female', 'other']),
+    // Step 2 – Measurements & Vitals
+    height_cm: z.string().min(1, 'Required'),
+    weight_kg: z.string().min(1, 'Required'),
+    blood_pressure: z.string().optional(),
+    pulse: z.string().optional(),
+    energy_level: z.string().optional(),
+    // Step 3 – Symptoms (managed outside zod via local state)
+    // Step 4 – Lifestyle
+    primary_goal: z.string().min(1, 'Required'),
     activity_level: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']),
     meals_per_day: z.string().min(1, 'Required'),
+    observations: z.string().optional(),
+    // Step 5 – Contact
+    first_name: z.string().min(2, 'Required'),
+    email: z.string().email('Invalid email'),
+    phone: z.string().min(8, 'Required'),
 });
 
 type EvaluationFormValues = z.infer<typeof evaluationSchema>;
 
-const STEPS = [
-    { id: 'intro', title: 'Start' },
-    { id: 'personal', title: 'About You' },
-    { id: 'body', title: 'Measurements' },
-    { id: 'lifestyle', title: 'Lifestyle' },
-    { id: 'contact', title: 'Contact' },
-];
+const TOTAL_STEPS = 7; // intro(0) + personal(1) + body(2) + symptoms(3) + lifestyle(4) + contact(5) + results(6)
 
-export default function EvaluationPage({ params }: { params: { distributor_id: string } }) {
+// ── Component ─────────────────────────────────────────────────────────────
+export default function EvaluationPage({ params }: { params: Promise<{ distributor_id: string }> }) {
+    const resolvedParams = use(params);
+    const distributor_id = resolvedParams.distributor_id;
+    const { t, i18n } = useTranslation();
     const [step, setStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
+    const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+    const [resultData, setResultData] = useState<any>(null);
+
+    // Fetch distributor public profile for language preference
+    const { data: profile } = useQuery({
+        queryKey: ['public-distributor', distributor_id],
+        queryFn: async () => {
+            const { data } = await apiClient.get(`/distributors/public/${distributor_id}`);
+            return data.data;
+        },
+    });
+
+    useEffect(() => {
+        if (profile?.language && i18n.language !== profile.language) {
+            i18n.changeLanguage(profile.language);
+        }
+    }, [profile?.language, i18n]);
 
     const {
         register,
@@ -57,11 +106,23 @@ export default function EvaluationPage({ params }: { params: { distributor_id: s
         mode: 'onChange',
     });
 
+    // ── Symptom toggle helper ─────────────────────────────────────────────
+    const toggleSymptom = (symptomKey: string) => {
+        const label = t(`wellnessForm.${symptomKey}`);
+        setSelectedSymptoms((prev) =>
+            prev.includes(label) ? prev.filter((s) => s !== label) : [...prev, label]
+        );
+    };
+
+    const isSymptomChecked = (symptomKey: string) =>
+        selectedSymptoms.includes(t(`wellnessForm.${symptomKey}`));
+
+    // ── Navigation ────────────────────────────────────────────────────────
     const nextStep = async () => {
         let fieldsToValidate: any[] = [];
         if (step === 1) fieldsToValidate = ['age', 'gender'];
         if (step === 2) fieldsToValidate = ['height_cm', 'weight_kg'];
-        if (step === 3) fieldsToValidate = ['primary_goal', 'activity_level', 'meals_per_day'];
+        if (step === 4) fieldsToValidate = ['primary_goal', 'activity_level', 'meals_per_day'];
 
         if (fieldsToValidate.length > 0) {
             const isValid = await trigger(fieldsToValidate);
@@ -72,48 +133,120 @@ export default function EvaluationPage({ params }: { params: { distributor_id: s
 
     const prevStep = () => setStep((s) => s - 1);
 
+    // ── Submit ────────────────────────────────────────────────────────────
     const onSubmit = async (values: EvaluationFormValues) => {
         setIsSubmitting(true);
         try {
-            // Convert numeric strings to numbers for the API
             const payload = {
                 ...values,
                 age: Number(values.age),
                 height_cm: Number(values.height_cm),
                 weight_kg: Number(values.weight_kg),
                 meals_per_day: Number(values.meals_per_day),
+                pulse: values.pulse ? Number(values.pulse) : undefined,
+                energy_level: values.energy_level ? Number(values.energy_level) : undefined,
+                symptoms: selectedSymptoms,
             };
-            await apiClient.post(`/wellness/evaluate/${params.distributor_id}`, payload);
-            setIsSuccess(true);
+            const { data } = await apiClient.post(`/wellness/evaluate/${distributor_id}`, payload);
+            setResultData(data.data);
+            setStep(6); // go to results step
         } catch (err) {
-            toast.error('Submission failed. Please try again.');
+            toast.error(t('common.error', { defaultValue: 'Submission failed. Please try again.' }));
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (isSuccess) {
+    // ── Results View ──────────────────────────────────────────────────────
+    if (step === 6 && resultData) {
         return (
-            <div className="flex h-screen items-center justify-center p-4">
-                <Card className="max-w-md text-center">
-                    <CardHeader>
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                            <CheckCircle2 className="h-8 w-8 text-green-600" />
-                        </div>
-                        <CardTitle>Evaluation Complete!</CardTitle>
+            <div className="mx-auto max-w-2xl px-4 py-12 space-y-6">
+                <Card>
+                    <CardHeader className="border-b text-center">
+                        <CardTitle className="text-2xl">{t('wellnessForm.resultsTitle')}</CardTitle>
                         <CardDescription>
-                            Your wellness profile has been analyzed. We will contact you shortly with your personalized plan.
+                            {t('wellnessForm.resultsDate')}: {new Date().toLocaleDateString(i18n.language, { year: 'numeric', month: 'long', day: 'numeric' })}
                         </CardDescription>
                     </CardHeader>
-                    <CardFooter className="justify-center">
-                        <Button variant="outline" onClick={() => window.location.reload()}>Start New Evaluation</Button>
+
+                    {/* Personal Data */}
+                    <CardContent className="space-y-6 pt-6">
+                        <section>
+                            <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.personalData')}</h3>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <p><span className="font-medium">{t('wellnessForm.firstName')}:</span> {resultData.first_name || '—'}</p>
+                                <p><span className="font-medium">{t('wellnessForm.age')}:</span> {resultData.age}</p>
+                                <p><span className="font-medium">{t('wellnessForm.gender')}:</span> {resultData.gender}</p>
+                                <p><span className="font-medium">{t('wellnessForm.email')}:</span> {resultData.email || '—'}</p>
+                            </div>
+                        </section>
+
+                        {/* Measurements */}
+                        <section>
+                            <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.measurementsResult')}</h3>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <p><span className="font-medium">{t('wellnessForm.weight')}:</span> {resultData.weight_kg} kg</p>
+                                <p><span className="font-medium">{t('wellnessForm.height')}:</span> {resultData.height_cm} cm</p>
+                                <p><span className="font-medium">{t('wellnessForm.bmi')}:</span> {resultData.bmi}</p>
+                                <p><span className="font-medium">{t('wellnessForm.bmiCategory')}:</span> {resultData.bmi_category}</p>
+                                {resultData.blood_pressure && (
+                                    <p><span className="font-medium">{t('wellnessForm.bloodPressure')}:</span> {resultData.blood_pressure}</p>
+                                )}
+                                {resultData.pulse && (
+                                    <p><span className="font-medium">{t('wellnessForm.pulse')}:</span> {resultData.pulse}</p>
+                                )}
+                                {resultData.energy_level && (
+                                    <p><span className="font-medium">{t('wellnessForm.energyLevel')}:</span> {resultData.energy_level}/10</p>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* Reported Symptoms */}
+                        <section>
+                            <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.reportedSymptoms')}</h3>
+                            {resultData.symptoms && resultData.symptoms.length > 0 ? (
+                                <ul className="list-disc pl-5 text-sm space-y-1">
+                                    {resultData.symptoms.map((s: string, i: number) => (
+                                        <li key={i}>{s}</li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">{t('wellnessForm.noSymptoms')}</p>
+                            )}
+                        </section>
+
+                        {/* AI Diagnosis */}
+                        <section className="bg-muted/50 rounded-lg p-4">
+                            <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.diagnosisTitle')}</h3>
+                            <p className="text-sm leading-relaxed">
+                                {resultData.diagnosis || t('wellnessForm.noDiagnosis')}
+                            </p>
+                        </section>
+
+                        {/* AI Recommendations */}
+                        <section className="bg-green-50 dark:bg-green-950/20 rounded-lg p-4">
+                            <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.recommendationsTitle')}</h3>
+                            <p className="text-sm leading-relaxed">
+                                {resultData.recommendations || t('wellnessForm.noRecommendations')}
+                            </p>
+                        </section>
+                    </CardContent>
+
+                    <CardFooter className="flex justify-center gap-4 pt-4">
+                        <Button variant="outline" onClick={() => window.location.reload()}>
+                            {t('wellnessForm.startNew')}
+                        </Button>
+                        <Button variant="secondary" onClick={() => window.print()}>
+                            {t('wellnessForm.printResults')}
+                        </Button>
                     </CardFooter>
                 </Card>
             </div>
         );
     }
 
-    const progress = ((step + 1) / STEPS.length) * 100;
+    // ── Form Progress ─────────────────────────────────────────────────────
+    const progress = ((step + 1) / (TOTAL_STEPS - 1)) * 100; // exclude results as a counted step
 
     return (
         <div className="mx-auto flex max-w-lg flex-col justify-center px-4 py-12">
@@ -121,157 +254,221 @@ export default function EvaluationPage({ params }: { params: { distributor_id: s
             <div className="mb-8 space-y-2">
                 <Progress value={progress} className="h-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Step {step + 1} of {STEPS.length}</span>
-                    <span>{STEPS[step].title}</span>
+                    <span>{t('wellnessForm.step')} {step + 1} / {TOTAL_STEPS - 1}</span>
                 </div>
             </div>
 
             <Card>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    {/* Step 0: Intro */}
+                    {/* ── Step 0: Intro ─────────────────────────────────────── */}
                     {step === 0 && (
                         <>
                             <CardHeader>
-                                <CardTitle className="text-2xl">Free Wellness Check</CardTitle>
-                                <CardDescription>
-                                    Get a personalized health analysis and nutrition plan in under 2 minutes.
-                                </CardDescription>
+                                <CardTitle className="text-2xl">{t('wellnessForm.title')}</CardTitle>
+                                <CardDescription>{t('wellnessForm.subtitle')}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-4">
-                                    <ul className="space-y-2 text-sm">
-                                        <li className="flex items-center gap-2">🔹 Body Mass Index (BMI) Calculation</li>
-                                        <li className="flex items-center gap-2">🔹 Personalized Protein Factor</li>
-                                        <li className="flex items-center gap-2">🔹 Custom Meal Plan Suggestions</li>
-                                    </ul>
-                                </div>
+                                <ul className="space-y-2 text-sm">
+                                    <li className="flex items-center gap-2">🔹 {t('wellnessForm.bullet1')}</li>
+                                    <li className="flex items-center gap-2">🔹 {t('wellnessForm.bullet2')}</li>
+                                    <li className="flex items-center gap-2">🔹 {t('wellnessForm.bullet3')}</li>
+                                </ul>
                             </CardContent>
                             <CardFooter>
                                 <Button type="button" onClick={() => setStep(1)} className="w-full">
-                                    Start Now <ArrowRight className="ml-2 h-4 w-4" />
+                                    {t('wellnessForm.startNow')} <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </CardFooter>
                         </>
                     )}
 
-                    {/* Step 1: Personal */}
+                    {/* ── Step 1: Personal ──────────────────────────────────── */}
                     {step === 1 && (
                         <>
-                            <CardHeader><CardTitle>About You</CardTitle></CardHeader>
+                            <CardHeader><CardTitle>{t('wellnessForm.aboutYou')}</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Age</Label>
+                                    <Label>{t('wellnessForm.age')}</Label>
                                     <Input type="number" {...register('age')} placeholder="e.g. 30" />
                                     {errors.age && <p className="text-xs text-destructive">{errors.age.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Gender</Label>
+                                    <Label>{t('wellnessForm.gender')}</Label>
                                     <RadioGroup onValueChange={(v) => setValue('gender', v as any)} defaultValue={watch('gender')}>
                                         <div className="flex items-center space-x-2">
                                             <RadioGroupItem value="female" id="r1" />
-                                            <Label htmlFor="r1">Female</Label>
+                                            <Label htmlFor="r1">{t('wellnessForm.female')}</Label>
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <RadioGroupItem value="male" id="r2" />
-                                            <Label htmlFor="r2">Male</Label>
+                                            <Label htmlFor="r2">{t('wellnessForm.male')}</Label>
                                         </div>
                                     </RadioGroup>
                                     {errors.gender && <p className="text-xs text-destructive">{errors.gender.message}</p>}
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button type="button" variant="outline" onClick={prevStep}>Back</Button>
-                                <Button type="button" onClick={nextStep}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                                <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
+                                <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
                             </CardFooter>
                         </>
                     )}
 
-                    {/* Step 2: Body */}
+                    {/* ── Step 2: Measurements & Vitals ────────────────────── */}
                     {step === 2 && (
                         <>
-                            <CardHeader><CardTitle>Measurements</CardTitle></CardHeader>
+                            <CardHeader><CardTitle>{t('wellnessForm.measurements')}</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Height (cm)</Label>
+                                        <Label>{t('wellnessForm.height')}</Label>
                                         <Input type="number" {...register('height_cm')} placeholder="170" />
                                         {errors.height_cm && <p className="text-xs text-destructive">{errors.height_cm.message}</p>}
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Weight (kg)</Label>
+                                        <Label>{t('wellnessForm.weight')}</Label>
                                         <Input type="number" {...register('weight_kg')} placeholder="70" />
                                         {errors.weight_kg && <p className="text-xs text-destructive">{errors.weight_kg.message}</p>}
                                     </div>
                                 </div>
+                                <div className="space-y-2">
+                                    <Label>{t('wellnessForm.bloodPressure')}</Label>
+                                    <Input {...register('blood_pressure')} placeholder={t('wellnessForm.bloodPressurePlaceholder')} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.pulse')}</Label>
+                                        <Input type="number" {...register('pulse')} placeholder={t('wellnessForm.pulsePlaceholder')} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.energyLevel')}</Label>
+                                        <Input type="number" min={1} max={10} {...register('energy_level')} placeholder="5" />
+                                    </div>
+                                </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button type="button" variant="outline" onClick={prevStep}>Back</Button>
-                                <Button type="button" onClick={nextStep}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                                <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
+                                <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
                             </CardFooter>
                         </>
                     )}
 
-                    {/* Step 3: Lifestyle */}
+                    {/* ── Step 3: Symptoms ──────────────────────────────────── */}
                     {step === 3 && (
                         <>
-                            <CardHeader><CardTitle>Lifestyle & Goals</CardTitle></CardHeader>
+                            <CardHeader>
+                                <CardTitle>{t('wellnessForm.symptomsTitle')}</CardTitle>
+                                <CardDescription>{t('wellnessForm.symptomsSubtitle')}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-6 h-[400px] overflow-y-auto pr-2">
+                                {SYMPTOM_GROUPS.map((group) => (
+                                    <div key={group.category}>
+                                        <h4 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide">
+                                            {t(`wellnessForm.${group.category}`)}
+                                        </h4>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {group.items.map((key) => (
+                                                <label
+                                                    key={key}
+                                                    className="flex items-center gap-3 rounded-md border p-2.5 text-sm cursor-pointer hover:bg-accent transition-colors"
+                                                >
+                                                    <Checkbox
+                                                        checked={isSymptomChecked(key)}
+                                                        onCheckedChange={() => toggleSymptom(key)}
+                                                    />
+                                                    {t(`wellnessForm.${key}`)}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                                </div>
+                            </CardContent>
+                            <CardFooter className="flex justify-between">
+                                <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
+                                <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                            </CardFooter>
+                        </>
+                    )}
+
+                    {/* ── Step 4: Lifestyle & Goals ─────────────────────────── */}
+                    {step === 4 && (
+                        <>
+                            <CardHeader><CardTitle>{t('wellnessForm.lifestyle')}</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Primary Goal</Label>
-                                    <Input {...register('primary_goal')} placeholder="e.g. Lose weight, Gain muscle" />
+                                    <Label>{t('wellnessForm.primaryGoal')}</Label>
+                                    <Input {...register('primary_goal')} placeholder={t('wellnessForm.goalPlaceholder')} />
                                     {errors.primary_goal && <p className="text-xs text-destructive">{errors.primary_goal.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Activity Level</Label>
+                                    <Label>{t('wellnessForm.activityLevel')}</Label>
                                     <select
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                                         {...register('activity_level')}
                                     >
-                                        <option value="sedentary">Sedentary (Little or no exercise)</option>
-                                        <option value="light">Light (Exercise 1-3 times/week)</option>
-                                        <option value="moderate">Moderate (Exercise 4-5 times/week)</option>
-                                        <option value="active">Active (Daily exercise)</option>
-                                        <option value="very_active">Very Active (Intense exercise)</option>
+                                        <option value="sedentary">{t('wellnessForm.sedentary')}</option>
+                                        <option value="light">{t('wellnessForm.light')}</option>
+                                        <option value="moderate">{t('wellnessForm.moderate')}</option>
+                                        <option value="active">{t('wellnessForm.active')}</option>
+                                        <option value="very_active">{t('wellnessForm.veryActive')}</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Meals per Day</Label>
+                                    <Label>{t('wellnessForm.mealsPerDay')}</Label>
                                     <Input type="number" {...register('meals_per_day')} placeholder="3" />
                                     {errors.meals_per_day && <p className="text-xs text-destructive">{errors.meals_per_day.message}</p>}
                                 </div>
+                                <div className="space-y-2">
+                                    <Label>{t('wellnessForm.observations')}</Label>
+                                    <textarea
+                                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                        {...register('observations')}
+                                        placeholder={t('wellnessForm.observationsPlaceholder')}
+                                        rows={3}
+                                    />
+                                </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button type="button" variant="outline" onClick={prevStep}>Back</Button>
-                                <Button type="button" onClick={nextStep}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                                <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
+                                <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
                             </CardFooter>
                         </>
                     )}
 
-                    {/* Step 4: Contact */}
-                    {step === 4 && (
+                    {/* ── Step 5: Contact ───────────────────────────────────── */}
+                    {step === 5 && (
                         <>
-                            <CardHeader><CardTitle>Almost Done!</CardTitle><CardDescription>Where should we send your results?</CardDescription></CardHeader>
+                            <CardHeader>
+                                <CardTitle>{t('wellnessForm.almostDone')}</CardTitle>
+                                <CardDescription>{t('wellnessForm.whereToSend')}</CardDescription>
+                            </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>First Name</Label>
+                                    <Label>{t('wellnessForm.firstName')}</Label>
                                     <Input {...register('first_name')} placeholder="Jane" />
                                     {errors.first_name && <p className="text-xs text-destructive">{errors.first_name.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Email</Label>
+                                    <Label>{t('wellnessForm.email')}</Label>
                                     <Input type="email" {...register('email')} placeholder="jane@example.com" />
                                     {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Phone (WhatsApp)</Label>
+                                    <Label>{t('wellnessForm.phone')}</Label>
                                     <Input type="tel" {...register('phone')} placeholder="+1 234 567 8900" />
                                     {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button type="button" variant="outline" onClick={prevStep}>Back</Button>
+                                <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
                                 <Button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? 'Analyzing...' : 'Get My Results'}
+                                    {isSubmitting ? (
+                                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('wellnessForm.analyzing')}</>
+                                    ) : (
+                                        t('wellnessForm.getResults')
+                                    )}
                                 </Button>
                             </CardFooter>
                         </>
