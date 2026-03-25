@@ -156,7 +156,11 @@
     "courtesyToggled": "Status de cortesia atualizado.",
     "courtesyToggleError": "Erro ao atualizar cortesia.",
     "accountCreatedAlert": "Conta Criada!\nEmail: {{email}}\nSenha Temporária: {{password}}\n\nPor favor, copie esses dados agora.",
-    "noPlans": "Nenhum plano criado ainda. Clique em \"Novo Plano\" para começar."
+    "noPlans": "Nenhum plano criado ainda. Clique em \"Novo Plano\" para começar.",
+    "deleteDistributor": "Excluir Distribuidor",
+    "deleteDistributorConfirm": "Tem certeza que deseja excluir permanentemente o distribuidor \"{{name}}\" e TODOS os seus dados (leads, avaliações, usuários)? Esta ação não pode ser desfeita.",
+    "deleteDistributorSuccess": "Distribuidor excluído com sucesso.",
+    "deleteDistributorError": "Erro ao excluir o distribuidor."
   },
   "adminDashboard": {
     "title": "Painel do Administrador",

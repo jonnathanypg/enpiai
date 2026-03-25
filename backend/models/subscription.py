@@ -92,7 +92,7 @@ class Subscription(db.Model):
 
     # Tenant link
     distributor_id = db.Column(db.Integer, db.ForeignKey('distributors.id'), nullable=False, index=True)
-    distributor = db.relationship('Distributor', backref=db.backref('subscription', uselist=False))
+    # The relationship is defined in the Distributor model with a backref 'subscription'
 
     # Plan link
     plan_id = db.Column(db.Integer, db.ForeignKey('plans.id'), nullable=False)

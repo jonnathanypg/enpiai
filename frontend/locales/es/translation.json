@@ -156,7 +156,11 @@
     "courtesyToggled": "Estado de cortesía actualizado.",
     "courtesyToggleError": "Error al actualizar cortesía.",
     "accountCreatedAlert": "¡Cuenta Creada!\nEmail: {{email}}\nPassword Temporal: {{password}}\n\nPor favor copia estos datos ahora.",
-    "noPlans": "No hay planes creados aún. Haz clic en \"Nuevo Plan\" para comenzar."
+    "noPlans": "No hay planes creados aún. Haz clic en \"Nuevo Plan\" para comenzar.",
+    "deleteDistributor": "Eliminar Distribuidor",
+    "deleteDistributorConfirm": "¿Estás seguro de que deseas eliminar permanentemente al distribuidor \"{{name}}\" y TODOS sus datos (prospectos, evaluaciones, usuarios)? Esta acción no se puede deshacer.",
+    "deleteDistributorSuccess": "Distribuidor eliminado correctamente.",
+    "deleteDistributorError": "Error al eliminar el distribuidor."
   },
   "adminDashboard": {
     "title": "Panel de Administración",

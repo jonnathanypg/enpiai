@@ -76,7 +76,7 @@ class WellnessEvaluation(db.Model):
     pdf_report_path = db.Column(db.String(500), nullable=True)
 
     # Relationships
-    distributor = db.relationship('Distributor', backref='wellness_evaluations')
+    distributor = db.relationship('Distributor', back_populates='wellness_evaluations')
     lead = db.relationship('Lead', back_populates='wellness_evaluations')
     customer = db.relationship('Customer', back_populates='wellness_evaluations')
 

@@ -205,6 +205,20 @@ export default function AdminBillingPage() {
             toast.error(error.response?.data?.error || t('admin.courtesyToggleError'));
         }
     });
+    
+    // Delete Distributor
+    const deleteDistributorMutation = useMutation({
+        mutationFn: async (id: number) => {
+            await apiClient.delete(`/admin/tenants/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-distributors'] });
+            toast.success(t('admin.deleteDistributorSuccess'));
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.error || t('admin.deleteDistributorError'));
+        }
+    });
 
     const startEditing = (plan: Plan) => {
         setEditingPlanId(plan.id);
@@ -557,6 +571,7 @@ export default function AdminBillingPage() {
                                     <TableHead>{t('admin.currentPlan')}</TableHead>
                                     <TableHead>{t('admin.subscription')}</TableHead>
                                     <TableHead className="text-right">{t('admin.courtesyLicense')}</TableHead>
+                                    <TableHead className="text-right">{t('common.actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -595,6 +610,23 @@ export default function AdminBillingPage() {
                                                     }}
                                                     disabled={toggleCourtesyMutation.isPending}
                                                 />
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => {
+                                                        if (confirm(t('admin.deleteDistributorConfirm', { name: dist.name }))) {
+                                                            deleteDistributorMutation.mutate(dist.id);
+                                                        }
+                                                    }}
+                                                    disabled={deleteDistributorMutation.isPending}
+                                                >
+                                                    {deleteDistributorMutation.isPending && deleteDistributorMutation.variables === dist.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="h-4 w-4" />
+                                                    )}
+                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>

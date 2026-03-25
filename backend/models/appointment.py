@@ -59,7 +59,7 @@ class Appointment(db.Model):
     notes = db.Column(db.Text, nullable=True)
 
     # Relationships
-    distributor = db.relationship('Distributor', backref='appointments')
+    distributor = db.relationship('Distributor', back_populates='appointments')
     lead = db.relationship('Lead', back_populates='appointments')
     customer = db.relationship('Customer', back_populates='appointments')
 

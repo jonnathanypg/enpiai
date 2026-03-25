@@ -5,6 +5,8 @@ Controls global config, subscription plans, tenant oversight, and global RAG.
 Migration Path: Admin governance will be decentralized via DAO voting.
 """
 import logging
+import os
+import requests as http_requests
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -243,6 +245,63 @@ def assign_subscription(distributor_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Assign subscription error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/tenants/<int:distributor_id>', methods=['DELETE'])
+@jwt_required()
+@super_admin_required
+def delete_tenant(distributor_id):
+    """
+    Completely delete a distributor and all their data.
+    Wipes leads, customers, settings, and associated user accounts.
+    """
+    db.session.rollback()
+    try:
+        distributor = Distributor.query.get(distributor_id)
+        if not distributor:
+            return jsonify({'error': 'Distributor not found'}), 404
+
+        # 1. Disconnect WhatsApp session if active
+        whatsapp_url = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001')
+        try:
+            http_requests.post(
+                f"{whatsapp_url}/session/logout",
+                json={'companyId': str(distributor.id)},
+                timeout=10
+            )
+            logger.info(f"WhatsApp session logout requested for distributor {distributor_id}")
+        except Exception as e:
+            logger.warning(f"Failed to logout WhatsApp session for distributor {distributor_id}: {e}")
+
+        # 2. Delete QR code file if exists
+        try:
+            # Try both relative and absolute paths if possible, but standard sibling structure:
+            # backend/routes/admin.py -> ../../whatsapp-gateway/qr_codes/{id}.svg
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            qr_path = os.path.join(base_dir, 'whatsapp-gateway', 'qr_codes', f'{distributor_id}.svg')
+            
+            if os.path.exists(qr_path):
+                os.remove(qr_path)
+                logger.info(f"QR code file {qr_path} deleted for distributor {distributor_id}")
+            else:
+                logger.debug(f"No QR code file found at {qr_path}")
+        except Exception as e:
+            logger.warning(f"Failed to delete QR code file for distributor {distributor_id}: {e}")
+
+        # 3. Delete distributor (Cascades to all relationships defined with delete-orphan)
+        db.session.delete(distributor)
+        db.session.commit()
+
+        logger.info(f"Distributor {distributor_id} deleted successfully by super admin.")
+        return jsonify({
+            'success': True,
+            'message': f'Distributor {distributor_id} and all related data deleted successfully.'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Delete tenant error: {e}")
         return jsonify({'error': str(e)}), 500
 
 

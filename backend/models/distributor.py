@@ -87,14 +87,17 @@ class Distributor(db.Model):
     personal_story = db.Column(db.Text, nullable=True)
 
     # Relationships
-    users = db.relationship('User', back_populates='distributor', lazy='dynamic')
+    users = db.relationship('User', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     agent_configs = db.relationship('AgentConfig', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     leads = db.relationship('Lead', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     customers = db.relationship('Customer', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     conversations = db.relationship('Conversation', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
+    wellness_evaluations = db.relationship('WellnessEvaluation', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
+    appointments = db.relationship('Appointment', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     documents = db.relationship('Document', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     channels = db.relationship('Channel', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     products = db.relationship('Product', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
+    subscriptions = db.relationship('Subscription', backref=db.backref('distributor_parent', uselist=False), cascade='all, delete-orphan')
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

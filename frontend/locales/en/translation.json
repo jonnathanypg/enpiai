@@ -156,7 +156,11 @@
     "courtesyToggled": "Courtesy status updated.",
     "courtesyToggleError": "Error updating courtesy status.",
     "accountCreatedAlert": "Account Created!\nEmail: {{email}}\nTemporary Password: {{password}}\n\nPlease copy these details now.",
-    "noPlans": "No plans created yet. Click \"New Plan\" to get started."
+    "noPlans": "No plans created yet. Click \"New Plan\" to get started.",
+    "deleteDistributor": "Delete Distributor",
+    "deleteDistributorConfirm": "Are you sure you want to permanently delete distributor \"{{name}}\" and ALL their data (leads, evaluations, users)? This action cannot be undone.",
+    "deleteDistributorSuccess": "Distributor deleted successfully.",
+    "deleteDistributorError": "Error deleting distributor."
   },
   "adminDashboard": {
     "title": "Admin Dashboard",
