@@ -6,7 +6,7 @@ Migration Path: Channel credentials will be stored in client-side encrypted vaul
 import os
 import logging
 import requests as http_requests
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models.user import User
@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 channels_bp = Blueprint('channels', __name__)
 
 # WhatsApp API URL (Node.js microservice)
-WHATSAPP_API_URL = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001')
+# No longer used, loading from current_app.config in routes
+# WHATSAPP_API_URL = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001')
 
 
 def _get_distributor_id():
@@ -184,8 +185,9 @@ def init_whatsapp_session():
         return jsonify({'error': 'Distributor not found'}), 404
 
     try:
+        whatsapp_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001')
         response = http_requests.post(
-            f"{WHATSAPP_API_URL}/session/init",
+            f"{whatsapp_url}/session/init",
             json={'companyId': str(distributor.id)},
             timeout=30
         )
@@ -223,8 +225,9 @@ def get_whatsapp_qr():
         return jsonify({'error': 'Distributor not found'}), 404
 
     try:
+        whatsapp_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001')
         response = http_requests.get(
-            f"{WHATSAPP_API_URL}/session/qr/{distributor.id}",
+            f"{whatsapp_url}/session/qr/{distributor.id}",
             timeout=30
         )
 
@@ -268,8 +271,9 @@ def get_whatsapp_status():
         return jsonify({'error': 'Distributor not found'}), 404
 
     try:
+        whatsapp_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001')
         response = http_requests.get(
-            f"{WHATSAPP_API_URL}/session/status/{distributor.id}",
+            f"{whatsapp_url}/session/status/{distributor.id}",
             timeout=10
         )
 
@@ -315,8 +319,9 @@ def disconnect_whatsapp():
         return jsonify({'error': 'Distributor not found'}), 404
 
     try:
+        whatsapp_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001')
         http_requests.post(
-            f"{WHATSAPP_API_URL}/session/logout",
+            f"{whatsapp_url}/session/logout",
             json={'companyId': str(distributor.id)},
             timeout=30
         )

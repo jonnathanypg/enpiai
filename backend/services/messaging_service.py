@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class MessagingService:
     def __init__(self):
-        self.whatsapp_api_url = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001')
+        # We'll get these from current_app.config within the methods to stay synchronized
         self.telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
     
     def send_whatsapp(self, to_phone: str, message: str, distributor_id: int):
@@ -20,7 +20,8 @@ class MessagingService:
         Send WhatsApp message via api-whatsapp microservice.
         """
         try:
-            url = f"{self.whatsapp_api_url}/lead"
+            whatsapp_api_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001')
+            url = f"{whatsapp_api_url}/lead"
             payload = {
                 "phone": to_phone,
                 "message": message,

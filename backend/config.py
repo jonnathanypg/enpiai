@@ -85,7 +85,7 @@ class Config:
     SMTP_USE_TLS = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
 
     # --- WhatsApp Service ---
-    WHATSAPP_API_URL = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001')
+    WHATSAPP_API_URL = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001').rstrip('/')
     WHATSAPP_API_SECRET = os.getenv('WHATSAPP_API_SECRET', '')
 
     # --- Telegram ---

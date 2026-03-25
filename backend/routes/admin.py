@@ -8,7 +8,7 @@ import logging
 import os
 import requests as http_requests
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from decorators import super_admin_required
@@ -263,7 +263,7 @@ def delete_tenant(distributor_id):
             return jsonify({'error': 'Distributor not found'}), 404
 
         # 1. Disconnect WhatsApp session if active
-        whatsapp_url = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001')
+        whatsapp_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001')
         try:
             http_requests.post(
                 f"{whatsapp_url}/session/logout",
