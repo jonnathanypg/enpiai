@@ -2,6 +2,7 @@
 Customer Model - Converted leads and existing customers.
 Migration Path: Customer PII will be encrypted as sovereign blobs with client-side keys.
 """
+import hashlib
 from datetime import datetime
 from extensions import db
 from services.encryption_service import EncryptedString
@@ -19,6 +20,10 @@ class Customer(db.Model):
     last_name = db.Column(db.String(100), nullable=True)
     email = db.Column(EncryptedString(500), nullable=True)
     phone = db.Column(EncryptedString(500), nullable=True)
+    
+    # Searchable Hashes (Salted SHA-256)
+    email_hash = db.Column(db.String(64), nullable=True, index=True)
+    phone_hash = db.Column(db.String(64), nullable=True, index=True)
 
     # Location
     country = db.Column(db.String(100), nullable=True)
@@ -36,11 +41,15 @@ class Customer(db.Model):
     # Flexible metadata (purchase history, preferences, etc.)
     customer_metadata = db.Column(db.JSON, nullable=True)
 
+    # AI Control
+    is_ai_active = db.Column(db.Boolean, default=True, nullable=False)
+
     # Relationships
     distributor = db.relationship('Distributor', back_populates='customers')
     original_lead = db.relationship('Lead', backref='converted_customer', uselist=False)
     wellness_evaluations = db.relationship('WellnessEvaluation', back_populates='customer', lazy='dynamic')
     appointments = db.relationship('Appointment', back_populates='customer', lazy='dynamic')
+    note_records = db.relationship('Note', back_populates='customer', lazy='dynamic', cascade='all, delete-orphan')
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -65,9 +74,36 @@ class Customer(db.Model):
             'customer_type': self.customer_type,
             'original_lead_id': self.original_lead_id,
             'metadata': self.customer_metadata,
+            'is_ai_active': self.is_ai_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
     def __repr__(self):
         return f'<Customer {self.full_name}>'
+
+
+# ── Event Listeners for Automatic Hashing ────────────────────────────────────
+
+@db.event.listens_for(Customer, 'before_insert')
+def before_insert_customer(mapper, connection, target):
+    """Automatically generate hashes for searching before inserting."""
+    from models.lead import Lead # Reuse static method
+    if target.email:
+        target.email_hash = Lead.generate_hash(target.email)
+    if target.phone:
+        target.phone_hash = Lead.generate_hash(target.phone)
+
+
+@db.event.listens_for(Customer, 'before_update')
+def before_update_customer(mapper, connection, target):
+    """Automatically update hashes when email or phone changes."""
+    from models.lead import Lead # Reuse static method
+    # Check if attributes have changed
+    hist_email = db.inspect(target).attrs.email.history
+    hist_phone = db.inspect(target).attrs.phone.history
+    
+    if hist_email.has_changes():
+        target.email_hash = Lead.generate_hash(target.email)
+    if hist_phone.has_changes():
+        target.phone_hash = Lead.generate_hash(target.phone)

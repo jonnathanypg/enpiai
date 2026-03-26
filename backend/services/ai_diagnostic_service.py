@@ -47,6 +47,11 @@ Analyze the following respondent data and provide a detailed diagnosis:
 - Blood Pressure: {blood_pressure}
 - Pulse: {pulse} bpm
 - Energy Level: {energy_level}/10
+- Activity Level: {activity_level}
+- Exercise Frequency: {exercise_frequency}
+- Meals per Day: {meals_per_day}
+- Water Intake: {water_intake} L/day
+- Sleep: {sleep_hours}h ({sleep_quality})
 
 **Reported Symptoms:**
 {symptoms_text}
@@ -55,7 +60,7 @@ Analyze the following respondent data and provide a detailed diagnosis:
 {observations}
 
 Include in your diagnosis:
-1. Analysis of reported symptoms
+1. Analysis of lifestyle factors and reported symptoms
 2. Possible related conditions
 3. Identified risk factors
 """
@@ -96,6 +101,7 @@ def generate_diagnosis(
     symptoms: list[str] | None = None,
     observations: str = "",
     language: str = "es",
+    **kwargs,
 ) -> dict:
     """
     Call the LLM to generate a wellness diagnosis + recommendations.
@@ -119,6 +125,12 @@ def generate_diagnosis(
         blood_pressure=blood_pressure,
         pulse=pulse,
         energy_level=energy_level,
+        activity_level=kwargs.get('activity_level', 'N/A'),
+        exercise_frequency=kwargs.get('exercise_frequency', 'N/A'),
+        meals_per_day=kwargs.get('meals_per_day', 'N/A'),
+        water_intake=kwargs.get('water_intake_liters', 'N/A'),
+        sleep_hours=kwargs.get('sleep_hours', 'N/A'),
+        sleep_quality=kwargs.get('sleep_quality', 'N/A'),
         symptoms_text=symptoms_text,
         observations=observations or "None",
     )
@@ -129,7 +141,7 @@ def generate_diagnosis(
             prompt=diag_prompt,
             system_prompt=diag_system,
             temperature=0.7,
-            max_tokens=800,
+            max_tokens=10000,
         )
     except Exception as e:
         logger.error("AI Diagnosis LLM call failed: %s", e, exc_info=True)
@@ -148,7 +160,7 @@ def generate_diagnosis(
             prompt=rec_prompt,
             system_prompt=rec_system,
             temperature=0.7,
-            max_tokens=800,
+            max_tokens=10000,
         )
     except Exception as e:
         logger.error("AI Recommendations LLM call failed: %s", e, exc_info=True)

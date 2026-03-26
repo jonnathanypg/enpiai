@@ -139,9 +139,14 @@ class AgentOrchestrator:
             'is_anonymous': state.get('is_anonymous', False),
         }
 
+        contact_type = state.get('contact_type', 'unknown')
+        if contact_type == 'distributor':
+            builder.add_distributor_persona()
+        else:
+            builder.add_identity()
+
         (
             builder
-            .add_identity()
             .add_safety_rules()
             .add_skills(skills)
             .add_context(context_data)
@@ -304,10 +309,16 @@ class AgentOrchestrator:
 
         # B. Identity Resolution
         identity_context = ""
+        identity = {}
         try:
             from services.identity_resolver import IdentityResolver
             identity = IdentityResolver.resolve_from_conversation(conversation)
             if identity.get('found'):
+                # Short-circuit if AI responses are disabled for this contact
+                if identity.get('is_ai_active', True) is False:
+                    logger.info(f"[ORCHESTRATOR] AI responses disabled for {identity.get('type')}: {identity.get('id')}")
+                    return {"content": None, "ignored": True, "reason": "ai_disabled"}
+                    
                 identity_context = f"\nContexto del contacto: {identity.get('context', '')}"
         except Exception as e:
             logger.debug(f"Identity resolution skipped: {e}")
@@ -326,6 +337,7 @@ class AgentOrchestrator:
             "channel": channel,
             "contact_name": conversation.participant_name or "Usuario",
             "contact_phone": conversation.participant_id,
+            "contact_type": identity.get('type', 'unknown'),
             "enabled_features": enabled_features,
             "agent_hints": agent_hints,  # Available in state for prompt builder
             "is_anonymous": conversation.lead_id is None,

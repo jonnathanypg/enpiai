@@ -4,7 +4,7 @@ import { useState, use } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, Download, Share2, Mail, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +26,7 @@ const SYMPTOM_GROUPS = [
     },
     {
         category: 'symptomsCardiovascular',
-        items: ['s8', 's9', 's10', 's11'],
+        items: ['s8', 's9', 's10', 's11', 's33'],
     },
     {
         category: 'symptomsMusculoskeletal',
@@ -35,6 +35,10 @@ const SYMPTOM_GROUPS = [
     {
         category: 'symptomsRespiratory',
         items: ['s20', 's21', 's22', 's23', 's24'],
+    },
+    {
+        category: 'symptomsNeurological',
+        items: ['s30', 's31', 's32'],
     },
     {
         category: 'symptomsGeneral',
@@ -58,6 +62,10 @@ const evaluationSchema = z.object({
     primary_goal: z.string().min(1, 'Required'),
     activity_level: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']),
     meals_per_day: z.string().min(1, 'Required'),
+    exercise_frequency: z.string().optional(),
+    water_intake_liters: z.string().optional(),
+    sleep_hours: z.string().optional(),
+    sleep_quality: z.string().optional(),
     observations: z.string().optional(),
     // Step 5 – Contact
     first_name: z.string().min(2, 'Required'),
@@ -231,14 +239,67 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                             </p>
                         </section>
                     </CardContent>
+                    
+                    <CardFooter className="flex flex-col gap-6 pt-6 border-t">
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap justify-center gap-4 w-full">
+                            <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 min-w-[140px]">
+                                {t('wellnessForm.startNew')}
+                            </Button>
+                            
+                            {resultData.pdf_url && (
+                                <Button 
+                                    variant="secondary" 
+                                    className="flex-1 min-w-[140px] bg-green-600 hover:bg-green-700 text-white border-none"
+                                    onClick={() => window.open(resultData.pdf_url, '_blank')}
+                                >
+                                    <Download className="mr-2 h-4 w-4" /> {t('wellnessForm.downloadPDF')}
+                                </Button>
+                            )}
+                            
+                            {/* Share Dropdown logic (simplified for public page) */}
+                            <div className="flex gap-2">
+                                <Button 
+                                    variant="outline" 
+                                    title={t('wellnessForm.shareViaWhatsApp')}
+                                    onClick={() => {
+                                        const text = encodeURIComponent(`¡Hola! Mira mi análisis de bienestar 🌿: ${resultData.pdf_url}`);
+                                        window.open(`https://wa.me/?text=${text}`, '_blank');
+                                    }}
+                                >
+                                    <MessageCircle className="h-4 w-4 text-green-500" />
+                                </Button>
+                                <Button 
+                                    variant="outline"
+                                    title={t('wellnessForm.shareViaTelegram')}
+                                    onClick={() => {
+                                        const text = encodeURIComponent(`🌿 Mi análisis de bienestar: ${resultData.pdf_url}`);
+                                        window.open(`https://t.me/share/url?url=${resultData.pdf_url}&text=${text}`, '_blank');
+                                    }}
+                                >
+                                    <Send className="h-4 w-4 text-blue-400" />
+                                </Button>
+                            </div>
+                        </div>
 
-                    <CardFooter className="flex justify-center gap-4 pt-4">
-                        <Button variant="outline" onClick={() => window.location.reload()}>
-                            {t('wellnessForm.startNew')}
-                        </Button>
-                        <Button variant="secondary" onClick={() => window.print()}>
-                            {t('wellnessForm.printResults')}
-                        </Button>
+                        {/* Referral Section */}
+                        <div className="w-full bg-muted/30 rounded-xl p-6 text-center space-y-4 border border-dashed">
+                            <div className="space-y-1">
+                                <h4 className="font-bold text-lg">{t('wellnessForm.inviteTitle')}</h4>
+                                <p className="text-sm text-muted-foreground">{t('wellnessForm.inviteSubtitle')}</p>
+                            </div>
+                            <Button 
+                                variant="default" 
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                    const distLink = `https://enpi.click/evaluate/${resultData.distributor_herbalife_id || distributor_id}`;
+                                    const text = encodeURIComponent(`${t('wellnessForm.inviteWhatsApp')} ${distLink}`);
+                                    window.open(`https://wa.me/?text=${text}`, '_blank');
+                                }}
+                            >
+                                <Share2 className="mr-2 h-4 w-4" /> {t('wellnessForm.inviteFriend')}
+                            </Button>
+                        </div>
                     </CardFooter>
                 </Card>
             </div>
@@ -249,7 +310,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
     const progress = ((step + 1) / (TOTAL_STEPS - 1)) * 100; // exclude results as a counted step
 
     return (
-        <div className="mx-auto flex max-w-lg flex-col justify-center px-4 py-12">
+        <div className="mx-auto flex max-w-lg flex-col px-4 py-8 md:py-12">
             {/* Progress */}
             <div className="mb-8 space-y-2">
                 <Progress value={progress} className="h-2" />
@@ -274,7 +335,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                     <li className="flex items-center gap-2">🔹 {t('wellnessForm.bullet3')}</li>
                                 </ul>
                             </CardContent>
-                            <CardFooter>
+                            <CardFooter className="pt-8">
                                 <Button type="button" onClick={() => setStep(1)} className="w-full">
                                     {t('wellnessForm.startNow')} <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
@@ -307,7 +368,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                     {errors.gender && <p className="text-xs text-destructive">{errors.gender.message}</p>}
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex justify-between">
+                            <CardFooter className="flex justify-between pt-6">
                                 <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
                                 <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
                             </CardFooter>
@@ -346,7 +407,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                     </div>
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex justify-between">
+                            <CardFooter className="flex justify-between pt-6">
                                 <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
                                 <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
                             </CardFooter>
@@ -361,7 +422,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                 <CardDescription>{t('wellnessForm.symptomsSubtitle')}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-6 h-[400px] overflow-y-auto pr-2">
+                                <div className="space-y-6">
                                 {SYMPTOM_GROUPS.map((group) => (
                                     <div key={group.category}>
                                         <h4 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide">
@@ -385,7 +446,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                 ))}
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex justify-between">
+                            <CardFooter className="flex justify-between pt-6">
                                 <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
                                 <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
                             </CardFooter>
@@ -402,23 +463,52 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                     <Input {...register('primary_goal')} placeholder={t('wellnessForm.goalPlaceholder')} />
                                     {errors.primary_goal && <p className="text-xs text-destructive">{errors.primary_goal.message}</p>}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>{t('wellnessForm.activityLevel')}</Label>
-                                    <select
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                                        {...register('activity_level')}
-                                    >
-                                        <option value="sedentary">{t('wellnessForm.sedentary')}</option>
-                                        <option value="light">{t('wellnessForm.light')}</option>
-                                        <option value="moderate">{t('wellnessForm.moderate')}</option>
-                                        <option value="active">{t('wellnessForm.active')}</option>
-                                        <option value="very_active">{t('wellnessForm.veryActive')}</option>
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.activityLevel')}</Label>
+                                        <select
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                            {...register('activity_level')}
+                                        >
+                                            <option value="sedentary">{t('wellnessForm.sedentary')}</option>
+                                            <option value="light">{t('wellnessForm.light')}</option>
+                                            <option value="moderate">{t('wellnessForm.moderate')}</option>
+                                            <option value="active">{t('wellnessForm.active')}</option>
+                                            <option value="very_active">{t('wellnessForm.veryActive')}</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.exerciseFrequency')}</Label>
+                                        <Input {...register('exercise_frequency')} placeholder="e.g. 3 times/week" />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>{t('wellnessForm.mealsPerDay')}</Label>
-                                    <Input type="number" {...register('meals_per_day')} placeholder="3" />
-                                    {errors.meals_per_day && <p className="text-xs text-destructive">{errors.meals_per_day.message}</p>}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.mealsPerDay')}</Label>
+                                        <Input type="number" {...register('meals_per_day')} placeholder="3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.waterIntake')}</Label>
+                                        <Input type="number" step="0.1" {...register('water_intake_liters')} placeholder="2.5" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.sleepHours')}</Label>
+                                        <Input type="number" {...register('sleep_hours')} placeholder="7" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t('wellnessForm.sleepQuality')}</Label>
+                                        <select
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                            {...register('sleep_quality')}
+                                        >
+                                            <option value="excellent">{t('wellnessForm.sleepExcellent')}</option>
+                                            <option value="good">{t('wellnessForm.sleepGood')}</option>
+                                            <option value="fair">{t('wellnessForm.sleepFair')}</option>
+                                            <option value="poor">{t('wellnessForm.sleepPoor')}</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>{t('wellnessForm.observations')}</Label>
@@ -430,7 +520,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                     />
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex justify-between">
+                            <CardFooter className="flex justify-between pt-6">
                                 <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
                                 <Button type="button" onClick={nextStep}>{t('wellnessForm.next')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
                             </CardFooter>
@@ -461,7 +551,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                     {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
                                 </div>
                             </CardContent>
-                            <CardFooter className="flex justify-between">
+                            <CardFooter className="flex justify-between pt-6">
                                 <Button type="button" variant="outline" onClick={prevStep}>{t('wellnessForm.back')}</Button>
                                 <Button type="submit" disabled={isSubmitting}>
                                     {isSubmitting ? (

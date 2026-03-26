@@ -35,6 +35,7 @@ class PDFService:
             'primary_goal': evaluation.primary_goal,
             'target_weight_kg': evaluation.target_weight_kg,
             'motivation': evaluation.motivation,
+            'diagnosis': evaluation.diagnosis,
             'recommendations': evaluation.recommendations,
             'recommended_products': evaluation.recommended_products
         }
@@ -112,13 +113,28 @@ class PDFService:
 
             # Lifestyle
             elements.append(Paragraph("🏃 Estilo de Vida", heading_style))
+            # Translated lifestyle values
+            activity_map = {
+                'sedentary': 'Sedentario',
+                'light': 'Ligero',
+                'moderate': 'Moderado',
+                'active': 'Activo',
+                'very_active': 'Muy Activo'
+            }
+            sleep_map = {
+                'excellent': 'Excelente',
+                'good': 'Buena',
+                'fair': 'Regular',
+                'poor': 'Mala'
+            }
+            
             lifestyle_data = [
-                ['Nivel de actividad', data['activity_level'] or 'N/A'],
+                ['Nivel de actividad', activity_map.get(data['activity_level'], data['activity_level'] or 'N/A')],
                 ['Frecuencia de ejercicio', data['exercise_frequency'] or 'N/A'],
                 ['Comidas por día', str(data['meals_per_day'] or 'N/A')],
                 ['Agua (litros/día)', str(data['water_intake_liters'] or 'N/A')],
                 ['Horas de sueño', str(data['sleep_hours'] or 'N/A')],
-                ['Calidad de sueño', data['sleep_quality'] or 'N/A'],
+                ['Calidad de sueño', sleep_map.get(data['sleep_quality'], data['sleep_quality'] or 'N/A')],
             ]
             table2 = Table(lifestyle_data, colWidths=[200, 300])
             table2.setStyle(TableStyle([
@@ -147,10 +163,17 @@ class PDFService:
                 ))
             elements.append(Spacer(1, 15))
 
+            # Diagnosis (if AI-generated)
+            if data['diagnosis']:
+                elements.append(Paragraph("🔍 Diagnóstico AI", heading_style))
+                elements.append(Paragraph(data['diagnosis'], body_style))
+                elements.append(Spacer(1, 15))
+            
             # Recommendations (if AI-generated)
             if data['recommendations']:
                 elements.append(Paragraph("💡 Recomendaciones", heading_style))
                 elements.append(Paragraph(data['recommendations'], body_style))
+                elements.append(Spacer(1, 15))
 
             # Recommended Products
             if data['recommended_products']:

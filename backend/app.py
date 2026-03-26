@@ -7,7 +7,7 @@ Migration Path: App factory will become an HTTP gateway for a P2P mesh of agents
 """
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 from config import get_config
@@ -101,6 +101,12 @@ def create_app(config_class=None):
     @app.route('/health')
     def health_check():
         return jsonify({'status': 'healthy', 'app': 'EnpiAI - Herbalife SaaS'}), 200
+
+    # Serve Wellness Reports (Publicly but with long random filenames)
+    @app.route('/api/wellness/reports/<path:filename>')
+    def serve_wellness_report(filename):
+        reports_dir = os.path.join(app.config.get('UPLOAD_FOLDER', 'uploads'), 'reports')
+        return send_from_directory(reports_dir, filename)
 
     # -------------------------------------------------------------------
     # Error Handlers

@@ -17,6 +17,7 @@ interface LeadTimelineProps {
     conversations: UnifiedContact['conversations'];
     appointments: UnifiedContact['appointments'];
     evaluations: UnifiedContact['evaluations'];
+    notes: UnifiedContact['notes'];
 }
 
 type TimelineEvent = {
@@ -29,7 +30,7 @@ type TimelineEvent = {
     color: string;
 };
 
-export function LeadTimeline({ conversations, appointments, evaluations }: LeadTimelineProps) {
+export function LeadTimeline({ conversations, appointments, evaluations, notes }: LeadTimelineProps) {
     // Flatten and sort events
     const events: TimelineEvent[] = [];
 
@@ -63,14 +64,32 @@ export function LeadTimeline({ conversations, appointments, evaluations }: LeadT
 
     // 3. Evaluations
     evaluations.forEach((evalItem) => {
+        let desc = `BMI: ${evalItem.bmi?.toFixed(1) || 'N/A'} - Goal: ${evalItem.primary_goal}`;
+        if (evalItem.diagnosis) {
+            desc += `\n\nDiagnosis: ${evalItem.diagnosis.substring(0, 150)}${evalItem.diagnosis.length > 150 ? '...' : ''}`;
+        }
+        
         events.push({
             id: `eval-${evalItem.id}`,
             type: 'evaluation',
             date: new Date(evalItem.created_at),
             title: 'Wellness Evaluation Completed',
-            description: `BMI: ${evalItem.bmi?.toFixed(1) || 'N/A'} - Goal: ${evalItem.primary_goal}`,
+            description: desc,
             icon: Activity,
             color: 'bg-purple-100 text-purple-700',
+        });
+    });
+
+    // 4. Notes
+    (notes || []).forEach((note) => {
+        events.push({
+            id: `note-${note.id}`,
+            type: 'note',
+            date: new Date(note.created_at),
+            title: `Nota por ${note.author_name || 'Agente'}`,
+            description: note.content,
+            icon: FileText,
+            color: 'bg-yellow-100 text-yellow-700',
         });
     });
 
@@ -114,7 +133,7 @@ export function LeadTimeline({ conversations, appointments, evaluations }: LeadT
                             </time>
                         </div>
                         <Card className="mt-2">
-                            <CardContent className="p-3 text-sm text-foreground/80">
+                            <CardContent className="p-3 text-sm text-foreground/80 whitespace-pre-wrap">
                                 {event.description}
                             </CardContent>
                         </Card>

@@ -14,6 +14,7 @@ from models.customer import Customer
 from models.conversation import Conversation
 from models.appointment import Appointment
 from models.wellness_evaluation import WellnessEvaluation
+from models.note import Note
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,6 @@ def _get_distributor_id():
 def get_unified_profile(identifier):
     """
     Get a 360° unified profile for a contact (Lead + Customer + Conversations + Appointments).
-
-    Identifier can be:
-    - Phone number (e.g., "593991234567")
-    - Email address (e.g., "user@example.com")
-    - Lead ID (e.g., "lead:42")
-    - Customer ID (e.g., "customer:15")
-
-    Returns aggregated data across all systems.
     """
     db.session.rollback()
 
@@ -59,19 +52,18 @@ def get_unified_profile(identifier):
             customer_id = int(identifier.split(':')[1])
             customer = Customer.query.filter_by(id=customer_id, distributor_id=distributor_id).first()
         elif '@' in identifier:
-            # Email lookup
-            lead = Lead.query.filter_by(distributor_id=distributor_id, email=identifier).first()
-            customer = Customer.query.filter_by(distributor_id=distributor_id, email=identifier).first()
+            h = Lead.generate_hash(identifier)
+            lead = Lead.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
+            customer = Customer.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
         else:
-            # Phone lookup
             phone_clean = identifier.replace('+', '').replace(' ', '').replace('-', '')
-            lead = Lead.query.filter_by(distributor_id=distributor_id, phone=phone_clean).first()
-            customer = Customer.query.filter_by(distributor_id=distributor_id, phone=phone_clean).first()
+            h = Lead.generate_hash(phone_clean)
+            lead = Lead.query.filter_by(distributor_id=distributor_id, phone_hash=h).first()
+            customer = Customer.query.filter_by(distributor_id=distributor_id, phone_hash=h).first()
 
         if not lead and not customer:
             return jsonify({'error': 'Contact not found'}), 404
 
-        # Build unified profile
         profile = {
             'identifier': identifier,
             'lead': None,
@@ -79,12 +71,12 @@ def get_unified_profile(identifier):
             'conversations': [],
             'appointments': [],
             'evaluations': [],
+            'notes': [],
             'timeline': []
         }
 
         timeline = []
 
-        # Lead data
         if lead:
             profile['lead'] = lead.to_dict()
             timeline.append({
@@ -93,7 +85,6 @@ def get_unified_profile(identifier):
                 'summary': f"Lead registered via {lead.source or 'unknown'}"
             })
 
-            # Conversations for this lead
             conversations = Conversation.query.filter_by(
                 distributor_id=distributor_id,
                 lead_id=lead.id
@@ -115,7 +106,6 @@ def get_unified_profile(identifier):
                     'summary': f"Conversation via {conv_data['channel']} ({conv_data['status']})"
                 })
 
-            # Appointments for this lead
             appointments = Appointment.query.filter_by(
                 distributor_id=distributor_id,
                 lead_id=lead.id
@@ -129,7 +119,6 @@ def get_unified_profile(identifier):
                     'summary': f"Appointment: {appt.title} ({appt.status.value})"
                 })
 
-            # Wellness evaluations for lead
             evals = WellnessEvaluation.query.filter_by(
                 distributor_id=distributor_id,
                 lead_id=lead.id
@@ -143,7 +132,19 @@ def get_unified_profile(identifier):
                     'summary': f"Wellness eval — BMI: {ev.bmi}, Goal: {ev.primary_goal}"
                 })
 
-        # Customer data
+            notes_lead = Note.query.filter_by(
+                distributor_id=distributor_id,
+                lead_id=lead.id
+            ).order_by(Note.created_at.desc()).all()
+
+            for note in notes_lead:
+                profile['notes'].append(note.to_dict())
+                timeline.append({
+                    'type': 'note',
+                    'date': note.created_at.isoformat() if note.created_at else None,
+                    'summary': f"Note added: {note.content[:50]}..."
+                })
+
         if customer:
             profile['customer'] = customer.to_dict()
             timeline.append({
@@ -152,7 +153,6 @@ def get_unified_profile(identifier):
                 'summary': f"Converted to customer ({customer.customer_type})"
             })
 
-            # Appointments for this customer
             appts = Appointment.query.filter_by(
                 distributor_id=distributor_id,
                 customer_id=customer.id
@@ -167,7 +167,6 @@ def get_unified_profile(identifier):
                         'summary': f"Appointment: {appt.title} ({appt.status.value})"
                     })
 
-            # Wellness evaluations
             evals = WellnessEvaluation.query.filter_by(
                 distributor_id=distributor_id,
                 customer_id=customer.id
@@ -181,7 +180,20 @@ def get_unified_profile(identifier):
                     'summary': f"Wellness eval — BMI: {ev.bmi}, Goal: {ev.primary_goal}"
                 })
 
-        # Sort timeline by date (most recent first)
+            notes_cust = Note.query.filter_by(
+                distributor_id=distributor_id,
+                customer_id=customer.id
+            ).order_by(Note.created_at.desc()).all()
+
+            for note in notes_cust:
+                if note.to_dict() not in profile['notes']:
+                    profile['notes'].append(note.to_dict())
+                    timeline.append({
+                        'type': 'note',
+                        'date': note.created_at.isoformat() if note.created_at else None,
+                        'summary': f"Note added: {note.content[:50]}..."
+                    })
+
         profile['timeline'] = sorted(
             [t for t in timeline if t.get('date')],
             key=lambda x: x['date'],
@@ -193,3 +205,112 @@ def get_unified_profile(identifier):
     except Exception as e:
         logger.error(f"Unified profile error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@contacts_bp.route('/unified/<identifier>/notes', methods=['POST'])
+@jwt_required()
+def add_note(identifier):
+    """Add a note to a contact profile."""
+    try:
+        distributor_id = _get_distributor_id()
+        user_id = get_jwt_identity()
+        data = request.json
+        content = data.get('content')
+
+        if not content:
+            return jsonify({'error': 'Content is required'}), 400
+
+        lead = None
+        customer = None
+
+        if identifier.startswith('lead:'):
+            lead_id = int(identifier.split(':')[1])
+            lead = Lead.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
+        elif identifier.startswith('customer:'):
+            customer_id = int(identifier.split(':')[1])
+            customer = Customer.query.filter_by(id=customer_id, distributor_id=distributor_id).first()
+        else:
+            h = Lead.generate_hash(identifier)
+            lead = Lead.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
+            if not lead:
+                customer = Customer.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
+            
+            if not lead and not customer:
+                 phone_clean = identifier.replace('+', '').replace(' ', '').replace('-', '')
+                 h_phone = Lead.generate_hash(phone_clean)
+                 lead = Lead.query.filter_by(distributor_id=distributor_id, phone_hash=h_phone).first()
+                 if not lead:
+                     customer = Customer.query.filter_by(distributor_id=distributor_id, phone_hash=h_phone).first()
+
+        if not lead and not customer:
+            return jsonify({'error': 'Contact not found'}), 404
+
+        new_note = Note(
+            distributor_id=distributor_id,
+            lead_id=lead.id if lead else None,
+            customer_id=customer.id if customer else None,
+            content=content,
+            author_id=int(user_id)
+        )
+
+        db.session.add(new_note)
+        db.session.commit()
+
+        return jsonify({'status': 'success', 'data': new_note.to_dict()}), 201
+
+    except Exception as e:
+        logger.error(f"Error adding note: {e}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@contacts_bp.route('/unified/<identifier>/ai-toggle', methods=['PUT'])
+@jwt_required()
+def toggle_ai(identifier):
+    """Toggle AI automatic responses for a contact."""
+    try:
+        distributor_id = _get_distributor_id()
+        data = request.json
+        is_active = data.get('is_ai_active')
+
+        if is_active is None:
+            return jsonify({'error': 'is_ai_active boolean is required'}), 400
+
+        lead = None
+        customer = None
+
+        if identifier.startswith('lead:'):
+            lead_id = int(identifier.split(':')[1])
+            lead = Lead.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
+        elif identifier.startswith('customer:'):
+            customer_id = int(identifier.split(':')[1])
+            customer = Customer.query.filter_by(id=customer_id, distributor_id=distributor_id).first()
+        else:
+            h = Lead.generate_hash(identifier)
+            lead = Lead.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
+            if not lead:
+                customer = Customer.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
+            
+            if not lead and not customer:
+                 phone_clean = identifier.replace('+', '').replace(' ', '').replace('-', '')
+                 h_phone = Lead.generate_hash(phone_clean)
+                 lead = Lead.query.filter_by(distributor_id=distributor_id, phone_hash=h_phone).first()
+                 if not lead:
+                     customer = Customer.query.filter_by(distributor_id=distributor_id, phone_hash=h_phone).first()
+
+        if not lead and not customer:
+            return jsonify({'error': 'Contact not found'}), 404
+
+        if lead:
+            lead.is_ai_active = bool(is_active)
+        if customer:
+            customer.is_ai_active = bool(is_active)
+
+        db.session.commit()
+        return jsonify({'status': 'success', 'is_ai_active': bool(is_active)}), 200
+
+    except Exception as e:
+        logger.error(f"Error toggling AI response: {e}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+

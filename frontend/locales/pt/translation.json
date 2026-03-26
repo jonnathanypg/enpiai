@@ -39,7 +39,8 @@
     "date": "Data",
     "show": "Mostrar",
     "hide": "Ocultar",
-    "copy": "Copiar"
+    "copy": "Copiar",
+    "confirmDelete": "Tem certeza de que deseja excluir este registro e todo o seu histórico? Esta ação não pode ser desfeita."
   },
   "auth": {
     "welcomeBack": "Bem-vindo de volta",

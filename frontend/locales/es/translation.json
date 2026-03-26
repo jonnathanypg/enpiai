@@ -39,7 +39,8 @@
     "date": "Fecha",
     "show": "Mostrar",
     "hide": "Ocultar",
-    "copy": "Copiar"
+    "copy": "Copiar",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este registro y todo su historial? Esta acción no se puede deshacer."
   },
   "auth": {
     "welcomeBack": "Bienvenido de nuevo",
@@ -101,7 +102,7 @@
       "pastDue": "Pago Atrasado",
       "cancelled": "Cancelada",
       "upgrade": "Mejorar Plan",
-    "backToMembership": "Volver a Membresía",
+      "backToMembership": "Volver a Membresía",
       "cancel": "Cancelar Suscripción",
       "features": "Funciones Incluidas",
       "noExpiry": "Sin Vencimiento"
@@ -306,10 +307,17 @@
     "copyLink": "Copiar Enlace",
     "recentEvaluations": "Evaluaciones Recientes",
     "recentEvaluationsDesc": "Una lista de todos los chequeos de bienestar enviados por prospectos y clientes.",
-    "noEvaluations": "No se encontraron evaluaciones.",
+    "noEvaluations": "No se encontraron evaluaciones para este contacto.",
     "evaluation": "Evaluación",
     "generatePdf": "Generar PDF",
-    "viewContact": "Ver Contacto"
+    "viewContact": "Ver Contacto",
+    "stats": "Estadísticas de Bienestar",
+    "timeline": "Línea de Tiempo 360°",
+    "notes": "Notas y Tareas",
+    "viewFullReport": "Ver reporte completo",
+    "profile": "Perfil del Contacto",
+    "interactionHistory": "Historial de Interacciones",
+    "timelineDescription": "Todos los mensajes, citas y eventos del sistema."
   },
   "playground": {
     "title": "Playground del Agente",
@@ -500,6 +508,7 @@
     "s9": "Palpitaciones",
     "s10": "Sensación de fatiga o mareos",
     "s11": "Mala circulación en extremidades",
+    "s33": "Colesterol alto",
     "symptomsMusculoskeletal": "Musculoesqueléticos",
     "s12": "Dolor o pesadez en piernas",
     "s13": "Dolor en articulaciones",
@@ -521,6 +530,10 @@
     "s27": "Sensación de debilidad",
     "s28": "Alergias",
     "s29": "Malestar general sin causa aparente",
+    "symptomsNeurological": "Neurológicos y Nerviosos",
+    "s30": "Dolor de cabeza",
+    "s31": "Migrañas",
+    "s32": "Ansiedad o problemas de nervios",
     "lifestyle": "Estilo de Vida y Metas",
     "primaryGoal": "Meta Principal",
     "goalPlaceholder": "ej. Perder peso, Ganar músculo",
@@ -531,6 +544,14 @@
     "active": "Activo (Ejercicio diario)",
     "veryActive": "Muy Activo (Ejercicio intenso)",
     "mealsPerDay": "Comidas por Día",
+    "exerciseFrequency": "Frecuencia de ejercicio",
+    "waterIntake": "Agua (litros/día)",
+    "sleepHours": "Horas de sueño",
+    "sleepQuality": "Calidad de sueño",
+    "sleepExcellent": "Excelente",
+    "sleepGood": "Buena",
+    "sleepFair": "Regular",
+    "sleepPoor": "Mala",
     "observations": "Observaciones Adicionales",
     "observationsPlaceholder": "Cualquier información de salud adicional...",
     "almostDone": "¡Casi Listo!",
@@ -556,6 +577,15 @@
     "noRecommendations": "No se generaron recomendaciones.",
     "startNew": "Iniciar Nueva Evaluación",
     "printResults": "Imprimir Resultados",
+    "downloadPDF": "Descargar PDF",
+    "shareResults": "Compartir Diagnóstico",
+    "shareViaWhatsApp": "Compartir por WhatsApp",
+    "shareViaTelegram": "Compartir por Telegram",
+    "shareViaEmail": "Compartir por Email",
+    "inviteTitle": "¡Ayuda a otros a mejorar!",
+    "inviteSubtitle": "Invita a un amigo o familiar a realizar su evaluación de bienestar.",
+    "inviteFriend": "Invitar a un amigo",
+    "inviteWhatsApp": "Hola! Te comparto este análisis de bienestar gratuito que acabo de realizar. Me ayudó mucho, haz el tuyo aquí: ",
     "step": "Paso"
   }
 }

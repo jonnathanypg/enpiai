@@ -179,8 +179,18 @@ export default function WellnessPage() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => generatePdfMutation.mutate(ev.id)}>
-                                                        <FileText className="mr-2 h-4 w-4" /> {t('wellness.generatePdf')}
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            if (ev.pdf_report_path) {
+                                                                const url = apiClient.defaults.baseURL + '/wellness/reports/' + ev.pdf_report_path;
+                                                                window.open(url, '_blank');
+                                                            } else {
+                                                                generatePdfMutation.mutate(ev.id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <FileText className="mr-2 h-4 w-4" />
+                                                        {ev.pdf_report_path ? t('wellness.viewFullReport') : t('wellness.generatePdf')}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem asChild>
                                                         <Link href={`/contacts/${ev.lead_id ? 'lead:' + ev.lead_id : 'customer:' + ev.customer_id}`}>

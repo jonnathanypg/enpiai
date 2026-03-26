@@ -138,19 +138,45 @@ class LLMService:
         if not client:
             raise RuntimeError("OpenAI client not available")
 
+        # OpenAI O1/O3 and potentially custom 'gpt-5' placeholders
+        # require max_completion_tokens instead of max_tokens.
+        # They also often don't support temperature or system roles (preferring developer).
+        model_lower = model.lower()
+        is_o_model = any(m in model_lower for m in ['o1', 'o3', 'gpt-5'])
+
         if messages is None:
             messages = []
             if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
+                role = "developer" if is_o_model else "system"
+                messages.append({"role": role, "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
-        return response.choices[0].message.content
+        kwargs = {
+            "model": model,
+            "messages": messages,
+        }
+
+        if is_o_model:
+            kwargs["max_completion_tokens"] = max_tokens
+            # O-series models usually don't support temperature or only allow 1.0.
+            # We omit it to use the model's default "reasoning" behavior.
+        else:
+            kwargs["max_tokens"] = max_tokens
+            kwargs["temperature"] = temperature
+
+        response = client.chat.completions.create(**kwargs)
+        
+        # Log essential metadata for debugging empty responses
+        usage = getattr(response, 'usage', None)
+        finish_reason = response.choices[0].finish_reason if response.choices else "unknown"
+        content = response.choices[0].message.content if response.choices else None
+        
+        logger.info(f"OpenAI response: model={model}, finish_reason={finish_reason}, usage={usage}")
+        
+        if not content and is_o_model:
+            logger.warning(f"O-model returned empty content. This usually means the reasoning budget consumed all tokens or the prompt was filtered.")
+            
+        return content or ""
 
     def _generate_anthropic(self, prompt, model, system_prompt, messages, temperature, max_tokens):
         """Generate using Anthropic API"""

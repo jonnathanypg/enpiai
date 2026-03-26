@@ -4,13 +4,16 @@ The POST /evaluate endpoint is PUBLIC (no auth) so prospects can fill it from a 
 Migration Path: Health data is PII — encrypted as sovereign blobs.
 """
 import logging
-from flask import Blueprint, request, jsonify
+import os
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models.user import User
 from models.wellness_evaluation import WellnessEvaluation
 from models.lead import Lead, LeadSource
 from services.email_service import email_service
+from services.pdf_service import pdf_service
+from services.messaging_service import messaging_service
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +57,14 @@ def submit_evaluation(distributor_ref):
             email = data.get('email')
 
             if phone:
+                phone_h = Lead.generate_hash(phone)
                 lead = Lead.query.filter_by(
-                    distributor_id=distributor_id, phone=phone
+                    distributor_id=distributor_id, phone_hash=phone_h
                 ).first()
             if not lead and email:
+                email_h = Lead.generate_hash(email)
                 lead = Lead.query.filter_by(
-                    distributor_id=distributor_id, email=email
+                    distributor_id=distributor_id, email_hash=email_h
                 ).first()
 
             if not lead:
@@ -108,8 +113,13 @@ def submit_evaluation(distributor_ref):
 
         # Auto-calculate BMI
         evaluation.calculate_bmi()
+        
+        # Save initial evaluation data first to avoid long-running transaction during AI call
+        db.session.add(evaluation)
+        db.session.commit()
+        logger.info(f"Initial wellness evaluation saved: {evaluation.id}")
 
-        # --- AI Diagnosis ---
+        # --- AI Diagnosis (Out-of-transaction) ---
         try:
             from services.ai_diagnostic_service import generate_diagnosis
             lang = distributor.language or 'es'
@@ -123,18 +133,69 @@ def submit_evaluation(distributor_ref):
                 symptoms=evaluation.symptoms,
                 observations=evaluation.observations or '',
                 language=lang,
+                activity_level=evaluation.activity_level,
+                exercise_frequency=evaluation.exercise_frequency,
+                meals_per_day=evaluation.meals_per_day,
+                water_intake_liters=evaluation.water_intake_liters,
+                sleep_hours=evaluation.sleep_hours,
+                sleep_quality=evaluation.sleep_quality,
             )
-            evaluation.diagnosis = ai_result.get('diagnosis', '')
-            evaluation.recommendations = ai_result.get('recommendations', '')
+            # Update with AI results in a separate transaction
+            # IMPORTANT: Re-rollback to clear stale connection after long AI call
+            db.session.rollback()
+            # Re-fetch evaluation to ensures it is in a fresh session
+            evaluation = WellnessEvaluation.query.get(evaluation.id)
+            if evaluation:
+                evaluation.diagnosis = ai_result.get('diagnosis', '')
+                evaluation.recommendations = ai_result.get('recommendations', '')
+                db.session.commit()
+                logger.info(f"AI results saved for evaluation {evaluation.id}")
         except Exception as ai_err:
-            logger.warning(f"AI diagnosis generation failed (non-blocking): {ai_err}")
-            evaluation.diagnosis = None
-            evaluation.recommendations = None
-
-        db.session.add(evaluation)
-        db.session.commit()
+            db.session.rollback()
+            logger.warning(f"AI diagnosis generation failed (non-blocking): {ai_err}", exc_info=True)
 
         logger.info(f"Wellness evaluation submitted for distributor {distributor_id}, lead {lead_id}")
+        
+        # --- Generate and Send Report ---
+        pdf_url = None
+        try:
+            # Generate PDF synchronously to have the file ready for delivery
+            pdf_path = pdf_service.generate_wellness_report(evaluation, distributor)
+            if pdf_path:
+                filename = os.path.basename(pdf_path)
+                evaluation.pdf_report_path = filename
+                db.session.commit()
+                
+                # Public URL for the PDF
+                api_base = current_app.config.get('API_BASE_URL', 'http://localhost:5000')
+                pdf_url = f"{api_base}/api/wellness/reports/{filename}"
+                
+                # Send to Lead via Email
+                if evaluation.lead and evaluation.lead.email:
+                    email_service.send_wellness_report_to_lead(
+                        to_email=evaluation.lead.email,
+                        distributor_name=distributor.name,
+                        evaluation_data=evaluation.to_dict(),
+                        pdf_path=pdf_path,
+                        lang=distributor.language or 'es'
+                    )
+                
+                # Send to Lead via WhatsApp
+                if evaluation.lead and evaluation.lead.phone:
+                    dist_link = f"https://enpi.click/evaluate/{distributor.herbalife_id or distributor.id}"
+                    wa_message = (
+                        f"¡Hola {evaluation.lead.first_name}! 🌿 Tu análisis de bienestar está listo. "
+                        f"Puedes descargarlo aquí: {pdf_url}\n\n"
+                        f"Cualquier duda, estoy a la orden. - {distributor.name}\n"
+                        f"Realiza otra evaluación o invita a un amigo aquí: {dist_link}"
+                    )
+                    messaging_service.send_whatsapp(
+                        to_phone=evaluation.lead.phone,
+                        message=wa_message,
+                        distributor_id=distributor.id
+                    )
+        except Exception as report_err:
+            logger.error(f"Failed to generate or send report: {report_err}", exc_info=True)
 
         # Notify distributor via email
         try:
@@ -155,10 +216,13 @@ def submit_evaluation(distributor_ref):
             logger.warning(f"Wellness notification email failed (non-blocking): {mail_err}")
 
         result = evaluation.to_dict()
-        # Inject contact info from request data for immediate display
+        # Inject contact info and PDF URL from request data for immediate display
         result['first_name'] = data.get('first_name') or result.get('first_name')
         result['email'] = data.get('email') or result.get('email')
         result['contact_name'] = result['first_name']
+        result['pdf_url'] = pdf_url
+        result['distributor_name'] = distributor.name
+        result['distributor_herbalife_id'] = distributor.herbalife_id or str(distributor.id)
 
         return jsonify({'data': result}), 201
 
@@ -297,3 +361,13 @@ def delete_evaluation(eval_id):
         db.session.rollback()
         logger.error(f"Delete evaluation error: {e}")
         return jsonify({'error': str(e)}), 500
+@wellness_bp.route('/reports/<filename>', methods=['GET'])
+def get_report(filename):
+    """Serve a wellness report PDF"""
+    try:
+        # Use absolute path for safety
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
+        return send_from_directory(upload_folder, filename)
+    except Exception as e:
+        logger.error(f"Error serving report {filename}: {e}")
+        return jsonify({'error': 'Report not found or error serving file'}), 404

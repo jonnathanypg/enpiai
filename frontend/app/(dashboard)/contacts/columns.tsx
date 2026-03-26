@@ -1,7 +1,7 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, ArrowUpDown, Phone, Mail, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, Phone, Mail, MessageSquare, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -16,7 +16,7 @@ import Link from 'next/link';
 import type { Lead } from '@/types';
 import { TFunction } from 'i18next';
 
-export const getColumns = (t: TFunction): ColumnDef<Lead>[] => [
+export const getColumns = (t: TFunction, onDelete?: (lead: Lead) => void): ColumnDef<Lead>[] => [
     {
         accessorKey: 'name',
         header: t('common.name'),
@@ -28,7 +28,7 @@ export const getColumns = (t: TFunction): ColumnDef<Lead>[] => [
             }
             return (
                 <div className="flex flex-col">
-                    <Link href={`/contacts/${lead.id}`} className="font-medium hover:underline">
+                    <Link href={`/contacts/lead:${lead.id}`} className="font-medium hover:underline">
                         {fullName}
                     </Link>
                     <span className="text-xs text-muted-foreground">{lead.email}</span>
@@ -98,6 +98,12 @@ export const getColumns = (t: TFunction): ColumnDef<Lead>[] => [
                         <Link href={`/contacts/${lead.id}`}>
                             <DropdownMenuItem>{t('distributorDashboard.viewContacts')}</DropdownMenuItem>
                         </Link>
+                        <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => onDelete?.(lead)}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" /> {t('common.delete', { defaultValue: 'Eliminar' })}
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             );

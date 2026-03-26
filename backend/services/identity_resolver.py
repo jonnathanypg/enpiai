@@ -23,6 +23,7 @@ class VirtualUser:
         self.phone = lead.phone
         self.is_virtual = True
         self.is_active = True
+        self.is_ai_active = getattr(lead, 'is_ai_active', True)
         self.distributor_id = lead.distributor_id
         
         # CRM Context
@@ -40,6 +41,7 @@ class VirtualUser:
             'phone': self.phone,
             'role': 'lead',
             'is_virtual': True,
+            'is_ai_active': self.is_ai_active,
             'lead_status': self.lead_status,
             'lead_source': self.lead_source,
             'lead_score': self.lead_score,
@@ -84,6 +86,26 @@ class IdentityResolver:
         
         logger.info(f"[IdentityResolver] Resolving phone: {phone} for distributor: {distributor_id}")
 
+        # 0. Check if it's the Distributor themselves
+        try:
+            from models.distributor import Distributor
+            distributor = Distributor.query.filter(
+                db.or_(
+                    Distributor.whatsapp_phone.like(f"%{phone_clean}%"),
+                    Distributor.phone.like(f"%{phone_clean}%")
+                ),
+                Distributor.id == distributor_id
+            ).first()
+            if distributor:
+                logger.info(f"[IdentityResolver] Found Distributor: {distributor.name} (ID: {distributor.id})")
+                return {
+                    'found': True, 'type': 'distributor', 'id': distributor.id,
+                    'name': distributor.name, 'email': distributor.email,
+                    'context': 'AUTHENTICATED DISTRIBUTOR - Master access. Can manage leads, view reports, and send broadcasts.',
+                }
+        except Exception as e:
+            logger.warning(f"[IdentityResolver] Distributor lookup error: {e}")
+
         # 1. Check Customers
         try:
             from models.customer import Customer
@@ -97,6 +119,7 @@ class IdentityResolver:
                     'found': True, 'type': 'customer', 'id': customer.id,
                     'name': customer.name, 'email': customer.email,
                     'context': f"Returning customer: {customer.name}",
+                    'is_ai_active': getattr(customer, 'is_ai_active', True)
                 }
         except Exception as e:
             logger.warning(f"[IdentityResolver] Customer lookup error: {e}")
@@ -116,6 +139,7 @@ class IdentityResolver:
                     'name': lead.name, 'email': lead.email,
                     'virtual_user': virtual,
                     'context': virtual.get_context_summary(),
+                    'is_ai_active': getattr(lead, 'is_ai_active', True)
                 }
         except Exception as e:
             logger.warning(f"[IdentityResolver] Lead lookup error: {e}")
@@ -140,6 +164,7 @@ class IdentityResolver:
                     'found': True, 'type': 'lead', 'id': lead.id,
                     'name': lead.name, 'virtual_user': virtual,
                     'context': virtual.get_context_summary(),
+                    'is_ai_active': getattr(lead, 'is_ai_active', True)
                 }
         except Exception as e:
             logger.warning(f"[IdentityResolver] Telegram lookup error: {e}")
@@ -165,6 +190,7 @@ class IdentityResolver:
                         'found': True, 'type': 'lead', 'id': lead.id,
                         'name': lead.name, 'virtual_user': virtual,
                         'context': virtual.get_context_summary(),
+                        'is_ai_active': getattr(lead, 'is_ai_active', True)
                     }
             except Exception as e:
                 logger.warning(f"[IdentityResolver] Conversation lead lookup error: {e}")
@@ -179,6 +205,7 @@ class IdentityResolver:
                         'found': True, 'type': 'customer', 'id': customer.id,
                         'name': customer.name, 'email': customer.email,
                         'context': f"Returning customer: {customer.name}",
+                        'is_ai_active': getattr(customer, 'is_ai_active', True)
                     }
             except Exception as e:
                 logger.warning(f"[IdentityResolver] Conversation customer lookup error: {e}")

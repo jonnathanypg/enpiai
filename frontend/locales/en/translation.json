@@ -39,7 +39,8 @@
     "date": "Date",
     "show": "Show",
     "hide": "Hide",
-    "copy": "Copy"
+    "copy": "Copy",
+    "confirmDelete": "Are you sure you want to delete this record and all its history? This action cannot be undone."
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -101,7 +102,7 @@
       "pastDue": "Past Due",
       "cancelled": "Cancelled",
       "upgrade": "Upgrade Plan",
-    "backToMembership": "Back to Membership",
+      "backToMembership": "Back to Membership",
       "cancel": "Cancel Subscription",
       "features": "Included Features",
       "noExpiry": "No Expiration"
@@ -306,10 +307,17 @@
     "copyLink": "Copy Link",
     "recentEvaluations": "Recent Evaluations",
     "recentEvaluationsDesc": "A list of all wellness checks submitted by prospects and customers.",
-    "noEvaluations": "No evaluations found.",
+    "noEvaluations": "No evaluations found for this contact.",
     "evaluation": "Evaluation",
     "generatePdf": "Generate PDF",
-    "viewContact": "View Contact"
+    "viewContact": "View Contact",
+    "stats": "Wellness Stats",
+    "timeline": "360° Timeline",
+    "notes": "Notes & Tasks",
+    "viewFullReport": "View Full Report",
+    "profile": "Contact Profile",
+    "interactionHistory": "Interaction History",
+    "timelineDescription": "All messages, appointments, and system events."
   },
   "playground": {
     "title": "Agent Playground",
