@@ -88,12 +88,12 @@ openpyxl==3.1.5
 ordered-set==4.1.0
 orjson==3.11.7
 ormsgpack==1.12.2
-packaging==26.0
+packaging==24.2
 pdfminer.six==20251230
 pdfplumber==0.11.9
 pillow==12.1.1
 pinecone==8.1.0
-pinecone-plugin-assistant==3.0.1
+pinecone-plugin-assistant==3.0.2
 pluggy==1.6.0
 prompt_toolkit==3.0.52
 propcache==0.4.1
