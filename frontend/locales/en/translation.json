@@ -358,7 +358,19 @@
     "country": "Country",
     "noApiKey": "No API key generated",
     "endpoint": "Endpoint",
-    "header": "Header"
+    "header": "Header",
+    "language": "Language",
+    "security": "Security",
+    "securityDesc": "Update your account password.",
+    "descriptionAdmin": "Manage your account security.",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "updatePassword": "Update Password",
+    "passwordChanged": "Password updated successfully.",
+    "fillAllFields": "Please fill in all password fields.",
+    "passwordMinLength": "New password must be at least 6 characters.",
+    "passwordsDoNotMatch": "New passwords do not match."
   },
   "home": {
     "nav": {

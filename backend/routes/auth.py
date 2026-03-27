@@ -348,3 +348,45 @@ def google_auth():
         db.session.rollback()
         logger.error(f"Google auth error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@auth_bp.route('/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    """Change password for the authenticated user (Distributor or Super Admin)."""
+    db.session.rollback()
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        current_password = data.get('current_password', '')
+        new_password = data.get('new_password', '')
+
+        if not current_password or not new_password:
+            return jsonify({'error': 'Current password and new password are required'}), 400
+
+        if len(new_password) < 6:
+            return jsonify({'error': 'New password must be at least 6 characters'}), 400
+
+        current_user_id = get_jwt_identity()
+        user = User.query.get(int(current_user_id))
+
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        if not user.check_password(current_password):
+            return jsonify({'error': 'Current password is incorrect'}), 401
+
+        user.set_password(new_password)
+        db.session.commit()
+
+        logger.info(f"Password changed for user {user.email}")
+
+        return jsonify({'message': 'Password updated successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Change password error: {e}")
+        return jsonify({'error': str(e)}), 500

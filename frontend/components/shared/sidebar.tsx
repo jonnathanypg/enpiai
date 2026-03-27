@@ -43,6 +43,7 @@ const adminItems: NavItem[] = [
     { titleKey: 'sidebar.dashboard', href: '/admin/dashboard', icon: ShieldCheck },
     { titleKey: 'sidebar.systemKnowledge', href: '/admin/documents', icon: FileText },
     { titleKey: 'sidebar.billing', href: '/admin/billing', icon: CreditCard },
+    { titleKey: 'sidebar.settings', href: '/settings', icon: Settings },
 ];
 
 interface SidebarProps {

@@ -358,7 +358,19 @@
     "country": "País",
     "noApiKey": "No se ha generado ninguna clave API",
     "endpoint": "Endpoint",
-    "header": "Cabecera"
+    "header": "Cabecera",
+    "language": "Idioma",
+    "security": "Seguridad",
+    "securityDesc": "Actualiza la contraseña de tu cuenta.",
+    "descriptionAdmin": "Gestiona la seguridad de tu cuenta.",
+    "currentPassword": "Contraseña Actual",
+    "newPassword": "Nueva Contraseña",
+    "confirmPassword": "Confirmar Nueva Contraseña",
+    "updatePassword": "Actualizar Contraseña",
+    "passwordChanged": "Contraseña actualizada correctamente.",
+    "fillAllFields": "Por favor, completa todos los campos de contraseña.",
+    "passwordMinLength": "La nueva contraseña debe tener al menos 6 caracteres.",
+    "passwordsDoNotMatch": "Las contraseñas nuevas no coinciden."
   },
   "home": {
     "nav": {

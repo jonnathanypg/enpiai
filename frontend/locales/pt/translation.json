@@ -351,7 +351,19 @@
     "country": "País",
     "noApiKey": "Nenhuma chave API gerada",
     "endpoint": "Endpoint",
-    "header": "Cabeçalho"
+    "header": "Cabeçalho",
+    "language": "Idioma",
+    "security": "Segurança",
+    "securityDesc": "Atualize a senha da sua conta.",
+    "descriptionAdmin": "Gerencie a segurança da sua conta.",
+    "currentPassword": "Senha Atual",
+    "newPassword": "Nova Senha",
+    "confirmPassword": "Confirmar Nova Senha",
+    "updatePassword": "Atualizar Senha",
+    "passwordChanged": "Senha atualizada com sucesso.",
+    "fillAllFields": "Por favor, preencha todos os campos de senha.",
+    "passwordMinLength": "A nova senha deve ter pelo menos 6 caracteres.",
+    "passwordsDoNotMatch": "As senhas novas não coincidem."
   },
   "home": {
     "nav": {
