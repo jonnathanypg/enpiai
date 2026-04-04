@@ -3,7 +3,7 @@ module.exports = {
         {
             name: "enpiai-redis",
             script: "redis-server",
-            args: "--port 6379",
+            args: "--port 6381",
             env: {
                 NODE_ENV: "production"
             }
@@ -26,7 +26,9 @@ module.exports = {
             script: "app.py",
             env: {
                 FLASK_ENV: "production",
-                PORT: 5000
+                PORT: 5000,
+                CELERY_BROKER_URL: "redis://localhost:6381/0",
+                CELERY_RESULT_BACKEND: "redis://localhost:6381/1"
             }
         },
         {
@@ -36,7 +38,9 @@ module.exports = {
             script: "venv/bin/celery",
             args: "-A celery_app.celery worker --loglevel=info",
             env: {
-                FLASK_ENV: "production"
+                FLASK_ENV: "production",
+                CELERY_BROKER_URL: "redis://localhost:6381/0",
+                CELERY_RESULT_BACKEND: "redis://localhost:6381/1"
             }
         },
         {

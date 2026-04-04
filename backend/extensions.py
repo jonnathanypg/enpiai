@@ -15,5 +15,5 @@ migrate = Migrate()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per minute"],
-    storage_uri="memory://",  # Use Redis in prod: "redis://localhost:6379/2"
+    storage_uri="memory://",  # Use Redis in prod: "redis://localhost:6381/2"
 )

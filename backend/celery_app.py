@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def make_celery(app=None):
     """Create a Celery instance tied to the Flask app context."""
-    broker = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-    backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
+    broker = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6381/0')
+    backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6381/1')
 
     celery = Celery(
         'enpi_ai',
