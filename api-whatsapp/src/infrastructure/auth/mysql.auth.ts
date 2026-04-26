@@ -136,3 +136,15 @@ export const useMySQLAuthState = async (sessionId: string): Promise<{ state: Aut
         }
     };
 };
+
+export const clearMySQLAuthState = async (sessionId: string): Promise<void> => {
+    try {
+        await pool.query(
+            `DELETE FROM ${TABLE_NAME} WHERE session_id = ?`,
+            [sessionId]
+        );
+        console.log(`[MySQL] Cleared all auth state for session ${sessionId}`);
+    } catch (error) {
+        console.error(`[MySQL] Error clearing auth state for session ${sessionId}:`, error);
+    }
+};
