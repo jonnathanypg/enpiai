@@ -277,9 +277,9 @@ def delete_tenant(distributor_id):
         # 2. Delete QR code file if exists
         try:
             # Try both relative and absolute paths if possible, but standard sibling structure:
-            # backend/routes/admin.py -> ../../whatsapp-gateway/qr_codes/{id}.svg
+            # backend/routes/admin.py -> ../../api-whatsapp/qr_codes/{id}.svg
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            qr_path = os.path.join(base_dir, 'whatsapp-gateway', 'qr_codes', f'{distributor_id}.svg')
+            qr_path = os.path.join(base_dir, 'api-whatsapp', 'qr_codes', f'{distributor_id}.svg')
             
             if os.path.exists(qr_path):
                 os.remove(qr_path)

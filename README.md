@@ -9,16 +9,15 @@ A powerful, all-in-one SaaS platform designed to empower independent Herbalife d
 
 ## 🚀 Project Overview
 
-This platform is a multi-tenant SaaS application that allows Herbalife distributors to subscribe to a monthly service and gain access to a powerful set of tools, including:
+This platform is a multi-tenant SaaS application that allows distributors to subscribe to a monthly service and gain access to a powerful set of tools, including:
 
-*   **AI-Powered Assistants:** Automated assistants that can handle customer inquiries via WhatsApp and Telegram.
-*   **Wellness Evaluation System:** A customizable wellness evaluation form that distributors can share with prospects. The collected data is stored in a personalized CRM.
-*   **CRM & Lead Management:** A dedicated dashboard for each distributor to manage their leads, track their progress, and view their history.
-*   **Automated Email Marketing:** A system for sending automated emails to prospects and customers, with customizable templates and signatures.
-*   **PDF Generation:** The ability to generate PDF documents for reports, evaluations, and other materials.
-*   **Conversational Surveys:** Wellness evaluations can also be conducted through a conversational chat with the AI assistant.
-*   **Google Calendar Integration:** Seamlessly schedule meetings and appointments with prospects and customers.
-*   **Distributor-to-Agent Communication:** Distributors can interact with their own AI assistant via WhatsApp to get summaries, reports, and insights, and to give instructions.
+*   **AI-Powered Assistants:** Automated assistants orchestrated via **LangGraph** that handle customer inquiries via WhatsApp and Telegram.
+*   **Wellness Evaluation System:** A customizable wellness evaluation system (conversational and web-form based) that stores data in a personalized CRM.
+*   **CRM & Lead Management:** Unified 360° contact view for managing leads and customers with interaction timelines.
+*   **Automated Email Marketing:** System for notifications, lead follow-ups, and reports.
+*   **RAG (Retrieval-Augmented Generation):** Knowledge base management using **Pinecone** for company-specific documents.
+*   **Google Calendar Integration:** Consensual bi-directional scheduling.
+*   **Dashboards:** Modern Next.js metrics and management panels for distributors and administrators.
 
 ### Core Philosophy
 The platform is designed to be **frictionless** for both distributors and their prospects. The user experience is intuitive, fast, and easy to use, with a focus on simplicity and efficiency.
@@ -27,17 +26,16 @@ The platform is designed to be **frictionless** for both distributors and their 
 
 ## 🛠️ Tech Stack
 
-*   **Backend Framework**: Python (Flask 3.0)
+*   **Backend**: Python (Flask 3.0) + LangGraph (AI Orchestration)
+*   **Task Queue**: Celery + Redis
 *   **Database**:
-    *   **Relational**: MySQL (SQLAlchemy)
-    *   **Vector**: Pinecone (for RAG and contextual memory)
-*   **Authentication**: JWT Security & Google OAuth
-*   **Frontend**: Modern, responsive UI (details to be defined)
-*   **AI/LLM**: Multi-provider support (OpenAI, Anthropic, Google Gemini)
-*   **WhatsApp Integration**: Custom Node.js service (`api-whatsapp`)
-*   **Telegram Integration**: Python Telegram Bot
-*   **Email**: SMTP integration
-*   **Calendar**: Google Calendar API
+    *   **Relational**: MySQL (SQLAlchemy) with Application-Level Encryption (Fernet).
+    *   **Vector**: Pinecone (Namespace-isolated RAG).
+*   **Authentication**: JWT Security & Google OAuth.
+*   **Frontend**: Next.js 14+ (App Router), TypeScript, Tailwind CSS, Shadcn UI.
+*   **AI/LLM**: Multi-provider failover (OpenAI -> Anthropic -> Google Gemini).
+*   **WhatsApp**: Custom Node.js Multi-tenant microservice (`api-whatsapp`).
+*   **Internationalization**: Native support for EN, ES, PT (Backend & Frontend).
 
 ---
 
@@ -45,28 +43,30 @@ The platform is designed to be **frictionless** for both distributors and their 
 
 ```
 /
-├── backend/               # Main Flask application
-│   ├── app.py             # Entry Point
-│   ├── celery_app.py      # Celery Configuration
-│   ├── routes/            # API Blueprints
-│   ├── models/            # Database Models
-│   ├── services/          # Business Logic
-│   └── skills/            # Agentic Skills
-├── frontend/              # Next.js Application
-├── whatsapp-gateway/      # Node.js WhatsApp Service
-├── docs/                  # Documentation
-└── migrations/            # Database Migrations
+├── backend/               # Flask Application (API & Logic)
+│   ├── routes/            # API Blueprints (Auth, CRM, RAG, etc.)
+│   ├── models/            # SQLAlchemy Models with PII Encryption
+│   ├── services/          # Core Business Logic & LangGraph Orchestrator
+│   └── skills/            # Agentic Skills & Tools
+├── frontend/              # Next.js Application (Dashboard & Public Forms)
+├── api-whatsapp/          # Node.js Microservice for WhatsApp Connectivity
+├── migrations/            # Database version control
+└── docs/                  # Technical Guides and Analysis
 ```
 
 ---
 
 ## ⚡ Development Status
 
-**Current Phase: Project Scaffolding & Documentation**
+**Current Phase: Advanced Implementation / Pre-Production**
 
-*   ✅ **Project Initialization**: Basic folder structure created.
-*   ✅ **Reference Analysis**: `OnePunch` and `openclaw` projects analyzed for best practices.
-*   🚧 **Documentation**: `README.md`, `GEMINI.md`, `AGENTS.md`, and development manual in progress.
+*   ✅ **Core Infrastructure**: Multi-tenant database, JWT Auth, and multi-provider LLM failover.
+*   ✅ **Agent Orchestration**: LangGraph-based cyclic workflows with state persistence in Redis.
+*   ✅ **WhatsApp Multi-Tenancy**: Dedicated gateway for asynchronous message processing.
+*   ✅ **CRM & Wellness**: Unified contact view and health evaluation logic implemented.
+*   ✅ **RAG System**: Automated document indexing and semantic search per distributor.
+*   ✅ **I18n**: Subsystem active for EN, ES, and PT.
+*   🚧 **UI Refinement**: Polishing dashboard components and reporting visualization.
 
 ---
 
@@ -75,8 +75,8 @@ The platform is designed to be **frictionless** for both distributors and their 
 ### Prerequisites
 *   Python 3.10+
 *   Node.js 18+
-*   Virtualenv
-*   Git
+*   Redis 6+
+*   MySQL 8.0+
 
 ### Quick Start (Automated)
 
@@ -87,7 +87,7 @@ The platform is designed to be **frictionless** for both distributors and their 
     ```
 
 2.  **Environment Variables**
-    -   Configure `.env` in `backend/`, `frontend/`, and `whatsapp-gateway/`.
+    -   Configure `.env` in `backend/`, `frontend/`, and `api-whatsapp/`.
 
 3.  **Run everything**
     ```bash
@@ -123,10 +123,10 @@ If you prefer to run services individually for debugging:
     npm run dev
     ```
 
-5.  **Terminal 5 (WhatsApp Gateway)**
+5.  **Terminal 5 (WhatsApp API)**
     ```bash
-    cd whatsapp-gateway
-    npx @agenticnucleus/whatsapp-multitenant
+    cd api-whatsapp
+    npm run build && npm start
     ```
 
 ---
