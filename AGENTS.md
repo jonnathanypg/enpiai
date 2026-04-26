@@ -10,10 +10,10 @@ This document outlines the multi-agent architecture for the platform, following 
 
 The platform's intelligence is managed by a central **Agent Orchestrator**. This component is responsible for:
 
-1.  **State Management:** Maintaining the state of all conversations and business processes.
-2.  **Intent Recognition:** Determining the user's intent and the goal of their request.
-3.  **Skill-Based Routing:** Routing tasks to the appropriate agent and skill based on the recognized intent.
-4.  **Response Synthesis:** Composing the final response to the user based on the output of the skills.
+1.  **State Management:** Maintaining the state of all conversations and business processes using `AgentState` (TypedDict).
+2.  **Intent Recognition:** Determining the user's intent and the goal of their request via LLM reasoning.
+3.  **Skill-Based Routing:** Routing tasks to the appropriate tool (skill) using LangGraph's tool-calling logic.
+4.  **Response Synthesis:** Composing the final response to the user based on the output of the skills and the distributor's persona.
 
 All AI-powered skills are accessed through a `SkillAdapter`, an abstraction layer that allows for swapping the underlying LLM provider without changing the core application logic. This ensures modularity and future-proofs the system against changes in the AI landscape.
 
@@ -29,41 +29,40 @@ This agent is the primary point of contact for new leads and existing customers.
 
 *   Answer product-related questions.
 *   Conduct wellness evaluations (via web form or conversational chat).
-*   Qualify leads (customer vs. potential distributor).
-*   Schedule appointments with the distributor.
+*   Qualify leads (customer vs. lead identification).
+*   Schedule appointments with the distributor using Google Calendar.
 *   Handle basic customer service inquiries.
 
-**Skills:**
+**Skills (Implemented Tools):**
 
-*   **`knowledge_base_search`**: Searches the RAG vector store for information about products, ingredients, and business opportunities.
-*   **`wellness_evaluation`**: Guides a user through the wellness evaluation, either conversationally or by providing a link to the web form.
-*   **`lead_qualification`**: Asks targeted questions to determine if a prospect is interested in products or the business.
-*   **`calendar_scheduling`**: Integrates with the distributor's Google Calendar to find available slots and book appointments.
-*   **`crm_lookup`**: Retrieves information about existing customers from the CRM.
+*   **`consult_knowledge_base`**: Semantic search in the RAG vector store for information about products, ingredients, and the business.
+*   **`wellness_evaluation_link`**: Provides the link to the public wellness evaluation form for health assessments.
+*   **`lookup_customer`**: Searches for existing customers/leads by email to verify identity and status.
+*   **`register_lead`**: Capture and registration of new prospects in the CRM with automated status assignment.
+*   **`check_availability`**: Consults the distributor's Google Calendar for available time slots.
+*   **`schedule_appointment`**: Creates events in Google Calendar and records them in the local database.
+*   **`send_email`**: Sends formatted emails to users for follow-ups, reports, or confirmations.
 
-***Migration Path:** The logic for this agent, including its state and skills, should be designed to be portable to a decentralized P2P network where the agent runs on a user-controlled node.*
+***Migration Path:** The logic for this agent, including its state and skills, is designed via LangGraph to be portable to a decentralized P2P network where the agent runs on a user-controlled node.*
 
 ### 2.2. Distributor Agent
 
-This agent acts as a personal assistant to the Herbalife distributor, providing them with real-time insights and tools to manage their business directly from their WhatsApp.
+This agent acts as a personal assistant to the distributor, providing real-time insights and management tools directly via WhatsApp.
 
 **Core Responsibilities:**
 
-*   Provide daily/weekly summaries of new leads and their status.
-*   Answer distributor questions about their prospects.
-*   Send personalized messages to leads on behalf of the distributor.
-*   Provide business tips and best practices.
-*   Manage the distributor's calendar and appointments.
+*   Provide daily/weekly summaries of new leads.
+*   Answer questions about prospect status and history.
+*   Manage the distributor's calendar.
+*   Coordinate follow-up tasks and notifications.
 
 **Skills:**
 
-*   **`crm_reporting`**: Generates reports and summaries from the CRM data (e.g., "how many new leads this week?").
-*   **`prospect_messaging`**: Sends pre-defined or custom messages to specific leads or groups of leads.
-*   **`data_analysis`**: Provides insights and analysis on lead conversion rates, popular products, etc.
-*   **`content_generation`**: Helps the distributor draft social media posts, email newsletters, or other content.
-*   **`distributor_calendar_management`**: Allows the distributor to view, schedule, and cancel appointments via WhatsApp.
+*   **`crm_reporting`**: Analysis of CRM data for conversion rates and lead status.
+*   **`prospect_messaging`**: Orchestrated messaging via the WhatsApp Gateway.
+*   **`calendar_management`**: High-level CRUD operations on the distributor's agenda.
 
-***Migration Path:** The logic for this agent, including its state and skills, should be designed to be portable to a decentralized P2P network where the agent runs on a user-controlled node.*
+***Migration Path:** This agent's architecture leverages the same LangGraph persistence as the Customer Agent, ensuring sovereign state management.*
 
 ---
 

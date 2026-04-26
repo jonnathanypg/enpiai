@@ -45,11 +45,12 @@ module.exports = {
         },
         {
             name: "enpiai-whatsapp",
-            cwd: "./whatsapp-gateway",
-            script: "npx",
-            args: "-y @agenticnucleus/whatsapp-multitenant",
+            cwd: "./api-whatsapp",
+            script: "npm",
+            args: "run start",
             env: {
-                PORT: 3001
+                PORT: 3001,
+                NODE_ENV: "production"
             }
         }
     ]
