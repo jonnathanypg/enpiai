@@ -97,6 +97,11 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
         //@ts-ignore
         logger: pino({ level: "silent" }),
         auth: state,
+        getMessage: async (key) => {
+          return {
+            conversation: "hello"
+          };
+        }
       });
 
       const sessionInfo: SessionInfo = {
