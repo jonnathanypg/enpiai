@@ -101,11 +101,15 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
 
       const socket = this.baileys.makeWASocket({
         printQRInTerminal: false,
-        browser: ["KindiCoreAI", "Chrome", "1.0.0"],
+        browser: ["EnpiAI", "Chrome", "1.0.0"],
         version: [2, 3000, 1033893291],
         //@ts-ignore
         logger: pino({ level: "silent" }),
         auth: state,
+        //@ts-ignore - getMessage required for multi-device message retry
+        getMessage: async (key) => {
+          return { conversation: "" };
+        }
       });
 
       const sessionInfo: SessionInfo = {
@@ -317,7 +321,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
    */
   async logout(companyId: string): Promise<{ status: string }> {
     const session = this.sessions.get(companyId);
-    
+
     // Even if session is not in memory, we should clear the database
     await this.clearAuth(companyId);
 
@@ -326,7 +330,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     }
     try {
       if (session.socket && session.state.connection === "open") {
-          await session.socket.logout();
+        await session.socket.logout();
       }
       this.sessions.delete(companyId);
       return { status: "logged_out" };
