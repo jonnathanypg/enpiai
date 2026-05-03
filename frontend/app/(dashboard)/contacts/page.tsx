@@ -11,7 +11,7 @@ import {
     SortingState,
     ColumnFiltersState,
 } from '@tanstack/react-table';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getColumns } from './columns';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,15 +26,33 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import apiClient from '@/lib/api-client';
 import type { Lead } from '@/types';
-
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 export default function ContactsPage() {
     const { t } = useTranslation();
+    const queryClient = useQueryClient();
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-    const columns = useMemo(() => getColumns(t), [t]);
+    const deleteLeadMutation = useMutation({
+        mutationFn: async (id: number) => {
+            return apiClient.delete(`/leads/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            toast.success(t('common.success', { defaultValue: 'Lead deleted successfully' }));
+        },
+        onError: () => {
+            toast.error(t('common.error', { defaultValue: 'Failed to delete lead' }));
+        },
+    });
+
+    const columns = useMemo(() => getColumns(t, (lead) => {
+        if (confirm(t('common.confirmDelete', { defaultValue: 'Are you sure you want to delete this contact and all its history?' }))) {
+            deleteLeadMutation.mutate(lead.id);
+        }
+    }), [t, deleteLeadMutation]);
 
     const { data: leads, isLoading } = useQuery({
         queryKey: ['contacts'],

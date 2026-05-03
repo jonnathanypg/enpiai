@@ -50,6 +50,15 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     }
   }
 
+  private async clearAuth(companyId: string): Promise<void> {
+    try {
+      const { clearMySQLAuthState } = await import("../auth/mysql.auth");
+      await clearMySQLAuthState(companyId);
+    } catch (error) {
+      console.error(`[${companyId}] Error clearing auth:`, error);
+    }
+  }
+
   /**
    * Scan database for existing sessions and restore them.
    */
@@ -92,15 +101,21 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
 
       const socket = this.baileys.makeWASocket({
         printQRInTerminal: false,
-        browser: ["KindiCoreAI", "Chrome", "1.0.0"],
+        browser: ["EnpiAI", "Chrome", "1.0.0"],
         version: [2, 3000, 1033893291],
         //@ts-ignore
         logger: pino({ level: "silent" }),
         auth: state,
+<<<<<<< HEAD
         getMessage: async (key) => {
           return {
             conversation: "hello"
           };
+=======
+        //@ts-ignore - getMessage required for multi-device message retry
+        getMessage: async (key) => {
+          return { conversation: "" };
+>>>>>>> main
         }
       });
 
@@ -176,6 +191,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
               } else {
                 console.error(`[${companyId}] Max 405 retries reached. Session stopped. User must re-initialize from frontend.`);
                 this.retryCount405.delete(companyId);
+                this.clearAuth(companyId); // Clear DB on max fail
               }
               return;
             } catch (cleanErr) {
@@ -195,9 +211,10 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
 
             // Cleanup on logout
             try {
-              // fs.rmSync... (Deprecated with MySQL)
               if (fs.existsSync(this.getQrFile(companyId))) fs.unlinkSync(this.getQrFile(companyId));
             } catch (e) { }
+
+            this.clearAuth(companyId); // Clear session from MySQL completely
           }
         }
       });
@@ -311,11 +328,17 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
    */
   async logout(companyId: string): Promise<{ status: string }> {
     const session = this.sessions.get(companyId);
+
+    // Even if session is not in memory, we should clear the database
+    await this.clearAuth(companyId);
+
     if (!session) {
-      return { status: "not_found" };
+      return { status: "not_found_but_db_cleared" };
     }
     try {
-      await session.socket.logout();
+      if (session.socket && session.state.connection === "open") {
+        await session.socket.logout();
+      }
       this.sessions.delete(companyId);
       return { status: "logged_out" };
     } catch (error) {

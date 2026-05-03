@@ -31,7 +31,7 @@ class WellnessEvaluation(db.Model):
     bmi = db.Column(db.Float, nullable=True)
 
     # Vital signs (from reference diagnosticador)
-    blood_pressure = db.Column(EncryptedString(50), nullable=True)   # e.g. "120/80"
+    blood_pressure = db.Column(EncryptedString(500), nullable=True)   # e.g. "120/80"
     pulse = db.Column(db.Integer, nullable=True)                     # bpm
     energy_level = db.Column(db.Integer, nullable=True)              # 1-10 scale
 

@@ -111,6 +111,21 @@ class SentimentService:
             logger.warning(f"LLM sentiment failed, using fallback: {e}")
             return self._fallback_analysis(text, has_escalation)
 
+    def fast_analyze(self, text: str) -> Dict[str, Any]:
+        """
+        Ultra-fast keyword-only sentiment analysis (~1ms).
+        Designed for the agent orchestrator hot path where blocking on an LLM
+        call doubles response latency. Use `analyze_text()` when accuracy is
+        more important than speed (e.g. dashboard reporting, async tasks).
+        """
+        if not text or not text.strip():
+            return self._neutral_result("Empty text")
+
+        return self._fallback_analysis(
+            text,
+            has_escalation=any(kw in text.lower() for kw in self.ESCALATION_KEYWORDS)
+        )
+
     def analyze_conversation(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
         """
         Aggregate sentiment over a conversation (analyzes last 5 user messages).

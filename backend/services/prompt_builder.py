@@ -35,6 +35,50 @@ class SystemPromptBuilder:
         
         self.parts.append("## Identity")
         self.parts.append(identity)
+
+        # Inject distributor-level personalization (set from dashboard)
+        personality = getattr(self.distributor, 'personality_prompt', None)
+        if personality:
+            self.parts.append(f"## Personality\n{personality}")
+
+        custom = getattr(self.distributor, 'custom_instructions', None)
+        if custom:
+            self.parts.append(f"## Custom Instructions\n{custom}")
+
+        story = getattr(self.distributor, 'personal_story', None)
+        if story:
+            self.parts.append(f"## Distributor Story\n{story}")
+
+        return self
+
+    def add_distributor_persona(self):
+        """Adds the special master/distributor persona."""
+        lang = getattr(self.distributor, 'language', 'en') or 'en'
+        
+        if lang == 'es':
+            persona = (
+                f"## MODO MAESTRO: ASISTENTE DE NEGOCIOS\n"
+                f"Estás hablando directamente con el distribuidor: {self.distributor.name}.\n"
+                f"En este modo, eres su asistente administrativo personal. Debes:\n"
+                f"1. Proporcionar resúmenes de leads y clientes cuando se te pida.\n"
+                f"2. Ayudar a redactar mensajes para prospectos.\n"
+                f"3. Realizar análisis de datos (quién necesita seguimiento, etc.).\n"
+                f"4. Facilitar el envío de mensajes masivos (broadcast) si es necesario.\n"
+                f"Mantén un tono profesional, eficiente y servicial. Eres su 'mano derecha' en el negocio."
+            )
+        else:
+            persona = (
+                f"## MASTER MODE: BUSINESS ASSISTANT\n"
+                f"You are talking directly to the distributor: {self.distributor.name}.\n"
+                f"In this mode, you are their personal administrative assistant. You must:\n"
+                f"1. Provide lead and customer summaries when requested.\n"
+                f"2. Help draft messages for prospects.\n"
+                f"3. Perform data analysis (who needs follow-up, etc.).\n"
+                f"4. Facilitate broadcasting messages if needed.\n"
+                f"Maintain a professional, efficient, and helpful tone. You are their business 'right hand'."
+            )
+            
+        self.parts.append(persona)
         return self
 
     def add_safety_rules(self):

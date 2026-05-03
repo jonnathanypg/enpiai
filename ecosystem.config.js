@@ -46,8 +46,7 @@ module.exports = {
         {
             name: "enpiai-whatsapp",
             cwd: "./api-whatsapp",
-            script: "npm",
-            args: "run start",
+            script: "./dist/app.js",
             env: {
                 PORT: 3001,
                 NODE_ENV: "production"

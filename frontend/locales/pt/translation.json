@@ -39,7 +39,8 @@
     "date": "Data",
     "show": "Mostrar",
     "hide": "Ocultar",
-    "copy": "Copiar"
+    "copy": "Copiar",
+    "confirmDelete": "Tem certeza de que deseja excluir este registro e todo o seu histórico? Esta ação não pode ser desfeita."
   },
   "auth": {
     "welcomeBack": "Bem-vindo de volta",
@@ -350,7 +351,19 @@
     "country": "País",
     "noApiKey": "Nenhuma chave API gerada",
     "endpoint": "Endpoint",
-    "header": "Cabeçalho"
+    "header": "Cabeçalho",
+    "language": "Idioma",
+    "security": "Segurança",
+    "securityDesc": "Atualize a senha da sua conta.",
+    "descriptionAdmin": "Gerencie a segurança da sua conta.",
+    "currentPassword": "Senha Atual",
+    "newPassword": "Nova Senha",
+    "confirmPassword": "Confirmar Nova Senha",
+    "updatePassword": "Atualizar Senha",
+    "passwordChanged": "Senha atualizada com sucesso.",
+    "fillAllFields": "Por favor, preencha todos os campos de senha.",
+    "passwordMinLength": "A nova senha deve ter pelo menos 6 caracteres.",
+    "passwordsDoNotMatch": "As senhas novas não coincidem."
   },
   "home": {
     "nav": {

@@ -2,6 +2,7 @@
 Lead Model - Prospect management for Herbalife distributors.
 Migration Path: Lead data will be encrypted with client-side keys (Zero-Knowledge).
 """
+import hashlib
 from datetime import datetime
 from enum import Enum
 from extensions import db
@@ -45,6 +46,10 @@ class Lead(db.Model):
     last_name = db.Column(db.String(100), nullable=True)
     email = db.Column(EncryptedString(500), nullable=True)
     phone = db.Column(EncryptedString(500), nullable=True)
+    
+    # Searchable Hashes (Salted SHA-256)
+    email_hash = db.Column(db.String(64), nullable=True, index=True)
+    phone_hash = db.Column(db.String(64), nullable=True, index=True)
 
     # Location
     country = db.Column(db.String(100), nullable=True)
@@ -56,16 +61,20 @@ class Lead(db.Model):
     lead_type = db.Column(db.Enum(LeadType), default=LeadType.UNKNOWN, nullable=False)
 
     # Notes & context
-    notes = db.Column(db.Text, nullable=True)
     tags = db.Column(db.JSON, default=list)  # e.g. ['weight_loss', 'energy', 'nutrition']
 
     # Flexible metadata
     lead_metadata = db.Column(db.JSON, nullable=True)
 
+    # AI Control
+    is_ai_active = db.Column(db.Boolean, default=True, nullable=False)
+
     # Relationships
     distributor = db.relationship('Distributor', back_populates='leads')
-    wellness_evaluations = db.relationship('WellnessEvaluation', back_populates='lead', lazy='dynamic')
-    appointments = db.relationship('Appointment', back_populates='lead', lazy='dynamic')
+    wellness_evaluations = db.relationship('WellnessEvaluation', back_populates='lead', lazy='dynamic', cascade='all, delete-orphan')
+    appointments = db.relationship('Appointment', back_populates='lead', lazy='dynamic', cascade='all, delete-orphan')
+    note_records = db.relationship('Note', back_populates='lead', lazy='dynamic', cascade='all, delete-orphan')
+    conversations = db.relationship('Conversation', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -76,6 +85,15 @@ class Lead(db.Model):
     def full_name(self):
         """Returns full name"""
         return f"{self.first_name or ''} {self.last_name or ''}".strip() or "Prospecto"
+
+    @staticmethod
+    def generate_hash(value):
+        """Generates a consistent hash for searching encrypted fields."""
+        if not value:
+            return None
+        # Normalize: strip spaces, lowercase for email
+        val = str(value).strip().lower()
+        return hashlib.sha256(val.encode()).hexdigest()
 
     def to_dict(self):
         return {
@@ -91,9 +109,10 @@ class Lead(db.Model):
             'status': self.status.value if hasattr(self.status, 'value') else self.status,
             'source': self.source.value if hasattr(self.source, 'value') else self.source,
             'lead_type': self.lead_type.value if hasattr(self.lead_type, 'value') else self.lead_type,
-            'notes': self.notes,
+            'notes': None,  # Legacy field, now using note_records relationship
             'tags': self.tags,
             'metadata': self.lead_metadata,
+            'is_ai_active': self.is_ai_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_contact_at': self.last_contact_at.isoformat() if self.last_contact_at else None
@@ -101,3 +120,27 @@ class Lead(db.Model):
 
     def __repr__(self):
         return f'<Lead {self.full_name}>'
+
+
+# ── Event Listeners for Automatic Hashing ────────────────────────────────────
+
+@db.event.listens_for(Lead, 'before_insert')
+def before_insert_lead(mapper, connection, target):
+    """Automatically generate hashes for searching before inserting."""
+    if target.email:
+        target.email_hash = Lead.generate_hash(target.email)
+    if target.phone:
+        target.phone_hash = Lead.generate_hash(target.phone)
+
+
+@db.event.listens_for(Lead, 'before_update')
+def before_update_lead(mapper, connection, target):
+    """Automatically update hashes when email or phone changes."""
+    # Check if attributes have changed
+    hist_email = db.inspect(target).attrs.email.history
+    hist_phone = db.inspect(target).attrs.phone.history
+    
+    if hist_email.has_changes():
+        target.email_hash = Lead.generate_hash(target.email)
+    if hist_phone.has_changes():
+        target.phone_hash = Lead.generate_hash(target.phone)

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,11 @@ const languages = [
 
 export function LanguageSwitcher() {
     const { i18n } = useTranslation();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const changeLanguage = (lng: string) => {
         i18n.changeLanguage(lng);
@@ -25,6 +31,14 @@ export function LanguageSwitcher() {
     };
 
     const currentLang = languages.find((l) => l.code === i18n.language) || languages[0];
+
+    if (!mounted) {
+        return (
+            <Button variant="ghost" size="icon">
+                <Globe className="h-4 w-4" />
+            </Button>
+        );
+    }
 
     return (
         <DropdownMenu>

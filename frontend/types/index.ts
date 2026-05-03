@@ -83,6 +83,7 @@ export interface Lead {
     metadata?: Record<string, any> | null;
     tags: string[];
     notes: string | null;
+    is_ai_active?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -95,7 +96,20 @@ export interface Customer {
     email: string | null;
     phone: string | null;
     status: string;
+    is_ai_active?: boolean;
     created_at: string;
+}
+
+export interface Note {
+    id: number;
+    distributor_id: number;
+    lead_id: number | null;
+    customer_id: number | null;
+    content: string;
+    author_id: number | null;
+    author_name: string;
+    created_at: string;
+    updated_at: string;
 }
 
 // ========================
@@ -111,7 +125,11 @@ export interface WellnessEvaluation {
     height_cm: number | null;
     weight_kg: number | null;
     bmi: number | null;
+    energy_level: number | null;
     primary_goal: string | null;
+    diagnosis: string | null;
+    recommendations: string | null;
+    pdf_report_path: string | null;
     created_at: string;
 }
 
@@ -172,6 +190,7 @@ export interface UnifiedContact {
     conversations: Conversation[];
     appointments: Appointment[];
     evaluations: WellnessEvaluation[];
+    notes: Note[];
 }
 
 export interface Appointment {

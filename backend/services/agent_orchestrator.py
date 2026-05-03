@@ -84,25 +84,38 @@ class AgentOrchestrator:
             )
     
     def _resolve_skills(self, agent: AgentConfig, enabled_features: List[str]) -> List[Any]:
-        """Dynamically resolve skills based on agent configuration."""
+        """Dynamically resolve skills based on agent configuration.
+        
+        IMPORTANT: Feature names here must match the 'name' field in DEFAULT_FEATURES
+        (agent_config.py). When adding new features, update BOTH places.
+        """
         active_skills = []
         
         # 1. Calendar / Scheduler
-        if any(f in enabled_features for f in ['calendar_integration', 'calendar_scheduling', 'google_calendar']):
+        if any(f in enabled_features for f in [
+            'calendar_scheduling', 'google_calendar',
+            'calendar_integration',  # legacy alias
+        ]):
             active_skills.append(self.skill_registry.get_skill('scheduler'))
 
         # 2. RAG / Knowledge Base
-        # Always enabled if distributor has documents? Or feature flag?
-        # For now, rely on feature flag or default to enabled if RAG is ready
-        if any(f in enabled_features for f in ['knowledge_base', 'rag']):
+        if any(f in enabled_features for f in [
+            'knowledge_base_search', 'rag_memory',
+            'knowledge_base', 'rag',  # legacy aliases
+        ]):
             active_skills.append(self.skill_registry.get_skill('knowledge_base'))
 
         # 3. CRM / Leads
-        if any(f in enabled_features for f in ['crm_lookup', 'crm_integration', 'lead_capture']):
+        if any(f in enabled_features for f in [
+            'crm_lookup', 'crm_reporting', 'lead_qualification', 'lead_capture',
+            'crm_integration',  # legacy alias
+        ]):
             active_skills.append(self.skill_registry.get_skill('crm'))
 
         # 4. Email / Communication
-        if 'email_integration' in enabled_features:
+        if any(f in enabled_features for f in [
+            'email', 'email_integration', 'prospect_messaging',
+        ]):
             active_skills.append(self.skill_registry.get_skill('communication'))
 
         # 5. Wellness
@@ -139,9 +152,14 @@ class AgentOrchestrator:
             'is_anonymous': state.get('is_anonymous', False),
         }
 
+        contact_type = state.get('contact_type', 'unknown')
+        if contact_type == 'distributor':
+            builder.add_distributor_persona()
+        else:
+            builder.add_identity()
+
         (
             builder
-            .add_identity()
             .add_safety_rules()
             .add_skills(skills)
             .add_context(context_data)
@@ -286,12 +304,12 @@ class AgentOrchestrator:
 
         # ========== Phase 9: Pre-Processing ==========
         
-        # A. Sentiment Analysis
+        # A. Sentiment Analysis (fast keyword-based — no LLM call in hot path)
         sentiment_context = ""
         try:
             from services.sentiment_service import SentimentService
             sentiment = SentimentService(distributor=self.distributor)
-            analysis = sentiment.analyze_text(user_message)
+            analysis = sentiment.fast_analyze(user_message)
             if sentiment.should_escalate(analysis):
                 sentiment_context = (
                     f"\n⚠️ ALERTA DE SENTIMIENTO: El usuario muestra frustración "
@@ -304,11 +322,36 @@ class AgentOrchestrator:
 
         # B. Identity Resolution
         identity_context = ""
+        identity = {}
+        is_distributor = False
         try:
             from services.identity_resolver import IdentityResolver
-            identity = IdentityResolver.resolve_from_conversation(conversation)
+
+            # For messaging channels, resolve by phone/chat_id first so we can
+            # detect when the sender IS the distributor themselves.
+            if channel == 'whatsapp' and conversation.participant_id:
+                identity = IdentityResolver.resolve_from_phone(
+                    conversation.participant_id, self.distributor.id
+                )
+            elif channel == 'telegram' and conversation.participant_id:
+                identity = IdentityResolver.resolve_from_telegram(
+                    conversation.participant_id, self.distributor.id
+                )
+            else:
+                identity = IdentityResolver.resolve_from_conversation(conversation)
+
             if identity.get('found'):
-                identity_context = f"\nContexto del contacto: {identity.get('context', '')}"
+                # Short-circuit if AI responses are disabled for this contact
+                if identity.get('is_ai_active', True) is False:
+                    logger.info(f"[ORCHESTRATOR] AI responses disabled for {identity.get('type')}: {identity.get('id')}")
+                    return {"content": None, "ignored": True, "reason": "ai_disabled"}
+
+                if identity.get('type') == 'distributor':
+                    is_distributor = True
+                    identity_context = f"\n{identity.get('context', '')}"
+                    logger.info(f"[ORCHESTRATOR] MASTER MODE activated for distributor {self.distributor.name}")
+                else:
+                    identity_context = f"\nContacto: {identity.get('context', '')}"
         except Exception as e:
             logger.debug(f"Identity resolution skipped: {e}")
 
@@ -326,6 +369,7 @@ class AgentOrchestrator:
             "channel": channel,
             "contact_name": conversation.participant_name or "Usuario",
             "contact_phone": conversation.participant_id,
+            "contact_type": identity.get('type', 'unknown'),
             "enabled_features": enabled_features,
             "agent_hints": agent_hints,  # Available in state for prompt builder
             "is_anonymous": conversation.lead_id is None,

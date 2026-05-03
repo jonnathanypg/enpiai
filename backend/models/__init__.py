@@ -9,6 +9,7 @@ from .lead import Lead, LeadStatus, LeadSource, LeadType
 from .customer import Customer
 from .wellness_evaluation import WellnessEvaluation
 from .product import Product
+from .note import Note
 from .conversation import Conversation, Message, ConversationChannel, ConversationStatus, MessageRole
 from .appointment import Appointment, AppointmentStatus, AppointmentType
 from .document import Document
@@ -42,4 +43,5 @@ __all__ = [
     'Plan', 'Subscription', 'PlanInterval', 'SubscriptionStatus',
     'Transaction', 'TransactionStatus', 'TransactionType',
     'BaileySession',
+    'Note',
 ]

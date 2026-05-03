@@ -4,9 +4,11 @@ Handles all platform notification emails in EN, ES, and PT.
 Migration Path: Email sending can be replaced by P2P message routing.
 """
 import logging
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from flask import current_app
 
 logger = logging.getLogger(__name__)
@@ -295,10 +297,10 @@ class EmailService:
     # Core Send Method
     # ──────────────────────────────────────────────
 
-    def send(self, to_email, subject, body_html, body_text=None, from_email=None):
+    def send(self, to_email, subject, body_html, body_text=None, from_email=None, attachments=None):
         """
         Send an email via SMTP.
-        Handles both SSL (port 465) and STARTTLS (port 587) automatically.
+        attachments: list of file paths to attach.
         """
         smtp_host = current_app.config.get('SMTP_HOST', '')
         smtp_port = current_app.config.get('SMTP_PORT', 587)
@@ -320,6 +322,17 @@ class EmailService:
             if body_text:
                 msg.attach(MIMEText(body_text, 'plain'))
             msg.attach(MIMEText(body_html, 'html'))
+            
+            # Attach files
+            if attachments:
+                for file_path in attachments:
+                    try:
+                        with open(file_path, "rb") as f:
+                            part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
+                        part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
+                        msg.attach(part)
+                    except Exception as attach_err:
+                        logger.warning(f"Failed to attach file {file_path}: {attach_err}")
 
             # Port 465 = implicit SSL (SMTP_SSL)
             # Port 587 = STARTTLS (SMTP + starttls())
@@ -637,6 +650,32 @@ class EmailService:
         <p>{t('report_followup')}</p>
         """
         return self.send(to_email, f"🌿 {t('report_title')} — {distributor_name}", self._base_template(content, t('report_title'), lang))
+
+    def send_wellness_report_to_lead(self, to_email, distributor_name, evaluation_data, pdf_path=None, lang='en'):
+        """ Branded email for the lead with the PDF report attached. """
+        t = lambda key, **kw: self._t(lang, key, **kw)
+        
+        content = f"""
+        <h2>{t('report_title')}</h2>
+        <p>{t('report_thanks', distributor=distributor_name)}</p>
+        
+        <div class="info-card">
+          <table>
+            <tr><td>{t('report_bmi')}</td><td>{evaluation_data.get('bmi', 'N/A')}</td></tr>
+            <tr><td>{t('report_goal')}</td><td>{evaluation_data.get('primary_goal', t('wellness_not_specified'))}</td></tr>
+          </table>
+        </div>
+        
+        <p>{t('wellness_review')}</p>
+        <p>{t('report_followup')}</p>
+        """
+        attachments = [pdf_path] if pdf_path and os.path.exists(pdf_path) else None
+        return self.send(
+            to_email, 
+            f"🌿 {t('report_title')} — {distributor_name}", 
+            self._base_template(content, t('report_title'), lang),
+            attachments=attachments
+        )
 
 
 # Singleton instance

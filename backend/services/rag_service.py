@@ -184,10 +184,10 @@ class RAGService:
             vector_id = f"doc_{document_id}_chunk_{i}_{chunk_hash}"
             vector_ids.append(vector_id)
 
-            # Prepare metadata
+            # Prepare metadata (Pinecone rejects null values)
             chunk_metadata = {
                 'document_id': document_id,
-                'distributor_id': distributor_id,
+                'distributor_id': distributor_id if distributor_id is not None else 'global',
                 'chunk_index': i,
                 'text': chunk[:1000],  # Store truncated text for retrieval
             }
@@ -209,7 +209,52 @@ class RAGService:
         logger.info(f"Upserted {len(vectors)} chunks for document {document_id}")
         return vector_ids
 
-    # ... query and delete methods ...
+    def delete_document_vectors(self, document_id, distributor_id):
+        """Delete all vectors for a specific document from Pinecone."""
+        index = self._get_index()
+        if not index:
+            logger.warning("Pinecone index not available for deletion")
+            return False
+
+        namespace = f"dist_{distributor_id}" if distributor_id else "global"
+
+        try:
+            # Pinecone supports delete by filter on metadata
+            index.delete(
+                filter={"document_id": {"$eq": document_id}},
+                namespace=namespace
+            )
+            logger.info(f"Deleted vectors for document {document_id} from namespace '{namespace}'")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting vectors for document {document_id}: {e}")
+            # Fallback: try deleting by ID prefix pattern
+            try:
+                prefix = f"doc_{document_id}_chunk_"
+                index.delete(
+                    ids=[f"{prefix}{i}" for i in range(500)],  # best-effort
+                    namespace=namespace
+                )
+                logger.info(f"Deleted vectors by prefix for document {document_id}")
+                return True
+            except Exception as e2:
+                logger.error(f"Prefix-based deletion also failed: {e2}")
+                return False
+
+    def purge_namespace(self, namespace="global"):
+        """Completely wipe all vectors in a namespace."""
+        index = self._get_index()
+        if not index:
+            logger.warning("Pinecone index not available for purge")
+            return False
+
+        try:
+            index.delete(delete_all=True, namespace=namespace)
+            logger.info(f"Purged all vectors from namespace '{namespace}'")
+            return True
+        except Exception as e:
+            logger.error(f"Error purging namespace '{namespace}': {e}")
+            return False
 
     def upsert_document_async(self, text_chunks, distributor_id, document_id, metadata=None):
         """Non-blocking document upsert via Celery task queue."""

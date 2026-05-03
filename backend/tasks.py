@@ -49,12 +49,24 @@ def index_document_rag(self, text_chunks, distributor_id, document_id, metadata=
         app = create_app()
         with app.app_context():
             from services.rag_service import rag_service
+            from extensions import db as task_db
+            from models.document import Document
+
             vector_ids = rag_service.upsert_document(
                 text_chunks=text_chunks,
                 distributor_id=distributor_id,
                 document_id=document_id,
                 metadata=metadata
             )
+
+            # Mark document as processed in the database
+            task_db.session.rollback()
+            doc = Document.query.get(document_id)
+            if doc:
+                doc.is_processed = True
+                task_db.session.commit()
+                logger.info(f"Document {document_id} marked as processed")
+
             logger.info(f"Document {document_id} indexed: {len(vector_ids)} chunks")
             return {'status': 'success', 'chunks': len(vector_ids)}
     except Exception as exc:

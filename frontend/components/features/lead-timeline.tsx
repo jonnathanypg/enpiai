@@ -1,14 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import {
     MessageSquare,
     Calendar,
     FileText,
     PhoneCall,
     Bot,
-    Activity
+    Activity,
+    ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { UnifiedContact } from '@/types';
@@ -17,6 +20,7 @@ interface LeadTimelineProps {
     conversations: UnifiedContact['conversations'];
     appointments: UnifiedContact['appointments'];
     evaluations: UnifiedContact['evaluations'];
+    notes: UnifiedContact['notes'];
 }
 
 type TimelineEvent = {
@@ -29,7 +33,11 @@ type TimelineEvent = {
     color: string;
 };
 
-export function LeadTimeline({ conversations, appointments, evaluations }: LeadTimelineProps) {
+const PAGE_SIZE = 10;
+
+export function LeadTimeline({ conversations, appointments, evaluations, notes }: LeadTimelineProps) {
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
     // Flatten and sort events
     const events: TimelineEvent[] = [];
 
@@ -63,14 +71,32 @@ export function LeadTimeline({ conversations, appointments, evaluations }: LeadT
 
     // 3. Evaluations
     evaluations.forEach((evalItem) => {
+        let desc = `BMI: ${evalItem.bmi?.toFixed(1) || 'N/A'} - Goal: ${evalItem.primary_goal}`;
+        if (evalItem.diagnosis) {
+            desc += `\n\nDiagnosis: ${evalItem.diagnosis.substring(0, 150)}${evalItem.diagnosis.length > 150 ? '...' : ''}`;
+        }
+        
         events.push({
             id: `eval-${evalItem.id}`,
             type: 'evaluation',
             date: new Date(evalItem.created_at),
             title: 'Wellness Evaluation Completed',
-            description: `BMI: ${evalItem.bmi?.toFixed(1) || 'N/A'} - Goal: ${evalItem.primary_goal}`,
+            description: desc,
             icon: Activity,
             color: 'bg-purple-100 text-purple-700',
+        });
+    });
+
+    // 4. Notes
+    (notes || []).forEach((note) => {
+        events.push({
+            id: `note-${note.id}`,
+            type: 'note',
+            date: new Date(note.created_at),
+            title: `Nota por ${note.author_name || 'Agente'}`,
+            description: note.content,
+            icon: FileText,
+            color: 'bg-yellow-100 text-yellow-700',
         });
     });
 
@@ -86,12 +112,15 @@ export function LeadTimeline({ conversations, appointments, evaluations }: LeadT
         );
     }
 
+    const visibleEvents = events.slice(0, visibleCount);
+    const hasMore = visibleCount < events.length;
+
     return (
         <div className="space-y-8 pl-4">
-            {events.map((event, i) => (
+            {visibleEvents.map((event, i) => (
                 <div key={event.id} className="relative flex gap-4">
                     {/* Vertical Line */}
-                    {i !== events.length - 1 && (
+                    {i !== visibleEvents.length - 1 && (
                         <div className="absolute left-[19px] top-10 h-full w-px bg-border" />
                     )}
 
@@ -114,13 +143,29 @@ export function LeadTimeline({ conversations, appointments, evaluations }: LeadT
                             </time>
                         </div>
                         <Card className="mt-2">
-                            <CardContent className="p-3 text-sm text-foreground/80">
+                            <CardContent className="p-3 text-sm text-foreground/80 whitespace-pre-wrap">
                                 {event.description}
                             </CardContent>
                         </Card>
                     </div>
                 </div>
             ))}
+
+            {/* Load More Button */}
+            {hasMore && (
+                <div className="flex justify-center pt-2 pb-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                        className="gap-2"
+                    >
+                        <ChevronDown className="h-4 w-4" />
+                        Show more ({events.length - visibleCount} remaining)
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
+
