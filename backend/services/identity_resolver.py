@@ -84,15 +84,18 @@ class IdentityResolver:
         phone = phone.replace(" ", "").replace("-", "")
         phone_clean = phone.replace("+", "")
         
-        logger.info(f"[IdentityResolver] Resolving phone: {phone} for distributor: {distributor_id}")
+        # Extract the last 8 digits to reliably match across country codes and leading zeros
+        phone_suffix = phone_clean[-8:] if len(phone_clean) >= 8 else phone_clean
+        
+        logger.info(f"[IdentityResolver] Resolving phone: {phone} (suffix: {phone_suffix}) for distributor: {distributor_id}")
 
         # 0. Check if it's the Distributor themselves
         try:
             from models.distributor import Distributor
             distributor = Distributor.query.filter(
                 db.or_(
-                    Distributor.whatsapp_phone.like(f"%{phone_clean}%"),
-                    Distributor.phone.like(f"%{phone_clean}%")
+                    Distributor.whatsapp_phone.like(f"%{phone_suffix}%"),
+                    Distributor.phone.like(f"%{phone_suffix}%")
                 ),
                 Distributor.id == distributor_id
             ).first()
@@ -110,7 +113,7 @@ class IdentityResolver:
         try:
             from models.customer import Customer
             customer = Customer.query.filter(
-                Customer.phone.like(f"%{phone_clean}%"),
+                Customer.phone.like(f"%{phone_suffix}%"),
                 Customer.distributor_id == distributor_id
             ).first()
             if customer:
@@ -128,7 +131,7 @@ class IdentityResolver:
         try:
             from models.lead import Lead
             lead = Lead.query.filter(
-                Lead.phone.like(f"%{phone_clean}%"),
+                Lead.phone.like(f"%{phone_suffix}%"),
                 Lead.distributor_id == distributor_id
             ).first()
             if lead:
