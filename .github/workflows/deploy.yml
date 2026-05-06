@@ -1,0 +1,56 @@
+name: Deploy to Contabo
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create deployment archive
+        run: |
+          echo "📦 Creating deployment archive..."
+          tar -czf /tmp/deploy.tar.gz \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='venv' \
+            --exclude='.venv' \
+            --exclude='__pycache__' \
+            --exclude='.git' \
+            --exclude='*.log' \
+            --exclude='.DS_Store' \
+            --exclude='*.pyc' \
+            .
+          mv /tmp/deploy.tar.gz ./deploy.tar.gz
+          echo "Archive size: $(du -h deploy.tar.gz | cut -f1)"
+
+      - name: Copy archive to Contabo
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: root
+          password: ${{ secrets.CONTABO_PASSWORD }}
+          source: "deploy.tar.gz"
+          target: "/tmp"
+
+      - name: Extract and deploy on Contabo
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: root
+          password: ${{ secrets.CONTABO_PASSWORD }}
+          script: |
+            echo '📂 Extracting deployment archive...'
+            mkdir -p ~/enpiai
+            cd ~/enpiai
+            tar -xzf /tmp/deploy.tar.gz --overwrite
+            rm /tmp/deploy.tar.gz
+            echo '⚙️ Running deployment script...'
+            chmod +x deploy.sh
+            ./deploy.sh

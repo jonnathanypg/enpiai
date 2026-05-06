@@ -1,0 +1,69 @@
+-- Script para corregir el error "Unknown column 'e.usuario_id' in 'SELECT'"
+-- Este error ocurre porque la tabla encuestas no tiene columna usuario_id
+
+-- Desactivar verificación de claves foráneas
+SET FOREIGN_KEY_CHECKS=0;
+
+-- 1. Primero verificar si la tabla encuestas tiene la columna usuario_id
+SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = DATABASE() 
+    AND table_name = 'encuestas' 
+    AND column_name = 'usuario_id'
+) AS encuestas_tiene_usuario_id;
+
+-- 2. Si no existe, agregar la columna usuario_id a encuestas
+-- Descomenta si el resultado anterior es 0
+-- ALTER TABLE encuestas ADD COLUMN usuario_id INT NOT NULL AFTER id;
+
+-- 3. Asignar un usuario predeterminado a todos los registros en encuestas
+-- Primero obtener el primer usuario disponible
+SELECT usuario_id FROM usuarios LIMIT 1;
+-- Descomenta y reemplaza {USUARIO_ID} con el valor obtenido
+-- UPDATE encuestas SET usuario_id = {USUARIO_ID};
+
+-- 4. Agregar clave foránea para encuestas.usuario_id si no existe
+-- ALTER TABLE encuestas 
+-- ADD CONSTRAINT FK_encuestas_usuarios
+-- FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id);
+
+-- 5. Verificar si diagnosticos ya tiene la columna usuario_id
+SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = DATABASE() 
+    AND table_name = 'diagnosticos' 
+    AND column_name = 'usuario_id'
+) AS diagnosticos_tiene_usuario_id;
+
+-- 6. Si no existe, agregar la columna usuario_id a diagnosticos
+-- Descomenta si el resultado anterior es 0
+-- ALTER TABLE diagnosticos ADD COLUMN usuario_id INT NOT NULL AFTER id;
+
+-- 7. Ahora que encuestas tiene usuario_id, actualizar diagnosticos
+-- Descomenta para actualizar diagnosticos con los valores de encuestas
+-- UPDATE diagnosticos d
+-- JOIN encuestas e ON d.encuesta_id = e.id
+-- SET d.usuario_id = e.usuario_id;
+
+-- 8. Agregar clave foránea para diagnosticos.usuario_id si no existe
+-- ALTER TABLE diagnosticos 
+-- ADD CONSTRAINT FK_diagnosticos_usuarios
+-- FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id);
+
+-- 9. Verificar estructura final
+SELECT 'ESTRUCTURA FINAL DE ENCUESTAS' AS '';
+SHOW COLUMNS FROM encuestas;
+
+SELECT 'ESTRUCTURA FINAL DE DIAGNOSTICOS' AS '';
+SHOW COLUMNS FROM diagnosticos;
+
+-- 10. Verificar claves foráneas
+SELECT 'CLAVES FORÁNEAS' AS '';
+SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE (TABLE_NAME = 'encuestas' OR TABLE_NAME = 'diagnosticos')
+AND REFERENCED_TABLE_NAME IS NOT NULL
+AND TABLE_SCHEMA = DATABASE();
+
+-- Activar verificación de claves foráneas
+SET FOREIGN_KEY_CHECKS=1; 

@@ -1,0 +1,210 @@
+-- Solución completa para todos los problemas de estructura de la base de datos
+-- Ejecuta este script completo para arreglar todos los problemas
+
+-- Desactivar verificación de claves foráneas para hacer cambios libremente
+SET FOREIGN_KEY_CHECKS=0;
+
+-- ========== SOLUCIÓN PARA TABLA USUARIOS ==========
+-- Verificar si usuarios tiene columna usuario_id
+SELECT IF(EXISTS(SELECT 1 FROM information_schema.columns 
+              WHERE table_schema = DATABASE() 
+              AND table_name = 'usuarios' 
+              AND column_name = 'usuario_id'),
+       'La columna usuario_id existe en usuarios',
+       'La columna usuario_id NO existe en usuarios') AS resultado;
+
+-- Verificar si usuarios tiene columna id
+SELECT IF(EXISTS(SELECT 1 FROM information_schema.columns 
+              WHERE table_schema = DATABASE() 
+              AND table_name = 'usuarios' 
+              AND column_name = 'id'),
+       'La columna id existe en usuarios',
+       'La columna id NO existe en usuarios') AS resultado;
+
+-- CASO 1: Si no tiene usuario_id pero tiene id
+-- Primero eliminar cualquier restricción que referencie a usuarios.id
+-- (Adaptar según los resultados que obtengas)
+-- Las siguientes consultas buscan y eliminan estas restricciones automáticamente
+SELECT CONCAT('ALTER TABLE ', TABLE_NAME, ' DROP FOREIGN KEY ', CONSTRAINT_NAME, ';') AS comando_eliminar
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE REFERENCED_TABLE_NAME = 'usuarios' 
+AND REFERENCED_COLUMN_NAME = 'id'
+AND TABLE_SCHEMA = DATABASE();
+
+-- Renombrar id a usuario_id (ejecuta esto si usuarios tiene id pero no usuario_id)
+-- ALTER TABLE usuarios 
+-- CHANGE COLUMN id usuario_id INT AUTO_INCREMENT;
+
+-- CASO 2: Si tiene ambas columnas (usuario_id e id)
+-- Verificar cuál es la clave primaria
+SELECT COLUMN_NAME AS clave_primaria
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'usuarios'
+AND CONSTRAINT_NAME = 'PRIMARY'
+LIMIT 1;
+
+-- Si usuario_id es la primaria, eliminar id (ejecuta esto si la clave primaria es usuario_id)
+-- ALTER TABLE usuarios DROP COLUMN id;
+
+-- Si id es la primaria y también existe usuario_id
+-- 1. Primero elimina usuario_id (ejecuta esto si la clave primaria es id)
+-- ALTER TABLE usuarios DROP COLUMN usuario_id;
+-- 2. Luego renombra id a usuario_id
+-- ALTER TABLE usuarios CHANGE COLUMN id usuario_id INT AUTO_INCREMENT;
+
+-- ========== SOLUCIÓN PARA TABLA ENCUESTAS ==========
+-- Verificar si encuestas tiene columna usuario_id
+SELECT IF(EXISTS(SELECT 1 FROM information_schema.columns 
+              WHERE table_schema = DATABASE() 
+              AND table_name = 'encuestas' 
+              AND column_name = 'usuario_id'),
+       'La columna usuario_id existe en encuestas',
+       'La columna usuario_id NO existe en encuestas') AS resultado;
+
+-- Si no tiene usuario_id, añadirla
+ALTER TABLE encuestas 
+ADD COLUMN IF NOT EXISTS usuario_id INT NOT NULL AFTER id;
+
+-- Verificar si encuestas tiene columna nivel_energia
+SELECT IF(EXISTS(SELECT 1 FROM information_schema.columns 
+              WHERE table_schema = DATABASE() 
+              AND table_name = 'encuestas' 
+              AND column_name = 'nivel_energia'),
+       'La columna nivel_energia existe en encuestas',
+       'La columna nivel_energia NO existe en encuestas') AS resultado;
+
+-- Si no tiene nivel_energia, añadirla
+ALTER TABLE encuestas 
+ADD COLUMN IF NOT EXISTS nivel_energia INT NOT NULL DEFAULT 5 AFTER presion_arterial;
+
+-- Actualizar valores de usuario_id si hay datos
+-- Primero verificar si hay datos
+SELECT COUNT(*) AS cantidad_encuestas FROM encuestas;
+
+-- Obtener primer usuario disponible
+SELECT usuario_id AS primer_usuario FROM usuarios LIMIT 1;
+
+-- Actualizar con el primer usuario (ajusta el valor según el resultado anterior)
+UPDATE encuestas SET usuario_id = (SELECT usuario_id FROM usuarios LIMIT 1)
+WHERE usuario_id = 0 OR usuario_id IS NULL;
+
+-- Añadir clave foránea
+-- Eliminar la clave foránea existente si apunta a la columna incorrecta
+SELECT CONCAT('ALTER TABLE encuestas DROP FOREIGN KEY ', CONSTRAINT_NAME, ';') AS comando_eliminar
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'encuestas'
+AND REFERENCED_TABLE_NAME = 'usuarios'
+AND REFERENCED_COLUMN_NAME != 'usuario_id';
+
+-- Recrear la clave foránea correcta
+-- Comentado para evitar errores si ya existe
+-- Descomenta esta sección si necesitas crear la clave foránea
+-- ALTER TABLE encuestas
+-- ADD CONSTRAINT FK_encuestas_usuarios
+-- FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id);
+
+-- Primero, eliminar las restricciones existentes
+ALTER TABLE encuestas
+DROP FOREIGN KEY IF EXISTS encuestas_ibfk_1;
+
+-- Modificar la columna encuestador_id para permitir NULL
+ALTER TABLE encuestas
+MODIFY COLUMN encuestador_id INT NULL;
+
+-- Modificar la columna nombre_encuestador para permitir NULL
+ALTER TABLE encuestas
+MODIFY COLUMN nombre_encuestador VARCHAR(200) NULL;
+
+-- Volver a agregar la clave foránea
+ALTER TABLE encuestas
+ADD CONSTRAINT encuestas_ibfk_1
+FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id);
+
+-- Verificar la estructura actual
+DESCRIBE encuestas;
+
+-- Añadir columnas faltantes a la tabla encuestas
+ALTER TABLE encuestas
+ADD COLUMN IF NOT EXISTS nombre_encuestado VARCHAR(200) NOT NULL AFTER usuario_id,
+ADD COLUMN IF NOT EXISTS telefono VARCHAR(50) NOT NULL AFTER nombre_encuestado,
+ADD COLUMN IF NOT EXISTS correo VARCHAR(100) NOT NULL AFTER telefono,
+ADD COLUMN IF NOT EXISTS nombre_encuestador VARCHAR(200) NULL AFTER observaciones,
+ADD COLUMN IF NOT EXISTS encuestador_id VARCHAR(50) NULL AFTER nombre_encuestador;
+
+-- Verificar la estructura actual
+DESCRIBE encuestas;
+
+-- ========== SOLUCIÓN PARA TABLA DIAGNOSTICOS ==========
+-- Verificar si diagnosticos tiene columna usuario_id
+SELECT IF(EXISTS(SELECT 1 FROM information_schema.columns 
+              WHERE table_schema = DATABASE() 
+              AND table_name = 'diagnosticos' 
+              AND column_name = 'usuario_id'),
+       'La columna usuario_id existe en diagnosticos',
+       'La columna usuario_id NO existe en diagnosticos') AS resultado;
+
+-- Si no tiene usuario_id, añadirla
+ALTER TABLE diagnosticos 
+ADD COLUMN IF NOT EXISTS usuario_id INT NOT NULL AFTER id;
+
+-- Actualizar valores desde encuestas
+-- Verificar primero si encuestas tiene usuario_id
+SELECT IF(EXISTS(SELECT 1 FROM information_schema.columns 
+              WHERE table_schema = DATABASE() 
+              AND table_name = 'encuestas' 
+              AND column_name = 'usuario_id'),
+       'Se puede usar encuestas.usuario_id para actualizar',
+       'NO se puede usar encuestas.usuario_id') AS resultado;
+
+-- Actualizar usuario_id en diagnosticos desde encuestas
+UPDATE diagnosticos d
+JOIN encuestas e ON d.encuesta_id = e.id
+SET d.usuario_id = e.usuario_id
+WHERE d.usuario_id = 0 OR d.usuario_id IS NULL;
+
+-- En caso de que falle el JOIN, asignar un valor por defecto
+UPDATE diagnosticos 
+SET usuario_id = (SELECT usuario_id FROM usuarios LIMIT 1)
+WHERE usuario_id = 0 OR usuario_id IS NULL;
+
+-- Añadir clave foránea
+-- Eliminar la clave foránea existente si apunta a la columna incorrecta
+SELECT CONCAT('ALTER TABLE diagnosticos DROP FOREIGN KEY ', CONSTRAINT_NAME, ';') AS comando_eliminar
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'diagnosticos'
+AND REFERENCED_TABLE_NAME = 'usuarios'
+AND REFERENCED_COLUMN_NAME != 'usuario_id';
+
+-- Recrear la clave foránea correcta
+-- Comentado para evitar errores si ya existe
+-- Descomenta esta sección si necesitas crear la clave foránea
+-- ALTER TABLE diagnosticos
+-- ADD CONSTRAINT FK_diagnosticos_usuarios
+-- FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id);
+
+-- ========== VERIFICACIÓN FINAL ==========
+-- Verificar estructura final de las tablas
+SELECT 'ESTRUCTURA FINAL DE USUARIOS' AS '';
+SHOW COLUMNS FROM usuarios;
+
+SELECT 'ESTRUCTURA FINAL DE ENCUESTAS' AS '';
+SHOW COLUMNS FROM encuestas;
+
+SELECT 'ESTRUCTURA FINAL DE DIAGNOSTICOS' AS '';
+SHOW COLUMNS FROM diagnosticos;
+
+-- Verificar claves foráneas
+SELECT 'CLAVES FORÁNEAS' AS '';
+SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE REFERENCED_TABLE_NAME IS NOT NULL
+AND TABLE_SCHEMA = DATABASE();
+
+-- Activar verificación de claves foráneas
+SET FOREIGN_KEY_CHECKS=1;
+
+-- Mensaje final
+SELECT 'Todas las correcciones han sido aplicadas. Las tablas deben tener la estructura correcta ahora.' AS mensaje_final; 
