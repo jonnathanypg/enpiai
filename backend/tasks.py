@@ -39,10 +39,10 @@ def generate_pdf_report(self, distributor_id, report_type, data):
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=30)
-def index_document_rag(self, text_chunks, distributor_id, document_id, metadata=None):
+def index_document_rag(self, filepath, distributor_id, document_id, metadata=None):
     """
-    Index document chunks into Pinecone in the background.
-    Replaces rag_service.upsert_document_async() ThreadPool pattern.
+    Index document into Pinecone in the background.
+    Extracts text, chunks it, and vectorizes.
     """
     try:
         from app import create_app
@@ -51,7 +51,53 @@ def index_document_rag(self, text_chunks, distributor_id, document_id, metadata=
             from services.rag_service import rag_service
             from extensions import db as task_db
             from models.document import Document
+            import os
+            import pdfplumber
+            from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+            # 1. Read file and extract text
+            text_content = ""
+            file_ext = metadata.get('type', 'txt') if metadata else 'txt'
+            
+            if not os.path.exists(filepath):
+                logger.error(f"File not found for indexing: {filepath}")
+                return {'status': 'error', 'reason': 'file_not_found'}
+
+            if file_ext == 'pdf':
+                try:
+                    with pdfplumber.open(filepath) as pdf:
+                        for page in pdf.pages:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text_content += page_text + "\\n"
+                except Exception as e:
+                    logger.error(f"PDF extraction error in worker: {e}")
+            elif file_ext in ['txt', 'md', 'csv']:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    text_content = f.read()
+
+            if not text_content:
+                logger.warning(f"Could not extract text from {filepath}")
+                # We should still mark it as processed but empty, or keep it unprocessed?
+                # Better to mark it as processed with 0 chunks to avoid being stuck.
+                task_db.session.rollback()
+                doc = Document.query.get(document_id)
+                if doc:
+                    doc.is_processed = True
+                    doc.chunk_count = 0
+                    task_db.session.commit()
+                return {'status': 'error', 'reason': 'empty_text'}
+
+            # 2. Chunking with RecursiveCharacterTextSplitter
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len,
+                is_separator_regex=False,
+            )
+            text_chunks = text_splitter.split_text(text_content)
+
+            # 3. Vectorize and Upsert
             vector_ids = rag_service.upsert_document(
                 text_chunks=text_chunks,
                 distributor_id=distributor_id,
@@ -59,13 +105,15 @@ def index_document_rag(self, text_chunks, distributor_id, document_id, metadata=
                 metadata=metadata
             )
 
-            # Mark document as processed in the database
+            # 4. Mark document as processed and save metadata in the database
             task_db.session.rollback()
             doc = Document.query.get(document_id)
             if doc:
                 doc.is_processed = True
+                doc.chunk_count = len(vector_ids)
+                doc.pinecone_ids = vector_ids
                 task_db.session.commit()
-                logger.info(f"Document {document_id} marked as processed")
+                logger.info(f"Document {document_id} marked as processed with {len(vector_ids)} chunks")
 
             logger.info(f"Document {document_id} indexed: {len(vector_ids)} chunks")
             return {'status': 'success', 'chunks': len(vector_ids)}
