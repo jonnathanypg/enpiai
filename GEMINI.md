@@ -38,6 +38,10 @@ To prevent "MySQL has gone away" errors and stale transactions:
         config = db.Column(EncryptedJSON)        # Mandatory for secrets
     ```
 
+### 4. Frontend Stability & Server Actions
+- **Rule**: Every production deployment **MUST** have a persistent `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` in the `.env` file.
+- **Reason**: To prevent "Failed to find Server Action" errors after container/process restarts.
+
 ---
 
 ## 🛠 Technical Architecture (The "Stack")
