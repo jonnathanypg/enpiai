@@ -166,14 +166,26 @@ def whatsapp_webhook():
         if lead and not conversation.lead_id:
             conversation.lead_id = lead.id
 
+        # --- PHASE 9: AUTO-FOLLOWUP CANCELATION ---
+        try:
+            from services.cron_service import CronService
+            CronService.cancel_conversation_tasks(conversation.id, action='auto_followup')
+        except Exception as cron_err:
+            logger.warning(f"Failed to cancel pending follow-ups: {cron_err}")
+
         # 4. Save User Message (synchronous — fast DB write)
+        # If it's a system message (like a call), we can flag it in metadata
+        is_system = data.get('isSystemMessage', False)
+        
         user_msg = Message(
             conversation_id=conversation.id,
             role=MessageRole.USER,
             content=message_text,
             message_metadata={
                 'messageId': data.get('messageId'),
-                'timestamp': data.get('timestamp')
+                'timestamp': data.get('timestamp'),
+                'is_system': is_system,
+                'system_type': data.get('metadata', {}).get('type') if is_system else None
             }
         )
         db.session.add(user_msg)

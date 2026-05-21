@@ -57,31 +57,67 @@ class AgentOrchestrator:
         self.skill_registry = get_registry()
 
     def _get_llm(self, model_override: str = None):
-        """Get LLM client with distributor credentials"""
+        """Get LLM client with distributor credentials and automated failover."""
         
         provider = self.distributor.llm_provider or 'openai'
         model = model_override or self.distributor.llm_model or 'gpt-5-nano'
         
-        # Get API Key from api_keys JSON or fallback to env
+        logger.info(f"[ORCHESTRATOR] Initializing LLM: provider={provider}, model={model}")
+        
+        # Get API Keys
         api_keys = self.distributor.api_keys or {}
         
-        if provider == 'google':
-             api_key = api_keys.get('google_api_key') or os.getenv('GOOGLE_API_KEY')
-             return ChatGoogleGenerativeAI(
-                model=model,
-                google_api_key=api_key,
+        # 1. Resolve Keys
+        openai_key = api_keys.get('openai_api_key') or os.getenv('OPENAI_API_KEY')
+        google_key = api_keys.get('google_api_key') or os.getenv('GOOGLE_API_KEY')
+        
+        llms = []
+        
+        model_lower = model.lower()
+        is_o_model = any(m in model_lower for m in ['o1', 'o3', 'gpt-5'])
+
+        # Add OpenAI as primary
+        if openai_key:
+            kwargs = {
+                "model": model,
+                "api_key": openai_key,
+            }
+            
+            if is_o_model:
+                kwargs["max_completion_tokens"] = 4096 # Increased for reasoning
+                kwargs["temperature"] = 1.0 # O-models prefer 1.0
+            else:
+                kwargs["max_tokens"] = 2048
+                kwargs["temperature"] = 0.7
+
+            llms.append(ChatOpenAI(**kwargs))
+
+        # Add platform fallback (if distributor had their own key, fallback to platform key)
+        platform_openai = os.getenv('OPENAI_API_KEY')
+        if platform_openai and platform_openai != openai_key:
+            llms.append(ChatOpenAI(
+                model="gpt-5-nano",
+                api_key=platform_openai,
+                temperature=1.0,
+                max_completion_tokens=4096
+            ))
+
+        # Add Google Gemini as second fallback if available
+        if google_key:
+            llms.append(ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                google_api_key=google_key,
                 temperature=0.7,
                 convert_system_message_to_human=True
-            )
-        else:
-            api_key = api_keys.get('openai_api_key') or os.getenv('OPENAI_API_KEY')
-            return ChatOpenAI(
-                model=model,
-                api_key=api_key,
-                temperature=1.0,
-                max_tokens=None,
-                max_completion_tokens=4096
-            )
+            ))
+
+        if not llms:
+            raise RuntimeError("No LLM providers configured")
+
+        if len(llms) == 1:
+            return llms[0]
+            
+        return llms[0].with_fallbacks(llms[1:])
     
     def _resolve_skills(self, agent: AgentConfig, enabled_features: List[str]) -> List[Any]:
         """Dynamically resolve skills based on agent configuration.
@@ -132,9 +168,17 @@ class AgentOrchestrator:
         """
         Build system prompt using the modular SystemPromptBuilder.
         """
+        # Resolve best name: AgentConfig name or Distributor agent_name
+        # If AgentConfig.name is generic (contains 'Asistente' but distributor.agent_name is specific), 
+        # we might want to prioritize distributor.agent_name.
+        # For now, we trust AgentConfig.name if it's set, but fallback to Distributor if needed.
+        agent_name = agent.name
+        if agent_name in ['Asistente', 'Asistente de Prospectos', 'Lead Assistant'] and self.distributor.agent_name:
+            agent_name = self.distributor.agent_name
+
         builder = SystemPromptBuilder(
             agent_config={
-                'name': agent.name,
+                'name': agent_name,
                 'role': 'Asistente Virtual', # specific role can be in agent.config
                 'tone': agent.tone.value if agent.tone else 'Profesional'
             },
@@ -142,8 +186,12 @@ class AgentOrchestrator:
         )
         
         # Context Data
+        now = datetime.now()
+        days_es = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+        day_name = days_es[now.weekday()]
+        
         context_data = {
-            'current_time': datetime.utcnow().strftime('%Y-%m-%d %H:%M (UTC)'),
+            'current_time': f"{now.strftime('%Y-%m-%d %H:%M:%S')} ({day_name})",
             'contact_name': state.get('contact_name'),
             'contact_phone': state.get('contact_phone'),
             'channel': state.get('channel'),
@@ -153,7 +201,9 @@ class AgentOrchestrator:
         }
 
         contact_type = state.get('contact_type', 'unknown')
-        if contact_type == 'distributor':
+        is_distributor = contact_type == 'distributor'
+        
+        if is_distributor:
             builder.add_distributor_persona()
         else:
             builder.add_identity()
@@ -163,6 +213,7 @@ class AgentOrchestrator:
             .add_safety_rules()
             .add_skills(skills)
             .add_context(context_data)
+            .add_final_reminder(is_distributor=is_distributor)
         )
         
         return builder.build()
@@ -195,9 +246,30 @@ class AgentOrchestrator:
         # ========== Node: Agent Reasoning ==========
         def agent_node(state: AgentState) -> Dict[str, Any]:
             system_prompt = self._build_system_prompt(agent, state, skills)
+            logger.info(f"[LANGGRAPH] System prompt length: {len(system_prompt)}")
             
             # Helper to manage history manually if checkpointer is not enough (it usually is)
             messages = list(state["messages"])
+            
+            # Role mapping for O-models (gpt-5)
+            # Use distributor config or default
+            active_model = self.distributor.llm_model or 'gpt-5-nano'
+            model_lower = active_model.lower()
+            is_o_model = any(m in model_lower for m in ['o1', 'o3', 'gpt-5'])
+            
+            if is_o_model:
+                # O-models often ignore 'system' but respect 'developer' or instructions in 'user'
+                # We'll use a HumanMessage as a "Developer/Instruction" prefix if the model is picky
+                # or just use SystemMessage and trust ChatOpenAI (which might map it to developer).
+                # To be safe, we add a very clear final summary mandate to the prompt.
+                summary_mandate = (
+                    "\n\n## MANDATO FINAL DE RESPUESTA\n"
+                    "Si has usado herramientas, DEBES resumir los resultados para el usuario. "
+                    "NUNCA respondas con un mensaje vacío. Si no tienes nada más que decir, "
+                    "confirma que has completado la tarea."
+                )
+                system_prompt += summary_mandate
+
             all_messages = [SystemMessage(content=system_prompt)] + messages
             
             try:
@@ -276,8 +348,8 @@ class AgentOrchestrator:
         try:
             from extensions import db
             db.session.rollback()
-        except: pass
-
+        except Exception as e:
+            logger.debug(f"Preventive rollback failed (likely no active session): {e}")
         # 1. Load Agent Config (respect priority — highest priority first)
         agent = AgentConfig.query.filter_by(
             distributor_id=self.distributor.id
@@ -288,7 +360,8 @@ class AgentOrchestrator:
         # 2. Resolve Enabled Features
         try:
             enabled_features = [f.name for f in agent.features.filter_by(is_enabled=True).all()]
-        except:
+        except Exception as e:
+            logger.error(f"Error resolving agent features: {e}")
             enabled_features = []
 
         # 3. Resolve Skills dynamically
@@ -367,24 +440,68 @@ class AgentOrchestrator:
             "conversation_id": conversation.id,
             "agent_name": agent.name,
             "channel": channel,
-            "contact_name": conversation.participant_name or "Usuario",
+            "contact_name": conversation.participant_name, # Removed default "Usuario" to handle anonymous users better
             "contact_phone": conversation.participant_id,
             "contact_type": identity.get('type', 'unknown'),
             "enabled_features": enabled_features,
             "agent_hints": agent_hints,  # Available in state for prompt builder
-            "is_anonymous": conversation.lead_id is None,
+            "is_anonymous": conversation.lead_id is None and not is_distributor,
         }
         
         config = {"configurable": {"thread_id": thread_id}}
         
         try:
+            logger.info(f"[LANGGRAPH] Invoking graph for thread: {thread_id}")
             result = graph.invoke(initial_state, config)
             
-            # Extract final response
-            for msg in reversed(result.get("messages", [])):
-                if isinstance(msg, AIMessage):
-                    return {"content": msg.content, "agent_name": agent.name}
+            # Detailed logging of results
+            final_messages = result.get("messages", [])
+            logger.info(f"[LANGGRAPH] Graph finished with {len(final_messages)} total messages")
             
+            # Extract final response
+            for msg in reversed(final_messages):
+                if isinstance(msg, AIMessage):
+                    content = msg.content
+                    if not content and hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        logger.info(f"[LANGGRAPH] Last AIMessage has no content but has {len(msg.tool_calls)} tool calls")
+                        continue
+                    
+                    logger.info(f"[LANGGRAPH] Final AIMessage found. Content length: {len(content) if content else 0}")
+                    if content:
+                        logger.debug(f"[LANGGRAPH] Content preview: {content[:100]}...")
+                        
+                        # --- PROACTIVE FEATURE: Auto-Followup Scheduling ---
+                        try:
+                            # If this was a customer/lead (not master mode), schedule a 24h follow-up
+                            if initial_state.get('contact_type') not in ['distributor'] and channel == 'whatsapp':
+                                from services.cron_service import CronService
+                                
+                                # Use a more natural and subtle message
+                                name = initial_state.get('contact_name') or 'hola'
+                                if name.lower() == 'hola':
+                                    followup_msg = "¿Pudiste revisar lo que te comenté? ¡Quedo atento por si tienes cualquier duda!"
+                                else:
+                                    followup_msg = f"¡Hola {name}! ¿Cómo vas? Solo pasaba por aquí para ver si tuviste oportunidad de revisar la info. ¡Cualquier cosa me avisas!"
+                                
+                                CronService.schedule_followup(
+                                    distributor_id=self.distributor.id,
+                                    message=followup_msg,
+                                    delay_minutes=1440, # 24 hours
+                                    conversation_id=conversation.id,
+                                    lead_id=conversation.lead_id,
+                                    action='auto_followup',
+                                    payload={
+                                        'lead_phone': conversation.participant_id,
+                                        'type': 'auto_followup_cascade',
+                                        'step': 1
+                                    }
+                                )
+                        except Exception as followup_err:
+                            logger.warning(f"Failed to schedule auto-followup: {followup_err}")
+
+                    return {"content": content, "agent_name": agent.name}
+            
+            logger.warning("[LANGGRAPH] No AIMessage with content found in final state")
             return {"content": "...", "agent_name": agent.name}
             
         except Exception as e:

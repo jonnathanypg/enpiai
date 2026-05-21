@@ -34,13 +34,12 @@ def submit_evaluation(distributor_ref):
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
-        # Lookup distributor by herbalife_id or db id
+        # Lookup distributor by herbalife_id (priority) or db id (fallback)
         from models.distributor import Distributor
-        distributor = None
-        if distributor_ref.isdigit():
+        distributor = Distributor.query.filter_by(herbalife_id=distributor_ref).first()
+        
+        if not distributor and distributor_ref.isdigit():
             distributor = Distributor.query.get(int(distributor_ref))
-        if not distributor:
-            distributor = Distributor.query.filter_by(herbalife_id=distributor_ref).first()
             
         if not distributor:
             return jsonify({'error': 'Distributor not found'}), 404
@@ -108,119 +107,33 @@ def submit_evaluation(distributor_ref):
             sleep_hours=data.get('sleep_hours'),
             sleep_quality=data.get('sleep_quality'),
             observations=data.get('observations'),
+            language=data.get('language', distributor.language or 'es'),
             source=data.get('source', 'web_form'),
         )
 
         # Auto-calculate BMI
         evaluation.calculate_bmi()
         
-        # Save initial evaluation data first to avoid long-running transaction during AI call
+        # Save initial evaluation data
         db.session.add(evaluation)
         db.session.commit()
         logger.info(f"Initial wellness evaluation saved: {evaluation.id}")
 
-        # --- AI Diagnosis (Out-of-transaction) ---
+        # --- Trigger Background Processing (AI + PDF + Messaging) ---
         try:
-            from services.ai_diagnostic_service import generate_diagnosis
-            lang = distributor.language or 'es'
-            ai_result = generate_diagnosis(
-                age=evaluation.age or 0,
-                weight_kg=evaluation.weight_kg or 0,
-                height_cm=evaluation.height_cm or 0,
-                blood_pressure=evaluation.blood_pressure or 'N/A',
-                pulse=evaluation.pulse or 72,
-                energy_level=evaluation.energy_level or 5,
-                symptoms=evaluation.symptoms,
-                observations=evaluation.observations or '',
-                language=lang,
-                activity_level=evaluation.activity_level,
-                exercise_frequency=evaluation.exercise_frequency,
-                meals_per_day=evaluation.meals_per_day,
-                water_intake_liters=evaluation.water_intake_liters,
-                sleep_hours=evaluation.sleep_hours,
-                sleep_quality=evaluation.sleep_quality,
-            )
-            # Update with AI results in a separate transaction
-            # IMPORTANT: Re-rollback to clear stale connection after long AI call
-            db.session.rollback()
-            # Re-fetch evaluation to ensures it is in a fresh session
-            evaluation = WellnessEvaluation.query.get(evaluation.id)
-            if evaluation:
-                evaluation.diagnosis = ai_result.get('diagnosis', '')
-                evaluation.recommendations = ai_result.get('recommendations', '')
-                db.session.commit()
-                logger.info(f"AI results saved for evaluation {evaluation.id}")
-        except Exception as ai_err:
-            db.session.rollback()
-            logger.warning(f"AI diagnosis generation failed (non-blocking): {ai_err}", exc_info=True)
-
-        logger.info(f"Wellness evaluation submitted for distributor {distributor_id}, lead {lead_id}")
-        
-        # --- Generate and Send Report ---
-        pdf_url = None
-        try:
-            # Generate PDF synchronously to have the file ready for delivery
-            pdf_path = pdf_service.generate_wellness_report(evaluation, distributor)
-            if pdf_path:
-                filename = os.path.basename(pdf_path)
-                evaluation.pdf_report_path = filename
-                db.session.commit()
-                
-                # Public URL for the PDF
-                api_base = current_app.config.get('API_BASE_URL', 'http://localhost:5000')
-                pdf_url = f"{api_base}/api/wellness/reports/{filename}"
-                
-                # Send to Lead via Email
-                if evaluation.lead and evaluation.lead.email:
-                    email_service.send_wellness_report_to_lead(
-                        to_email=evaluation.lead.email,
-                        distributor_name=distributor.name,
-                        evaluation_data=evaluation.to_dict(),
-                        pdf_path=pdf_path,
-                        lang=distributor.language or 'es'
-                    )
-                
-                # Send to Lead via WhatsApp
-                if evaluation.lead and evaluation.lead.phone:
-                    dist_link = f"https://enpi.click/evaluate/{distributor.herbalife_id or distributor.id}"
-                    wa_message = (
-                        f"¡Hola {evaluation.lead.first_name}! 🌿 Tu análisis de bienestar está listo. "
-                        f"Puedes descargarlo aquí: {pdf_url}\n\n"
-                        f"Cualquier duda, estoy a la orden. - {distributor.name}\n"
-                        f"Realiza otra evaluación o invita a un amigo aquí: {dist_link}"
-                    )
-                    messaging_service.send_whatsapp(
-                        to_phone=evaluation.lead.phone,
-                        message=wa_message,
-                        distributor_id=distributor.id
-                    )
-        except Exception as report_err:
-            logger.error(f"Failed to generate or send report: {report_err}", exc_info=True)
-
-        # Notify distributor via email
-        try:
-            from models.user import User
-            dist_user = User.query.filter_by(distributor_id=distributor_id).first()
-            if dist_user:
-                lead_obj = Lead.query.get(lead_id) if lead_id else None
-                lead_name = lead_obj.full_name if lead_obj else (data.get('first_name', '') + ' ' + data.get('last_name', '')).strip()
-                email_service.send_wellness_evaluation_notification(
-                    to_email=dist_user.email,
-                    distributor_name=distributor.name,
-                    lead_name=lead_name,
-                    bmi=str(evaluation.bmi) if evaluation.bmi else 'N/A',
-                    goal=evaluation.primary_goal or '',
-                    lang=distributor.language or 'en'
-                )
-        except Exception as mail_err:
-            logger.warning(f"Wellness notification email failed (non-blocking): {mail_err}")
+            from tasks import process_wellness_evaluation
+            process_wellness_evaluation.delay(evaluation.id, distributor.id, data)
+            logger.info(f"Background task triggered for evaluation {evaluation.id}")
+        except Exception as task_err:
+            logger.error(f"Failed to trigger background task: {task_err}")
+            # Fallback to sync diagnosis if Celery is down? 
+            # Better not to risk timeout, just log and let user retry manual PDF generation if needed.
 
         result = evaluation.to_dict()
-        # Inject contact info and PDF URL from request data for immediate display
+        # Inject contact info and distributor info from request data for immediate display
         result['first_name'] = data.get('first_name') or result.get('first_name')
         result['email'] = data.get('email') or result.get('email')
         result['contact_name'] = result['first_name']
-        result['pdf_url'] = pdf_url
         result['distributor_name'] = distributor.name
         result['distributor_herbalife_id'] = distributor.herbalife_id or str(distributor.id)
 
@@ -361,13 +274,37 @@ def delete_evaluation(eval_id):
         db.session.rollback()
         logger.error(f"Delete evaluation error: {e}")
         return jsonify({'error': str(e)}), 500
+@wellness_bp.route('/evaluate/results/<int:eval_id>', methods=['GET'])
+def get_public_evaluation(eval_id):
+    """Public route for prospects to fetch their evaluation results (polling)"""
+    db.session.rollback()
+    try:
+        evaluation = WellnessEvaluation.query.get(eval_id)
+        if not evaluation:
+            return jsonify({'error': 'Evaluation not found'}), 404
+            
+        # Return only what's needed for the results display
+        result = evaluation.to_dict()
+        
+        # Add PDF URL if available
+        if evaluation.pdf_report_path:
+            api_base = current_app.config.get('API_BASE_URL', 'http://localhost:5000')
+            result['pdf_url'] = f"{api_base}/api/wellness/reports/{evaluation.pdf_report_path}"
+            
+        return jsonify({'data': result}), 200
+    except Exception as e:
+        logger.error(f"Get public evaluation error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @wellness_bp.route('/reports/<filename>', methods=['GET'])
 def get_report(filename):
     """Serve a wellness report PDF"""
     try:
         # Use absolute path for safety
         upload_folder = current_app.config.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
-        return send_from_directory(upload_folder, filename)
+        report_folder = os.path.join(upload_folder, 'reports')
+        return send_from_directory(report_folder, filename)
     except Exception as e:
         logger.error(f"Error serving report {filename}: {e}")
         return jsonify({'error': 'Report not found or error serving file'}), 404

@@ -72,6 +72,27 @@ class CronService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
+    def cancel_conversation_tasks(conversation_id: int, action: str = None) -> int:
+        """Cancel all pending tasks for a specific conversation."""
+        query = ScheduledTask.query.filter_by(conversation_id=conversation_id, status='pending')
+        if action:
+            query = query.filter_by(action=action)
+        
+        tasks = query.all()
+        for t in tasks:
+            t.status = 'cancelled'
+        
+        try:
+            db.session.commit()
+            if tasks:
+                logger.info(f"[CRON] Cancelled {len(tasks)} pending tasks for conv {conversation_id}")
+            return len(tasks)
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[CRON] Failed to cancel tasks for conv {conversation_id}: {e}")
+            return 0
+
+    @staticmethod
     def schedule_followup(
         distributor_id: int,
         message: str,
@@ -84,22 +105,12 @@ class CronService:
         payload: dict = None,
     ) -> dict:
         """
-        Schedule a follow-up task.
-        
-        Args:
-            distributor_id: Owner distributor
-            message: The message to send when the task fires
-            delay_minutes: Minutes from now (alternative to scheduled_at)
-            scheduled_at: Exact datetime to fire
-            conversation_id: Optional conversation context
-            lead_id: Optional lead to contact
-            channel: Target channel
-            action: Type of action
-            payload: Extra data for the action
-            
-        Returns:
-            dict with task info
+        Schedule a follow-up task. 
+        Automatically cancels previous pending 'auto_followup' tasks for the same conversation.
         """
+        if conversation_id and action == 'auto_followup':
+            CronService.cancel_conversation_tasks(conversation_id, action='auto_followup')
+
         if scheduled_at is None:
             scheduled_at = datetime.utcnow() + timedelta(minutes=max(1, delay_minutes))
         
@@ -174,26 +185,54 @@ class CronService:
             time.sleep(30)
 
     def _process_due_tasks(self):
-        """Find and execute all tasks that are past their scheduled time."""
+        """
+        Find and execute all tasks that are past their scheduled time.
+        Uses a 'claim-first' strategy to be safe for multiple workers.
+        """
+        db.session.rollback()  # Mandatory first line per GEMINI.md protocol
         now = datetime.utcnow()
-        due_tasks = ScheduledTask.query.filter(
-            ScheduledTask.status == 'pending',
-            ScheduledTask.scheduled_at <= now,
-        ).all()
-
-        for task in due_tasks:
-            try:
-                self._execute_task(task)
-                task.status = 'executed'
-                task.executed_at = datetime.utcnow()
-                logger.info(f"[CRON] Executed task #{task.id} ({task.action})")
-            except Exception as e:
-                task.status = 'failed'
-                task.error_message = str(e)[:500]
-                logger.error(f"[CRON] Task #{task.id} failed: {e}")
         
-        if due_tasks:
-            db.session.commit()
+        # 1. Fetch due tasks. 
+        # We use a smaller batch size and with_for_update(skip_locked=True) 
+        # to ensure multiple workers don't collide.
+        try:
+            due_tasks = ScheduledTask.query.filter(
+                ScheduledTask.status == 'pending',
+                ScheduledTask.scheduled_at <= now,
+            ).with_for_update(skip_locked=True).limit(20).all()
+            
+            if not due_tasks:
+                return
+
+            for task in due_tasks:
+                try:
+                    # 2. Claim the task IMMEDIATELY by marking it as executed
+                    # This prevents other workers from picking it up if they query 
+                    # while we are executing (though skip_locked should handle it).
+                    task.status = 'executed'
+                    task.executed_at = datetime.utcnow()
+                    db.session.commit()
+
+                    # 3. Actually run the logic
+                    self._execute_task(task)
+                    logger.info(f"[CRON] Executed task #{task.id} ({task.action})")
+                    
+                except Exception as e:
+                    logger.error(f"[CRON] Task #{task.id} failed: {e}")
+                    # Re-open session and mark as failed if it wasn't a commit error
+                    try:
+                        db.session.rollback()
+                        task = ScheduledTask.query.get(task.id)
+                        if task:
+                            task.status = 'failed'
+                            task.error_message = str(e)[:500]
+                            db.session.commit()
+                    except Exception as rb_err:
+                        logger.error(f"[CRON] Could not mark task as failed: {rb_err}")
+                        db.session.rollback()
+        except Exception as e:
+            logger.error(f"[CRON] Error in _process_due_tasks: {e}")
+            db.session.rollback()
 
     def _execute_task(self, task: ScheduledTask):
         """
@@ -206,8 +245,76 @@ class CronService:
             self._handle_send_email(task)
         elif task.action == 'check_in':
             self._handle_check_in(task)
+        elif task.action == 'daily_summary':
+            self._handle_daily_summary(task)
+        elif task.action == 'auto_followup':
+            self._handle_auto_followup(task)
         else:
             logger.warning(f"[CRON] Unknown action: {task.action}")
+
+    def _handle_daily_summary(self, task: ScheduledTask):
+        """Generates and sends the morning summary to the distributor."""
+        from models.distributor import Distributor
+        from services.messaging_service import messaging_service
+        from skills.crm import CRMSkill
+        import pytz
+        
+        distributor = Distributor.query.get(task.distributor_id)
+        if not distributor: return
+
+        # Use CRMSkill to generate the report
+        from flask import g
+        g.current_company = distributor
+        
+        crm = CRMSkill()
+        report = crm.get_business_summary_report()
+        
+        dist_phone = distributor.whatsapp_phone or distributor.phone
+        if dist_phone:
+            header = "☀️ *¡BUENOS DÍAS! AQUÍ TU RESUMEN MATUTINO*\n\n"
+            messaging_service.send_whatsapp(dist_phone, header + report, distributor.id)
+            
+        # Schedule next day's summary in distributor's timezone
+        tz = pytz.timezone(distributor.timezone or 'America/Guayaquil')
+        now_tz = datetime.now(tz)
+        
+        # Calculate next 8:00 AM in local time
+        next_run_tz = now_tz.replace(hour=8, minute=0, second=0, microsecond=0)
+        if next_run_tz <= now_tz:
+            next_run_tz += timedelta(days=1)
+            
+        # Convert back to UTC for storage in DB
+        next_run_utc = next_run_tz.astimezone(pytz.utc).replace(tzinfo=None)
+        
+        self.schedule_followup(
+            distributor_id=distributor.id,
+            message="Morning Summary",
+            scheduled_at=next_run_utc,
+            action='daily_summary'
+        )
+
+    def _handle_auto_followup(self, task: ScheduledTask):
+        """Sends an automatic follow-up only if the user hasn't replied yet."""
+        from models.conversation import Conversation, Message, MessageRole
+        from services.messaging_service import messaging_service
+        
+        conv = Conversation.query.get(task.conversation_id)
+        if not conv: return
+
+        # CHECK: Did the user send a message after our task was scheduled?
+        # If the last message is from the user, we DON'T send an auto-followup 
+        # because the user already replied or the conversation is active.
+        # But wait, the logic is: if last message is from AI, then user hasn't replied.
+        last_msg = Message.query.filter_by(conversation_id=conv.id).order_by(Message.created_at.desc()).first()
+        
+        if last_msg and last_msg.role == MessageRole.ASSISTANT:
+            # User hasn't replied to our last AI message!
+            dist_phone = task.payload.get('distributor_phone')
+            lead_phone = task.payload.get('lead_phone')
+            
+            if lead_phone:
+                messaging_service.send_whatsapp(lead_phone, task.message, task.distributor_id)
+                logger.info(f"[CRON] Auto-followup sent to {lead_phone} for conv {conv.id}")
 
     def _handle_send_message(self, task: ScheduledTask):
         """Send a WhatsApp or Telegram message."""
@@ -234,6 +341,24 @@ class CronService:
             except Exception as e:
                 logger.error(f"[CRON] WhatsApp send failed: {e}")
                 raise
+
+    def _handle_send_email(self, task: ScheduledTask):
+        """Send email follow-up."""
+        payload = task.payload or {}
+        to_email = payload.get('to_email')
+        subject = payload.get('subject', 'Follow-up')
+        if not to_email:
+            logger.warning(f"[CRON] Task #{task.id}: No to_email in payload")
+            return
+        from services.email_service import EmailService
+        EmailService.send_email(to_email=to_email, subject=subject, body=task.message)
+
+    def _handle_check_in(self, task: ScheduledTask):
+        """
+        Check-in: query lead status and log. 
+        Future: could trigger a proactive message if lead hasn't responded.
+        """
+        logger.info(f"[CRON] Check-in for lead #{task.lead_id} (distributor #{task.distributor_id})")
 
     def _handle_send_email(self, task: ScheduledTask):
         """Send email follow-up."""

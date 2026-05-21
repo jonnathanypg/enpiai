@@ -69,6 +69,7 @@ class SchedulerSkill(BaseSkill):
         """
         Schedule a meeting on Google Calendar.
         """
+        db.session.rollback()
         distributor = getattr(g, 'current_company', None)
         if not distributor:
             return "Error: No distributor context found."

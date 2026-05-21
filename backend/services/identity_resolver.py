@@ -49,17 +49,30 @@ class VirtualUser:
 
     def get_context_summary(self) -> str:
         """Generate a human-readable summary for the agent's system prompt."""
-        parts = [f"Name: {self.name}"]
+        parts = [f"Nombre: {self.name}"]
         if self.lead_status:
-            parts.append(f"Status: {self.lead_status}")
+            parts.append(f"Estado de Relación: {self.lead_status}")
         if self.lead_source:
-            parts.append(f"Source: {self.lead_source}")
+            parts.append(f"Origen: {self.lead_source}")
         if self.lead_score:
-            parts.append(f"Score: {self.lead_score}/100")
+            parts.append(f"Interés: {self.lead_score}/100")
         if self.interests:
-            parts.append(f"Interests: {self.interests}")
+            parts.append(f"Intereses: {self.interests}")
         if self.notes:
-            parts.append(f"Notes: {self.notes}")
+            parts.append(f"Notas: {self.notes}")
+            
+        # Add Wellness Evaluation Context
+        try:
+            from models.wellness_evaluation import WellnessEvaluation
+            latest_eval = WellnessEvaluation.query.filter_by(
+                lead_id=abs(self.id)
+            ).order_by(WellnessEvaluation.created_at.desc()).first()
+            
+            if latest_eval:
+                parts.append(f"Detalles de Evaluación:\n{latest_eval.get_summary()}")
+        except Exception as e:
+            logger.debug(f"Could not fetch wellness context for identity: {e}")
+
         return " | ".join(parts)
 
 
@@ -72,71 +85,69 @@ class IdentityResolver:
     def resolve_from_phone(phone: str, distributor_id: int) -> dict:
         """
         Resolve user identity from WhatsApp phone number.
-        
-        Search order:
-        1. Check if it's a registered Customer
-        2. Check if it's a known Lead
-        3. Return not-found (the agent or webhook will auto-create a Lead)
         """
         db.session.rollback()
+        from models.lead import Lead
+        from models.customer import Customer
+        from models.distributor import Distributor
         
-        # Normalize phone
-        phone = phone.replace(" ", "").replace("-", "")
-        phone_clean = phone.replace("+", "")
-        
-        # Extract the last 8 digits to reliably match across country codes and leading zeros
-        phone_suffix = phone_clean[-8:] if len(phone_clean) >= 8 else phone_clean
-        
-        logger.info(f"[IdentityResolver] Resolving phone: {phone} (suffix: {phone_suffix}) for distributor: {distributor_id}")
+        # 1. Normalize and Hash
+        phone_hash = Lead.generate_phone_hash(phone)
+        if not phone_hash:
+            return {'found': False, 'type': 'unknown', 'context': 'Invalid phone'}
+            
+        logger.info(f"[IdentityResolver] Resolving phone: {phone} (hash: {phone_hash}) for distributor: {distributor_id}")
 
         # 0. Check if it's the Distributor themselves
+        # Note: Distributors might not have hashes for their own numbers in the same way,
+        # so we keep the suffix/exact matching for the distributor object which is usually NOT encrypted.
+        phone_raw = str(phone).replace(" ", "").replace("-", "").replace("+", "")
+        phone_suffix = phone_raw[-9:] if len(phone_raw) >= 9 else phone_raw
+
         try:
-            from models.distributor import Distributor
             distributor = Distributor.query.filter(
+                Distributor.id == distributor_id,
                 db.or_(
                     Distributor.whatsapp_phone.like(f"%{phone_suffix}%"),
-                    Distributor.phone.like(f"%{phone_suffix}%")
-                ),
-                Distributor.id == distributor_id
+                    Distributor.phone.like(f"%{phone_suffix}%"),
+                    Distributor.whatsapp_phone == phone_raw,
+                    Distributor.phone == phone_raw
+                )
             ).first()
+            
             if distributor:
-                logger.info(f"[IdentityResolver] Found Distributor: {distributor.name} (ID: {distributor.id})")
+                logger.info(f"[IdentityResolver] Found Distributor: {distributor.name}")
                 return {
                     'found': True, 'type': 'distributor', 'id': distributor.id,
                     'name': distributor.name, 'email': distributor.email,
-                    'context': 'AUTHENTICATED DISTRIBUTOR - Master access. Can manage leads, view reports, and send broadcasts.',
+                    'context': (
+                        f"IDENTIDAD CONFIRMADA: Estás hablando con el propietario de la cuenta ({distributor.name}). "
+                        "MODO MAESTRO ACTIVADO. Responde como su Asistente Ejecutivo de Negocios."
+                    ),
                 }
         except Exception as e:
             logger.warning(f"[IdentityResolver] Distributor lookup error: {e}")
 
-        # 1. Check Customers
+        # 1. Check Customers via Hash
         try:
-            from models.customer import Customer
-            customer = Customer.query.filter(
-                Customer.phone.like(f"%{phone_suffix}%"),
-                Customer.distributor_id == distributor_id
-            ).first()
+            customer = Customer.query.filter_by(distributor_id=distributor_id, phone_hash=phone_hash).first()
             if customer:
-                logger.info(f"[IdentityResolver] Found Customer: {customer.name} (ID: {customer.id})")
+                logger.info(f"[IdentityResolver] Found Customer: {customer.name}")
                 return {
                     'found': True, 'type': 'customer', 'id': customer.id,
                     'name': customer.name, 'email': customer.email,
-                    'context': f"Returning customer: {customer.name}",
+                    'context': f"Cliente existente: {customer.name}. Trátalo con prioridad.",
                     'is_ai_active': getattr(customer, 'is_ai_active', True)
                 }
         except Exception as e:
             logger.warning(f"[IdentityResolver] Customer lookup error: {e}")
 
-        # 2. Check Leads
+        # 2. Check Leads via Hash
         try:
-            from models.lead import Lead
-            lead = Lead.query.filter(
-                Lead.phone.like(f"%{phone_suffix}%"),
-                Lead.distributor_id == distributor_id
-            ).first()
+            lead = Lead.query.filter_by(distributor_id=distributor_id, phone_hash=phone_hash).first()
             if lead:
                 virtual = VirtualUser(lead)
-                logger.info(f"[IdentityResolver] Found Lead: {lead.name} (ID: {lead.id})")
+                logger.info(f"[IdentityResolver] Found Lead: {lead.name}")
                 return {
                     'found': True, 'type': 'lead', 'id': lead.id,
                     'name': lead.name, 'email': lead.email,
@@ -149,7 +160,7 @@ class IdentityResolver:
 
         # 3. Not found
         logger.info(f"[IdentityResolver] No identity found for phone: {phone}")
-        return {'found': False, 'type': 'unknown', 'context': 'New prospect (no prior history)'}
+        return {'found': False, 'type': 'unknown', 'context': 'Nuevo contacto (sin historial previo)'}
 
     @staticmethod
     def resolve_from_telegram(chat_id: str, distributor_id: int) -> dict:

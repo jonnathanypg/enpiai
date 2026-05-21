@@ -14,6 +14,13 @@ apiClient.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Support for Super Admin context override (Impersonation)
+        const distIdOverride = Cookies.get('distributor_id_override');
+        if (distIdOverride) {
+            config.headers['X-Distributor-Id'] = distIdOverride;
+        }
+
         return config;
     },
     (error) => Promise.reject(error)

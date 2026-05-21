@@ -9,12 +9,13 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME,
     port: Number(process.env.DB_PORT) || 3306,
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: 5,
     queueLimit: 0,
+    connectTimeout: 30000, // 30 seconds to handle remote latency
     // Keep-alive settings to prevent ECONNRESET on remote MySQL
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000, // 10 seconds
-    idleTimeout: 60000, // 60 seconds idle before closing
+    idleTimeout: 60000, // 1 minute idle timeout
     maxIdle: 5
 });
 

@@ -46,7 +46,7 @@ class Distributor(db.Model):
 
     # LLM Configuration (Platform-managed — distributors do NOT provide their own keys)
     llm_provider = db.Column(db.String(50), default='openai')
-    llm_model = db.Column(db.String(100), default='gpt-4')
+    llm_model = db.Column(db.String(100), default='gpt-5-nano')
 
     # Platform API Keys (encrypted — Sovereign SQL Layer)
     api_keys = db.Column(EncryptedJSON, nullable=True)

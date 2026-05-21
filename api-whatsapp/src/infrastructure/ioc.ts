@@ -122,6 +122,37 @@ wsTransporter.on("message", async (data) => {
   }
 });
 
+// Listen for incoming calls and notify Python backend
+wsTransporter.on("call", async (data) => {
+  try {
+    const callData = data.call[0]; // Baileys returns an array
+    if (!callData || callData.status !== 'offer') return; // Only notify on initial offer
+
+    console.log(`[${data.companyId}] Forwarding call event to backend from: ${callData.from}`);
+    const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:5000";
+    
+    const fromPhone = callData.from?.split('@')[0] || "";
+    const isVideo = callData.isVideo;
+
+    const payload = {
+      companyId: data.companyId,
+      from: fromPhone,
+      message: isVideo ? "[Intento de Videollamada]" : "[Llamada de voz perdida]",
+      messageId: callData.id,
+      isSystemMessage: true,
+      metadata: {
+        type: 'call',
+        isVideo: isVideo,
+        status: callData.status
+      }
+    };
+
+    await axios.post(`${backendUrl}/webhooks/whatsapp`, payload);
+  } catch (error: any) {
+    console.error("Failed to forward call event:", error.message);
+  }
+});
+
 
 container.register("db.repository", MockRepository);
 const dbRepository = container.get("db.repository");

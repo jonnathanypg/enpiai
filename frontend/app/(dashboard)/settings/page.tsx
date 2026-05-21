@@ -26,6 +26,7 @@ interface DistributorSettings {
     language: string;
     email: string | null;
     phone: string | null;
+    whatsapp_phone: string | null;
     website: string | null;
     instagram: string | null;
     facebook: string | null;
@@ -209,6 +210,18 @@ export default function SettingsPage() {
                                     onChange={(e) => handleChange('phone', e.target.value)}
                                     placeholder="+1234567890"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="whatsapp_phone">{t('settings.whatsappPhone')}</Label>
+                                <Input
+                                    id="whatsapp_phone"
+                                    value={formData.whatsapp_phone || ''}
+                                    onChange={(e) => handleChange('whatsapp_phone', e.target.value)}
+                                    placeholder="+1234567890"
+                                />
+                                <p className="text-[10px] text-muted-foreground">
+                                    {t('settings.whatsappPhoneHelp')}
+                                </p>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="personal_story">{t('settings.personalStory')}</Label>

@@ -8,12 +8,14 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuthStore } from '@/store/use-auth-store';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api-client';
+import { useTranslation } from 'react-i18next';
 
 export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const { t } = useTranslation();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const router = useRouter();
@@ -62,7 +64,7 @@ export default function DashboardLayout({
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-background">
                     <div className="flex flex-col items-center gap-2">
                         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                        <p className="text-sm text-muted-foreground">Verifying access...</p>
+                        <p className="text-sm text-muted-foreground">{t('common.verifyingAccess')}</p>
                     </div>
                 </div>
             )}

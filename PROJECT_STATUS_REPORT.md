@@ -15,7 +15,7 @@ EnpiAI is a high-performance multi-tenant SaaS platform that provides a 360° vi
 
 ### 🧠 Core Intelligence & Orchestration (95%)
 - **LangGraph Implementation**: Cyclic agent workflow with state persistence in Redis (`RedisSaver`).
-- **SkillAdapter Failover**: Resilient cascade strategy (OpenAI GPT-4o -> Anthropic Claude 3.5 -> Gemini 1.5 Pro).
+- **SkillAdapter Failover**: Resilient cascade strategy (OpenAI gpt-5-nano -> Anthropic Claude 3.5 -> Gemini 1.5 Pro).
 - **Tooling**: Comprehensive set of tools for CRM, Calendar, Wellness, and Knowledge Base queries.
 
 ### 🔌 Connectivity & Channels (90%)

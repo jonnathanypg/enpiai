@@ -29,6 +29,8 @@ def generate_pdf_report(self, distributor_id, report_type, data):
         from app import create_app
         app = create_app()
         with app.app_context():
+            from extensions import db as task_db
+            task_db.session.rollback()
             from services.pdf_service import pdf_service
             result = pdf_service.generate_report(distributor_id, report_type, data)
             logger.info(f"PDF report generated for distributor {distributor_id}")
@@ -48,12 +50,13 @@ def index_document_rag(self, filepath, distributor_id, document_id, metadata=Non
         from app import create_app
         app = create_app()
         with app.app_context():
-            from services.rag_service import rag_service
             from extensions import db as task_db
+            task_db.session.rollback()
+            from services.rag_service import rag_service
             from models.document import Document
             import os
             import pdfplumber
-            from langchain.text_splitter import RecursiveCharacterTextSplitter
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
 
             # 1. Read file and extract text
             text_content = ""
@@ -132,6 +135,8 @@ def send_broadcast_message(self, distributor_id, channel, recipients, message):
         from app import create_app
         app = create_app()
         with app.app_context():
+            from extensions import db as task_db
+            task_db.session.rollback()
             from services.messaging_service import messaging_service
 
             sent = 0
@@ -187,6 +192,9 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
                 logger.error(f"Webhook task: Distributor {distributor_id} or Conversation {conversation_id} not found")
                 return {'status': 'error', 'reason': 'not_found'}
 
+            # Close transaction before long-running agent call to prevent stale connections
+            task_db.session.rollback()
+
             # Run agent
             orchestrator = get_agent_orchestrator(distributor)
             response_data = orchestrator.process_message(
@@ -196,7 +204,14 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
             )
 
             ai_reply_text = response_data.get('content')
+            logger.info(f"[TASKS] AI response content received: '{ai_reply_text}'")
+            
             if ai_reply_text:
+                # Re-fetch or refresh session before commit to avoid "MySQL server has gone away" 
+                # after long LLM wait.
+                task_db.session.rollback()
+                conversation = Conversation.query.get(conversation_id)
+                
                 # Save AI response
                 ai_msg = Message(
                     conversation_id=conversation.id,
@@ -223,9 +238,204 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
                     )
 
             logger.info(f"Webhook task completed: conv={conversation_id}, reply_sent={bool(ai_reply_text)}")
+            
+            # Final cleanup inside the context to prevent teardown from failing on stale connections
+            try:
+                task_db.session.rollback()
+                task_db.session.remove()
+            except Exception as e:
+                logger.debug(f"Task cleanup error (non-critical): {e}")
+            
             return {'status': 'success', 'reply_sent': bool(ai_reply_text)}
 
     except Exception as exc:
         logger.error(f"Webhook task failed: {exc}")
+        # Ensure session is cleaned up on error
+        try:
+            from extensions import db as task_db
+            task_db.session.remove()
+        except Exception as e:
+            logger.debug(f"Task cleanup error on exception: {e}")
         raise self.retry(exc=exc)
+    finally:
+        # Cleanup connection pool
+        try:
+            from extensions import db as task_db
+            task_db.session.remove()
+        except Exception as e:
+            logger.debug(f"Task cleanup error in finally: {e}")
+
+
+@celery.task(bind=True, max_retries=2, default_retry_delay=30)
+def process_wellness_evaluation(self, evaluation_id, distributor_id, data=None):
+    """
+    Process the complete wellness evaluation flow in the background:
+    1. AI Diagnosis & Recommendations
+    2. PDF Generation
+    3. Messaging (Email + WhatsApp)
+    """
+    try:
+        from app import create_app
+        app = create_app()
+        with app.app_context():
+            from extensions import db as task_db
+            from models.wellness_evaluation import WellnessEvaluation
+            from models.distributor import Distributor
+            from models.lead import Lead
+            from services.ai_diagnostic_service import generate_diagnosis
+            from services.pdf_service import pdf_service
+            from services.email_service import email_service
+            from services.messaging_service import messaging_service
+            from flask import current_app
+
+            task_db.session.rollback()
+            
+            evaluation = WellnessEvaluation.query.get(evaluation_id)
+            distributor = Distributor.query.get(distributor_id)
+            
+            if not evaluation or not distributor:
+                logger.error(f"Wellness Task: Evaluation {evaluation_id} or Distributor {distributor_id} not found")
+                return {'status': 'error', 'reason': 'not_found'}
+
+            # 1. AI Diagnosis
+            try:
+                lang = evaluation.language or distributor.language or 'es'
+                ai_result = generate_diagnosis(
+                    age=evaluation.age or 0,
+                    weight_kg=evaluation.weight_kg or 0,
+                    height_cm=evaluation.height_cm or 0,
+                    blood_pressure=evaluation.blood_pressure or 'N/A',
+                    pulse=evaluation.pulse or 72,
+                    energy_level=evaluation.energy_level or 5,
+                    symptoms=evaluation.symptoms,
+                    observations=evaluation.observations or '',
+                    language=lang,
+                    activity_level=evaluation.activity_level,
+                    exercise_frequency=evaluation.exercise_frequency,
+                    meals_per_day=evaluation.meals_per_day,
+                    water_intake_liters=evaluation.water_intake_liters,
+                    sleep_hours=evaluation.sleep_hours,
+                    sleep_quality=evaluation.sleep_quality,
+                )
+                
+                # Re-fetch evaluation after AI call
+                task_db.session.rollback()
+                evaluation = WellnessEvaluation.query.get(evaluation_id)
+                evaluation.diagnosis = ai_result.get('diagnosis', '')
+                evaluation.recommendations = ai_result.get('recommendations', '')
+                task_db.session.commit()
+                logger.info(f"AI results saved for evaluation {evaluation.id}")
+            except Exception as ai_err:
+                logger.error(f"AI diagnosis generation failed in worker: {ai_err}")
+
+            # 2. PDF Generation
+            pdf_url = None
+            filename = None
+            pdf_path = None
+            try:
+                pdf_path = pdf_service.generate_wellness_report(evaluation, distributor)
+                if pdf_path:
+                    filename = os.path.basename(pdf_path)
+                    evaluation.pdf_report_path = filename
+                    task_db.session.commit()
+                    
+                    api_base = current_app.config.get('API_BASE_URL', 'http://localhost:5000')
+                    pdf_url = f"{api_base}/api/wellness/reports/{filename}"
+            except Exception as pdf_err:
+                logger.error(f"PDF generation failed in worker: {pdf_err}")
+
+            # 3. Send to Lead (Email + WhatsApp)
+            if evaluation.lead:
+                # Email
+                if evaluation.lead.email:
+                    try:
+                        email_service.send_wellness_report_to_lead(
+                            to_email=evaluation.lead.email,
+                            distributor_name=distributor.name,
+                            evaluation_data=evaluation.to_dict(),
+                            pdf_path=pdf_path,
+                            lang=distributor.language or 'es'
+                        )
+                    except Exception as email_err:
+                        logger.warning(f"Failed to send email to lead: {email_err}")
+
+                # WhatsApp
+                if evaluation.lead.phone:
+                    try:
+                        dist_link = f"https://enpi.click/evaluate/{distributor.herbalife_id or distributor.id}"
+                        
+                        # Localized WhatsApp Intro
+                        wa_intros = {
+                            'es': f"¡Hola {evaluation.lead.first_name}! 🌿 Tu análisis de bienestar está listo. Te lo adjunto a continuación para que lo revises.\n\nRealiza otra evaluación aquí: {dist_link}",
+                            'en': f"Hi {evaluation.lead.first_name}! 🌿 Your wellness analysis is ready. I'm attaching it below for you to review.\n\nTake another evaluation here: {dist_link}",
+                            'pt': f"Olá {evaluation.lead.first_name}! 🌿 Sua análise de bem-estar está pronta. Estou anexando-a abaixo para você revisar.\n\nFaça outra avaliação aqui: {dist_link}"
+                        }
+                        wa_intro = wa_intros.get(lang, wa_intros['es'])
+
+                        messaging_service.send_whatsapp(
+                            to_phone=evaluation.lead.phone,
+                            message=wa_intro,
+                            distributor_id=distributor.id
+                        )
+                        
+                        if pdf_url:
+                            caption_map = {
+                                'es': f"Evaluación de Bienestar - {evaluation.lead.first_name}",
+                                'en': f"Wellness Evaluation - {evaluation.lead.first_name}",
+                                'pt': f"Avaliação de Bem-estar - {evaluation.lead.first_name}"
+                            }
+                            messaging_service.send_whatsapp_media(
+                                to_phone=evaluation.lead.phone,
+                                media_url=pdf_url,
+                                media_type="document",
+                                caption=caption_map.get(lang, caption_map['es']),
+                                file_name=filename,
+                                distributor_id=distributor.id
+                            )
+                    except Exception as wa_err:
+                        logger.warning(f"Failed to send WhatsApp to lead: {wa_err}")
+
+            # 4. Notify Distributor
+            try:
+                distributor_phone = distributor.whatsapp_phone or distributor.phone
+                lead_name = evaluation.lead.full_name if evaluation.lead else "Anónimo"
+                
+                if distributor_phone:
+                    notification_msg = (
+                        f"📝 *NUEVA EVALUACIÓN DE BIENESTAR*\n"
+                        f"El prospecto *{lead_name}* ha completado su evaluación.\n\n"
+                        f"📊 *Resultados:* \n"
+                        f"- IMC: {evaluation.bmi:.1f}\n"
+                        f"- Meta: {evaluation.primary_goal}\n"
+                        f"- Motivación: {evaluation.motivation}\n\n"
+                        f"El reporte PDF ya ha sido enviado al lead."
+                    )
+                    messaging_service.send_whatsapp(distributor_phone, notification_msg, distributor.id)
+
+                from models.user import User
+                dist_user = User.query.filter_by(distributor_id=distributor_id).first()
+                if dist_user:
+                    email_service.send_wellness_evaluation_notification(
+                        to_email=dist_user.email,
+                        distributor_name=distributor.name,
+                        lead_name=lead_name,
+                        bmi=str(round(evaluation.bmi, 1)) if evaluation.bmi else 'N/A',
+                        goal=evaluation.primary_goal or '',
+                        lang=distributor.language or 'en'
+                    )
+            except Exception as notify_err:
+                logger.warning(f"Distributor notification failed: {notify_err}")
+
+            return {'status': 'success', 'evaluation_id': evaluation_id}
+            
+    except Exception as exc:
+        logger.error(f"Wellness task critical failure: {exc}")
+        raise self.retry(exc=exc)
+    finally:
+        try:
+            from extensions import db as task_db
+            task_db.session.remove()
+        except:
+            pass
+
 

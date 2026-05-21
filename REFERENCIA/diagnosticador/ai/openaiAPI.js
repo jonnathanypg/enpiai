@@ -17,7 +17,7 @@ const ASSISTANT_ID = config.openai.assistantId;
 
 // Verificar que el ID del asistente esté definido
 if (!ASSISTANT_ID) {
-  console.warn("⚠️ Advertencia: ASSISTANT_ID no definido, se usará el modelo GPT-4o-mini directamente");
+  console.warn("⚠️ Advertencia: ASSISTANT_ID no definido, se usará el modelo gpt-5-nano directamente");
 }
 
 // Función principal para obtener diagnóstico
@@ -102,7 +102,7 @@ export async function obtenerDiagnosticoOpenAI(sintomas, peso, estatura, presion
     
     const responseDiagnostico = await Promise.race([
       openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-5-nano",
         messages: [
           { 
             role: "system", 
@@ -144,7 +144,7 @@ export async function obtenerDiagnosticoOpenAI(sintomas, peso, estatura, presion
     console.log("📤 Enviando solicitud de recomendaciones a OpenAI...");
     const responseRecomendaciones = await Promise.race([
       openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-5-nano",
         messages: [
           { 
             role: "system", 

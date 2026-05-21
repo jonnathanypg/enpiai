@@ -40,8 +40,8 @@ def allowed_file(filename):
 def list_documents():
     """
     List RAG documents.
-    - Super Admin: lists global docs (distributor_id IS NULL)
-    - Distributor: lists their own docs
+    - Super Admin: lists global docs (distributor_id IS NULL) or specific distributor docs via header.
+    - Distributor: lists their own docs.
     """
     db.session.rollback()
 
@@ -50,16 +50,28 @@ def list_documents():
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
-        if user.role == UserRole.SUPER_ADMIN:
-            docs = Document.query.filter(
-                Document.distributor_id.is_(None)
-            ).order_by(Document.created_at.desc()).all()
-        else:
-            if not user.distributor_id:
-                return jsonify({'error': 'Distributor not found'}), 404
-            docs = Document.query.filter_by(
-                distributor_id=user.distributor_id
-            ).order_by(Document.created_at.desc()).all()
+        distributor_id = user.distributor_id
+        is_super_admin = user.role == UserRole.SUPER_ADMIN
+        
+        # Super Admin Override
+        if is_super_admin:
+            override_id = request.headers.get('X-Distributor-Id')
+            if override_id:
+                distributor_id = int(override_id)
+            else:
+                # Default Super Admin behavior: global docs
+                docs = Document.query.filter(
+                    Document.distributor_id.is_(None)
+                ).order_by(Document.created_at.desc()).all()
+                return jsonify({'data': [d.to_dict() for d in docs]}), 200
+
+        # Normal or Overridden flow
+        if not distributor_id:
+            return jsonify({'error': 'Distributor not found'}), 404
+            
+        docs = Document.query.filter_by(
+            distributor_id=distributor_id
+        ).order_by(Document.created_at.desc()).all()
 
         return jsonify({'data': [d.to_dict() for d in docs]}), 200
 
@@ -73,23 +85,27 @@ def list_documents():
 def upload_document():
     """
     Upload and process a document.
-    - Super Admin: saved as global doc (distributor_id=None, namespace="global")
-    - Distributor: saved under their own tenant
-    
-    IMPORTANT: Extraction and chunking are delegated entirely to the Celery worker
-    to prevent HTTP timeouts on large PDFs.
+    - Super Admin: global doc or specific distributor doc via header.
+    - Distributor: saved under their own tenant.
     """
     db.session.rollback()
 
     try:
         import uuid
-        # ── Step 1: Authenticate & extract user info into Python primitives ──
         user = _get_current_user()
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
         is_super_admin = user.role == UserRole.SUPER_ADMIN
-        distributor_id = None if is_super_admin else user.distributor_id
+        distributor_id = user.distributor_id
+        
+        # Super Admin Override
+        if is_super_admin:
+            override_id = request.headers.get('X-Distributor-Id')
+            if override_id:
+                distributor_id = int(override_id)
+            else:
+                distributor_id = None # Global doc
 
         if not is_super_admin and not distributor_id:
             return jsonify({'error': 'Distributor not found'}), 404

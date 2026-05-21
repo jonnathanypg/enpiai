@@ -52,11 +52,11 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_recycle': 280,      # Recycle connections before MySQL default timeout (28800s) or shorter cloud timeouts
-        'pool_pre_ping': True,    # Self-healing connection check
+        'pool_recycle': 300,      # Recycle connections every 5 minutes (vital for remote DBs)
+        'pool_pre_ping': True,    # Check connection health before every use
         'pool_timeout': 30,
-        'pool_size': int(os.getenv('DB_POOL_SIZE', 10)),      # Configurable: 5 for 1GB RAM, 20+ for high scale
-        'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', 5)), # Burst capacity
+        'pool_size': int(os.getenv('DB_POOL_SIZE', 5)),       
+        'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', 5)), 
     }
 
     # --- Pinecone (Vector DB) ---
@@ -69,7 +69,7 @@ class Config:
     ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
     GOOGLE_AI_API_KEY = os.getenv('GOOGLE_AI_API_KEY', '')
     DEFAULT_LLM_PROVIDER = os.getenv('DEFAULT_LLM_PROVIDER', 'openai')
-    DEFAULT_LLM_MODEL = os.getenv('DEFAULT_LLM_MODEL', 'gpt-4')
+    DEFAULT_LLM_MODEL = os.getenv('DEFAULT_LLM_MODEL', 'gpt-5-nano')
 
     # --- Google APIs ---
     GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
@@ -93,7 +93,7 @@ class Config:
 
     # --- File Uploads ---
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
     ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'txt', 'xlsx', 'csv'}
 
     # --- Celery / Redis (Task Queue - Phase 11) ---

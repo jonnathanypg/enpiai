@@ -21,11 +21,14 @@ import {
   Leaf,
 } from 'lucide-react';
 
+import { PlatformChatWidget } from '@/components/features/platform-chat-widget';
+
 export default function HomePage() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background relative">
+      <PlatformChatWidget />
       {/* ═══════════════════════════════════════════════
           NAVIGATION
       ═══════════════════════════════════════════════ */}

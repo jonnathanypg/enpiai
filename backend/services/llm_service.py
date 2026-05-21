@@ -16,7 +16,7 @@ class LLMService:
     SkillAdapter — Unified LLM interface.
     Usage:
         llm = LLMService()
-        response = llm.generate("Hello!", provider='openai', model='gpt-4')
+        response = llm.generate("Hello!", provider='openai', model='gpt-5-nano')
     """
 
     def __init__(self):

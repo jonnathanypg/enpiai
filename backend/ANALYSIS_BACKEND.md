@@ -98,7 +98,7 @@ graph TD
         *   `JWT_SECRET_KEY`: Semilla para firma y verificación de tokens JWT.
         *   `ENCRYPTION_KEY`: Clave maestra Fernet (AES-128) para la capa de Soberanía de Datos (cifrado de columnas PII).
     *   **Integraciones IA**:
-        *   `OPENAI_API_KEY`: Motor principal (GPT-4o).
+        *   `OPENAI_API_KEY`: Motor principal (gpt-5-nano).
         *   `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`: Motores de respaldo (Failover strategy).
         *   `PINECONE_API_KEY`: Base de datos vectorial para RAG.
     *   **Infraestructura Asíncrona**:
@@ -185,7 +185,7 @@ graph TD
 *   **Patrón de Estrategia**:
     *   Interfaz unificada `generate_response(messages, tools)`.
 *   **Failover Cascade**:
-    *   Intento 1: OpenAI (GPT-4o).
+    *   Intento 1: OpenAI (gpt-5-nano).
     *   Exception: Captura timeout o error 5xx de OpenAI.
     *   Intento 2: Anthropic (Claude 3.5 Sonnet).
     *   Exception: Captura error.

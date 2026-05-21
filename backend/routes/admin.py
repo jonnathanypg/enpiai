@@ -57,7 +57,7 @@ def update_platform_config():
             'enable_failover', 'default_llm_provider', 'default_llm_model',
             'global_rag_enabled', 'global_rag_namespace',
             'maintenance_mode', 'max_agents_per_distributor',
-            'max_documents_per_distributor'
+            'max_documents_per_distributor', 'platform_distributor_id'
         ]
 
         for field in updatable:
@@ -74,6 +74,132 @@ def update_platform_config():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Update config error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# =========================================================================
+# Platform Support Agent Management
+# =========================================================================
+
+@admin_bp.route('/platform-agent', methods=['GET'])
+@jwt_required()
+@super_admin_required
+def get_platform_agent():
+    """Get the configuration of the platform's support agent."""
+    db.session.rollback()
+    try:
+        config = PlatformConfig.get_config()
+        dist_id = config.platform_distributor_id
+        
+        if not dist_id:
+            return jsonify({'data': None, 'message': 'Platform agent not configured'}), 200
+            
+        dist = Distributor.query.get(dist_id)
+        if not dist:
+            return jsonify({'error': 'Platform distributor record not found'}), 404
+            
+        agent = dist.agent_configs.first()
+        return jsonify({
+            'data': {
+                'distributor': dist.to_dict(),
+                'agent': agent.to_dict() if agent else None
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Get platform agent error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/platform-agent', methods=['POST'])
+@jwt_required()
+@super_admin_required
+def setup_platform_agent():
+    """Initialize or update the platform's support agent."""
+    db.session.rollback()
+    try:
+        config = PlatformConfig.get_config()
+        data = request.get_json()
+        
+        dist_id = config.platform_distributor_id
+        dist = None
+        
+        if dist_id:
+            dist = Distributor.query.get(dist_id)
+            
+        if not dist:
+            # Create new platform distributor
+            dist = Distributor(
+                name="Enpi AI Platform",
+                agent_name="Enpi",
+                llm_provider="openai",
+                llm_model="gpt-4o",
+            )
+            db.session.add(dist)
+            db.session.flush()
+            
+            config.platform_distributor_id = dist.id
+            logger.info(f"Created new platform distributor with ID {dist.id}")
+        
+        # Update distributor basic info
+        if 'distributor' in data:
+            d_data = data['distributor']
+            if 'name' in d_data: dist.name = d_data['name']
+            if 'agent_name' in d_data: dist.agent_name = d_data['agent_name']
+            if 'llm_model' in d_data: dist.llm_model = d_data['llm_model']
+
+        # Update or Create AgentConfig
+        from models.agent_config import AgentConfig, AgentTone, AgentObjective, AgentFeature, DEFAULT_FEATURES
+        
+        agent = dist.agent_configs.first()
+        if not agent:
+            agent = AgentConfig(
+                distributor_id=dist.id,
+                name="Agente de Soporte Enpi",
+                tone=AgentTone.FRIENDLY,
+                objective=AgentObjective.SALES,
+                agent_type='prospect'
+            )
+            db.session.add(agent)
+            db.session.flush()
+            
+            # Initialize default features
+            for feat_data in DEFAULT_FEATURES:
+                feat = AgentFeature(
+                    agent_id=agent.id,
+                    **feat_data
+                )
+                db.session.add(feat)
+            
+            logger.info(f"Created new platform AgentConfig for distributor {dist.id}")
+
+        if 'agent' in data:
+            a_data = data['agent']
+            if 'name' in a_data: agent.name = a_data['name']
+            if 'tone' in a_data: agent.tone = a_data['tone']
+            if 'objective' in a_data: agent.objective = a_data['objective']
+            if 'system_prompt' in a_data: agent.system_prompt = a_data['system_prompt']
+            
+            # Update features if provided
+            if 'features' in a_data:
+                for f_update in a_data['features']:
+                    feat = AgentFeature.query.filter_by(agent_id=agent.id, name=f_update['name']).first()
+                    if feat:
+                        feat.is_enabled = f_update.get('is_enabled', feat.is_enabled)
+                        if 'config' in f_update:
+                            feat.config = f_update['config']
+
+        db.session.commit()
+        return jsonify({
+            'message': 'Platform agent updated successfully',
+            'data': {
+                'distributor': dist.to_dict(),
+                'agent': agent.to_dict()
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Setup platform agent error: {e}")
         return jsonify({'error': str(e)}), 500
 
 

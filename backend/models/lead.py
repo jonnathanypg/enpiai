@@ -87,13 +87,28 @@ class Lead(db.Model):
         return f"{self.first_name or ''} {self.last_name or ''}".strip() or "Prospecto"
 
     @staticmethod
+    def normalize_phone(phone):
+        """Standardizes phone numbers by keeping only digits."""
+        if not phone:
+            return None
+        import re
+        return re.sub(r'\D', '', str(phone))
+
+    @staticmethod
     def generate_hash(value):
-        """Generates a consistent hash for searching encrypted fields."""
+        """Generates a consistent hash for searching encrypted fields (Email)."""
         if not value:
             return None
-        # Normalize: strip spaces, lowercase for email
         val = str(value).strip().lower()
         return hashlib.sha256(val.encode()).hexdigest()
+
+    @staticmethod
+    def generate_phone_hash(phone):
+        """Generates a consistent hash for searching normalized phone numbers."""
+        normalized = Lead.normalize_phone(phone)
+        if not normalized:
+            return None
+        return hashlib.sha256(normalized.encode()).hexdigest()
 
     def to_dict(self):
         return {
@@ -130,7 +145,7 @@ def before_insert_lead(mapper, connection, target):
     if target.email:
         target.email_hash = Lead.generate_hash(target.email)
     if target.phone:
-        target.phone_hash = Lead.generate_hash(target.phone)
+        target.phone_hash = Lead.generate_phone_hash(target.phone)
 
 
 @db.event.listens_for(Lead, 'before_update')
@@ -143,4 +158,4 @@ def before_update_lead(mapper, connection, target):
     if hist_email.has_changes():
         target.email_hash = Lead.generate_hash(target.email)
     if hist_phone.has_changes():
-        target.phone_hash = Lead.generate_hash(target.phone)
+        target.phone_hash = Lead.generate_phone_hash(target.phone)

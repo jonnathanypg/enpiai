@@ -61,7 +61,7 @@ def update_settings():
         updatable = [
             'name', 'herbalife_id', 'herbalife_level', 'business_name',
             'timezone', 'language', 'country', 'city', 'email', 'phone',
-            'website', 'instagram', 'facebook', 'personal_story'
+            'website', 'instagram', 'facebook', 'personal_story', 'whatsapp_phone'
         ]
 
         for field in updatable:

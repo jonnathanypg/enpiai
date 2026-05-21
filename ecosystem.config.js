@@ -19,32 +19,41 @@ module.exports = {
             }
         },
         {
-            name: "enpiai-backend",
+            name: "enpiai-fastapi",
             cwd: "./backend",
-            // Absolute path for production (Linux), relative for local/mac
-            interpreter: process.platform === 'linux' ? "/root/enpiai/backend/venv/bin/python" : require('path').join(__dirname, 'backend', 'venv', 'bin', 'python'),
-            script: "app.py",
+            script: "/root/enpiai/backend/venv/bin/uvicorn",
+            args: "fastapi_app:app --host 0.0.0.0 --port 5000 --workers 2",
+            interpreter: "none",
             env: {
                 FLASK_ENV: "production",
-                PORT: 5000,
-                CELERY_BROKER_URL: "redis://localhost:6381/0",
-                CELERY_RESULT_BACKEND: "redis://localhost:6381/1"
+                DATABASE_URL: process.env.DATABASE_URL
             }
         },
         {
             name: "enpiai-worker",
             cwd: "./backend",
-            interpreter: process.platform === 'linux' ? "/root/enpiai/backend/venv/bin/python" : require('path').join(__dirname, 'backend', 'venv', 'bin', 'python'),
+            interpreter: "/root/enpiai/backend/venv/bin/python",
             script: "venv/bin/celery",
-            args: "-A celery_app.celery worker --loglevel=info",
+            args: "-A celery_app.celery worker --loglevel=info --concurrency=2",
             env: {
                 FLASK_ENV: "production",
                 CELERY_BROKER_URL: "redis://localhost:6381/0",
-                CELERY_RESULT_BACKEND: "redis://localhost:6381/1"
+                CELERY_RESULT_BACKEND: "redis://localhost:6381/1",
+                C_FORCE_ROOT: "true"
             }
         },
         {
-            name: "enpiai-whatsapp",
+            name: "enpiai-cron",
+            cwd: "./backend",
+            interpreter: "/root/enpiai/backend/venv/bin/python",
+            script: "run_cron.py",
+            env: {
+                FLASK_ENV: "production",
+                C_FORCE_ROOT: "true"
+            }
+        },
+        {
+            name: "enpiai-api-whatsapp",
             cwd: "./api-whatsapp",
             script: "./dist/app.js",
             env: {

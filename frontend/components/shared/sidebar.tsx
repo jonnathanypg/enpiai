@@ -41,6 +41,7 @@ const distributorItems: NavItem[] = [
 // Super Admin-only navigation
 const adminItems: NavItem[] = [
     { titleKey: 'sidebar.dashboard', href: '/admin/dashboard', icon: ShieldCheck },
+    { titleKey: 'sidebar.platformAgent', href: '/admin/platform-agent', icon: Bot },
     { titleKey: 'sidebar.systemKnowledge', href: '/admin/documents', icon: FileText },
     { titleKey: 'sidebar.billing', href: '/admin/billing', icon: CreditCard },
     { titleKey: 'sidebar.settings', href: '/settings', icon: Settings },
@@ -63,26 +64,26 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return (
         <aside
             className={cn(
-                'flex h-screen flex-col border-r bg-sidebar transition-all duration-300',
+                'flex h-screen flex-col border-r bg-sidebar/60 backdrop-blur-xl transition-all duration-300 glass',
                 collapsed ? 'w-16' : 'w-64'
             )}
         >
             {/* Logo */}
-            <div className="flex h-16 items-center justify-between border-b px-4">
+            <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
                 {!collapsed && (
-                    <span className="text-lg font-bold tracking-tight">
-                        Enpi<span className="text-primary">AI</span>
+                    <span className="text-xl font-extrabold tracking-tight bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">
+                        Enpi AI
                     </span>
                 )}
                 <Button
                     variant="ghost"
                     size="icon"
                     onClick={onToggle}
-                    className="h-8 w-8"
+                    className="h-8 w-8 hover:bg-white/10"
                 >
                     <ChevronLeft
                         className={cn(
-                            'h-4 w-4 transition-transform',
+                            'h-4 w-4 transition-transform text-muted-foreground',
                             collapsed && 'rotate-180'
                         )}
                     />
@@ -90,7 +91,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+            <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
                 {allItems.map((item) => {
                     const isActive =
                         pathname === item.href || pathname.startsWith(item.href + '/');
@@ -98,14 +99,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         <Link key={item.href} href={item.href}>
                             <span
                                 className={cn(
-                                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 group',
                                     isActive
-                                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+                                        ? 'bg-gradient-to-r from-primary/20 to-secondary/10 text-primary border border-primary/20 shadow-sm'
+                                        : 'text-sidebar-foreground/60 hover:bg-white/5 hover:text-sidebar-foreground',
                                     collapsed && 'justify-center px-2'
                                 )}
                             >
-                                <item.icon className="h-5 w-5 shrink-0" />
+                                <item.icon className={cn(
+                                    "h-5 w-5 shrink-0 transition-transform group-hover:scale-110",
+                                    isActive ? "text-primary" : "text-sidebar-foreground/40"
+                                )} />
                                 {!collapsed && t(item.titleKey)}
                             </span>
                         </Link>
