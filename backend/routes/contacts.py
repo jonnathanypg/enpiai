@@ -211,6 +211,7 @@ def get_unified_profile(identifier):
 @jwt_required()
 def add_note(identifier):
     """Add a note to a contact profile."""
+    db.session.rollback()
     try:
         distributor_id = _get_distributor_id()
         user_id = get_jwt_identity()
@@ -268,6 +269,7 @@ def add_note(identifier):
 @jwt_required()
 def toggle_ai(identifier):
     """Toggle AI automatic responses for a contact."""
+    db.session.rollback()
     try:
         distributor_id = _get_distributor_id()
         data = request.json

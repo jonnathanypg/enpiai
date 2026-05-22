@@ -27,7 +27,12 @@ class MessagingService:
         # Split message into parts if it's too long or has multiple paragraphs
         parts = self._split_message(message)
         
-        url = "http://localhost:3001/lead"
+        # Get URL from config or env
+        try:
+            whatsapp_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001').rstrip('/')
+        except RuntimeError:
+            whatsapp_url = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001').rstrip('/')
+        url = f"{whatsapp_url}/lead"
         success = True
 
         for i, part in enumerate(parts):
@@ -91,7 +96,11 @@ class MessagingService:
         """
         Send WhatsApp media via api-whatsapp microservice.
         """
-        url = "http://localhost:3001/lead/media"
+        try:
+            whatsapp_url = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001').rstrip('/')
+        except RuntimeError:
+            whatsapp_url = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001').rstrip('/')
+        url = f"{whatsapp_url}/lead/media"
         payload = {
             "phone": to_phone,
             "mediaUrl": media_url,

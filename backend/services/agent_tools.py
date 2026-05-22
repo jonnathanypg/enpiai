@@ -144,6 +144,7 @@ def register_lead(first_name: str, last_name: str, email: str = None, phone: str
         email: (Optional) Customer's email
         phone: (Optional) Customer's phone
     """
+    db.session.rollback()
     distributor = getattr(g, 'current_company', None)
     if not distributor:
         return "Error: context missing"
@@ -248,6 +249,7 @@ def schedule_appointment(date: str, time: str, email: str, topic: str) -> str:
         email: User's email for invite
         topic: Reason for meeting
     """
+    db.session.rollback()
     distributor = getattr(g, 'current_company', None)
     if not distributor:
         return "Error: context missing"
@@ -361,4 +363,3 @@ def get_tools_for_agent(agent, distributor, enabled_features: List[str] = None) 
         tools.append(wellness_evaluation_link)
         
     return tools
-  return tools

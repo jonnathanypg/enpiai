@@ -53,7 +53,7 @@ module.exports = {
             }
         },
         {
-            name: "enpiai-api-whatsapp",
+            name: "enpiai-whatsapp",
             cwd: "./api-whatsapp",
             script: "./dist/app.js",
             env: {

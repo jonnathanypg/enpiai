@@ -62,6 +62,7 @@ def get_db():
         db.close()
 
 @app.get("/health")
+@app.get("/api/health")
 def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
