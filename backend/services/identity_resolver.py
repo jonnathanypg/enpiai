@@ -19,7 +19,7 @@ class VirtualUser:
     def __init__(self, lead):
         self.id = -abs(lead.id)  # Negative ID convention
         self.email = lead.email or f"lead_{lead.id}@enpi.virtual"
-        self.name = lead.name or "Prospecto"
+        self.name = lead.full_name or "Prospecto"
         self.phone = lead.phone
         self.is_virtual = True
         self.is_active = True
@@ -29,9 +29,9 @@ class VirtualUser:
         # CRM Context
         self.lead_status = lead.status
         self.lead_source = lead.source
-        self.lead_score = lead.score
-        self.interests = lead.interests if hasattr(lead, 'interests') else None
-        self.notes = lead.notes if hasattr(lead, 'notes') else None
+        self.lead_score = getattr(lead, 'lead_score', None)
+        self.interests = lead.tags if hasattr(lead, 'tags') else None
+        self.notes = lead.lead_metadata.get('notes') if lead.lead_metadata and 'notes' in lead.lead_metadata else None
 
     def to_dict(self):
         return {
@@ -132,11 +132,11 @@ class IdentityResolver:
         try:
             customer = Customer.query.filter_by(distributor_id=distributor_id, phone_hash=phone_hash).first()
             if customer:
-                logger.info(f"[IdentityResolver] Found Customer: {customer.name}")
+                logger.info(f"[IdentityResolver] Found Customer: {customer.full_name}")
                 return {
                     'found': True, 'type': 'customer', 'id': customer.id,
-                    'name': customer.name, 'email': customer.email,
-                    'context': f"Cliente existente: {customer.name}. Trátalo con prioridad.",
+                    'name': customer.full_name, 'email': customer.email,
+                    'context': f"Cliente existente: {customer.full_name}. Trátalo con prioridad.",
                     'is_ai_active': getattr(customer, 'is_ai_active', True)
                 }
         except Exception as e:
@@ -147,10 +147,10 @@ class IdentityResolver:
             lead = Lead.query.filter_by(distributor_id=distributor_id, phone_hash=phone_hash).first()
             if lead:
                 virtual = VirtualUser(lead)
-                logger.info(f"[IdentityResolver] Found Lead: {lead.name}")
+                logger.info(f"[IdentityResolver] Found Lead: {lead.full_name}")
                 return {
                     'found': True, 'type': 'lead', 'id': lead.id,
-                    'name': lead.name, 'email': lead.email,
+                    'name': lead.full_name, 'email': lead.email,
                     'virtual_user': virtual,
                     'context': virtual.get_context_summary(),
                     'is_ai_active': getattr(lead, 'is_ai_active', True)
