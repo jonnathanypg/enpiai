@@ -56,6 +56,7 @@ def register():
         distributor = Distributor(
             name=distributor_name,
             herbalife_id=data.get('herbalife_id'),
+            herbalife_level=data.get('herbalife_level', 'Distribuidor Independiente'),
             email=email,
             phone=data.get('phone'),
             country=data.get('country'),
@@ -368,7 +369,7 @@ def platform_chat():
 
         from models.platform_config import PlatformConfig
         from models.distributor import Distributor
-        from models.conversation import Conversation
+        from models.conversation import Conversation, ConversationChannel, Message, MessageRole
         from services.agent_orchestrator import get_agent_orchestrator
 
         config = PlatformConfig.get_config()
@@ -394,17 +395,16 @@ def platform_chat():
                 distributor_id=distributor.id,
                 participant_id=f"web_{uuid.uuid4().hex[:8]}",
                 participant_name="Visitante Web",
-                channel='webchat'
+                channel=ConversationChannel.WEBCHAT
             )
             db.session.add(conversation)
             db.session.flush()
 
         # Save human message
-        from models.conversation import Message
         msg = Message(
             conversation_id=conversation.id,
             content=message,
-            role='user'
+            role=MessageRole.USER
         )
         db.session.add(msg)
         db.session.commit()
@@ -414,7 +414,7 @@ def platform_chat():
         result = orchestrator.process_message(
             conversation=conversation,
             user_message=message,
-            channel='webchat'
+            channel=ConversationChannel.WEBCHAT
         )
 
         # Save AI response
@@ -422,7 +422,7 @@ def platform_chat():
             ai_msg = Message(
                 conversation_id=conversation.id,
                 content=result['content'],
-                role='assistant'
+                role=MessageRole.ASSISTANT
             )
             db.session.add(ai_msg)
             db.session.commit()

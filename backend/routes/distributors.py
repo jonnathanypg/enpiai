@@ -68,8 +68,15 @@ def update_settings():
             if field in data:
                 setattr(distributor, field, data[field])
 
+        # Synchronize current user profile details with updated configuration
+        if user:
+            if 'name' in data:
+                user.name = data['name']
+            if 'email' in data:
+                user.email = data['email']
+
         db.session.commit()
-        logger.info(f"Distributor {distributor.id} settings updated")
+        logger.info(f"Distributor {distributor.id} and User {user.id if user else None} settings updated")
 
         return jsonify({'data': distributor.to_dict()}), 200
 

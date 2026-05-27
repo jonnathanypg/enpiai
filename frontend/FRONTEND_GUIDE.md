@@ -1,7 +1,7 @@
-# Guía Maestra de Desarrollo Frontend - EnpiAI (Next.js 14+)
+# Guía Maestra de Desarrollo Frontend - EnpiAI (Next.js 16+)
 
-**Versión:** 1.0 (Handoff Production Ready)
-**Fecha:** 13 de Febrero de 2026
+**Versión:** 1.1 (Audit Update)
+**Fecha:** 25 de Mayo de 2026
 **Filosofía:** Fricción Cero, Intuitivo, Responsivo, Ultra-Rápido.
 
 Este documento es la referencia definitiva para construir el frontend de EnpiAI, diseñado para integrarse al 100% con el backend internacionalizado y asíncrono.
@@ -24,10 +24,10 @@ El frontend de EnpiAI no es solo una interfaz; es el panel de control de una fue
 
 Para integrarse perfectamente con el backend actual, se debe utilizar:
 
-*   **Framework**: [Next.js 14+](https://nextjs.org/) con App Router para SEO (Landing pages de evaluación) y performance.
+*   **Framework**: [Next.js 16](https://nextjs.org/) con App Router y React 19 para performance superior.
 *   **Lenguaje**: **TypeScript** (Estricto).
 *   **UI/Styling**: 
-    *   **Tailwind CSS**: Para un diseño rápido y responsivo.
+    *   **Tailwind CSS v4**: Para un diseño rápido y responsivo.
     *   **Shadcn UI + Radix UI**: Componentes accesibles y personalizables de alto nivel.
     *   **Lucide Icons**: Iconografía moderna y ligera.
 *   **Gestión de Estado**:

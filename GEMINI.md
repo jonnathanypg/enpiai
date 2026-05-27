@@ -95,7 +95,7 @@ To prevent "MySQL has gone away" errors and stale transactions:
 | **Scheduling** | 🟢 Ready | Google Calendar (Consensual) |
 | **Payments** | 🟡 Testing | dLocal integration for subscriptions |
 | **CRM** | 🟢 Ready | Unified 360° Contact Profile + Timeline |
-| **WhatsApp** | 🟢 Ready | `api-whatsapp` local microservice (Multi-tenant) |
+| **WhatsApp** | 🟡 Unstable | Remote DB latency causing session drops |
 | **Telegram** | 🟢 Ready | `python-telegram-bot` integrated |
 | **Email** | 🟢 Ready | SMTP + SendGrid support |
 

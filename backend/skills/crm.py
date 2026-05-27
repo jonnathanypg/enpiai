@@ -84,13 +84,15 @@ class CRMSkill(BaseSkill):
             )
         ]
 
-    def get_business_summary_report(self) -> str:
+    def get_business_summary_data(self) -> dict:
+        """Retrieves structured data for the business summary report."""
         db.session.rollback()
         distributor = getattr(g, 'current_company', None)
         if not distributor:
-            return "Error: context missing"
+            return {"error": "context_missing"}
             
         from datetime import datetime, time, timedelta
+        # Today in UTC
         today_start = datetime.combine(datetime.utcnow().date(), time.min)
         
         try:
@@ -112,26 +114,79 @@ class CRMSkill(BaseSkill):
                 Conversation.distributor_id == distributor.id,
                 Conversation.last_message_at >= today_start
             ).order_by(Conversation.last_message_at.desc()).all()
-            
-            report = [f"📊 RESUMEN DE NEGOCIO - {datetime.utcnow().strftime('%Y-%m-%d')}"]
-            
-            report.append(f"\n✅ LEADS NUEVOS HOY ({len(new_leads)}):")
-            for l in new_leads:
-                report.append(f"- {l.full_name} ({l.phone})")
-                
-            report.append(f"\n💰 LISTOS PARA COMPRAR ({len(ready_to_buy)}):")
-            for l in ready_to_buy:
-                report.append(f"- {l.full_name} ({l.phone}) | Status: {l.status.value}")
 
-            report.append(f"\n💬 CHATS ACTIVOS HOY ({len(convs)}):")
-            for c in convs:
-                last_msg = Message.query.filter_by(conversation_id=c.id).order_by(Message.created_at.desc()).first()
-                status = "🟢 Pendiente" if last_msg and last_msg.role == MessageRole.USER else "⚪ Respondido"
-                report.append(f"- {c.participant_name or c.participant_id} [{status}] | {c.last_message_at.strftime('%H:%M')}")
-                
-            return "\n".join(report)
+            # 4. Appointments Today
+            from models.appointment import Appointment
+            appointments = Appointment.query.filter(
+                Appointment.distributor_id == distributor.id,
+                Appointment.scheduled_at >= today_start,
+                Appointment.scheduled_at < today_start + timedelta(days=1)
+            ).all()
+
+            # 5. Wellness Evaluations Today
+            from models.wellness_evaluation import WellnessEvaluation
+            evaluations = WellnessEvaluation.query.filter(
+                WellnessEvaluation.distributor_id == distributor.id,
+                WellnessEvaluation.created_at >= today_start
+            ).all()
+            
+            return {
+                "distributor_id": distributor.id,
+                "date": datetime.utcnow().date().isoformat(),
+                "new_leads": [l.to_dict() for l in new_leads],
+                "ready_to_buy": [l.to_dict() for l in ready_to_buy],
+                "active_convs": [c.id for c in convs], 
+                "active_convs_details": [],
+                "appointments": [a.to_dict() for a in appointments],
+                "wellness_evaluations": [e.id for e in evaluations],
+                "counts": {
+                    "new_leads": len(new_leads),
+                    "ready_to_buy": len(ready_to_buy),
+                    "active_convs": len(convs),
+                    "appointments": len(appointments),
+                    "wellness_evaluations": len(evaluations)
+                }
+            }
         except Exception as e:
-            return f"Error al generar reporte: {str(e)}"
+            logger.error(f"Error gathering summary data: {e}")
+            return {"error": str(e)}
+
+    def get_business_summary_report(self) -> str:
+        data = self.get_business_summary_data()
+        if "error" in data:
+            return f"Error al generar reporte: {data['error']}"
+            
+        counts = data["counts"]
+        report = [f"📊 RESUMEN DE NEGOCIO - {data['date']}"]
+        
+        if counts["new_leads"] > 0:
+            report.append(f"\n✅ LEADS NUEVOS HOY ({counts['new_leads']}):")
+            for l in data["new_leads"]:
+                report.append(f"- {l['first_name']} {l['last_name']} ({l['phone']})")
+        
+        if counts["wellness_evaluations"] > 0:
+            report.append(f"\n📝 EVALUACIONES COMPLETADAS ({counts['wellness_evaluations']})")
+            report.append("  (Los prospectos ya recibieron su reporte PDF)")
+
+        if counts["ready_to_buy"] > 0:
+            report.append(f"\n💰 LISTOS PARA COMPRAR ({counts['ready_to_buy']}):")
+            for l in data["ready_to_buy"]:
+                report.append(f"- {l['first_name']} {l['last_name']} ({l['phone']})")
+
+        if counts["appointments"] > 0:
+            report.append(f"\n📅 CITAS HOY ({counts['appointments']}):")
+            for a in data["appointments"]:
+                time_str = a['scheduled_at'][11:16] if a['scheduled_at'] else "N/A"
+                report.append(f"- {time_str}: {a['title']}")
+
+        if counts["active_convs"] > 0:
+            report.append(f"\n💬 CHATS ACTIVOS ({counts['active_convs']})")
+            # We don't list all for brevity in the summary if there are many
+            
+        if sum(counts.values()) == 0:
+            return "" # Return empty if no data, caller will handle with Coach Message
+            
+        return "\n".join(report)
 
     def add_crm_note(self, target_type: str, target_id: int, content: str) -> str:
         db.session.rollback()

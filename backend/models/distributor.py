@@ -42,7 +42,7 @@ class Distributor(db.Model):
     custom_instructions = db.Column(db.Text, nullable=True)
 
     # Localization
-    language = db.Column(db.String(5), default='en')  # en, es, fr, pt
+    # (Declared below in business info section)
 
     # LLM Configuration (Platform-managed — distributors do NOT provide their own keys)
     llm_provider = db.Column(db.String(50), default='openai')
@@ -85,6 +85,13 @@ class Distributor(db.Model):
 
     # Personal story (used by agent in conversations)
     personal_story = db.Column(db.Text, nullable=True)
+
+    # Coach Mode Configuration
+    coach_mode_enabled = db.Column(db.Boolean, default=False)
+    coach_music_preference = db.Column(db.String(50), default='spanish')
+    coach_level_progress = db.Column(db.Integer, default=0)
+    coach_daily_tasks_status = db.Column(db.JSON, nullable=True)
+    coach_last_research_advice = db.Column(db.Text, nullable=True)
 
     # Relationships
     users = db.relationship('User', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
@@ -172,6 +179,11 @@ class Distributor(db.Model):
             'whatsapp_phone': self.whatsapp_phone,
             'google_connected': self.google_credentials is not None and bool(self.google_credentials),
             'google_calendar_id': self.google_calendar_id,
+            'coach_mode_enabled': self.coach_mode_enabled,
+            'coach_music_preference': self.coach_music_preference,
+            'coach_level_progress': self.coach_level_progress,
+            'coach_daily_tasks_status': self.coach_daily_tasks_status,
+            'coach_last_research_advice': self.coach_last_research_advice,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

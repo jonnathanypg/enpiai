@@ -249,13 +249,18 @@ class CronService:
             self._handle_daily_summary(task)
         elif task.action == 'auto_followup':
             self._handle_auto_followup(task)
+        elif task.action == 'coach_midday':
+            self._handle_coach_midday(task)
+        elif task.action == 'coach_evening':
+            self._handle_coach_evening(task)
         else:
             logger.warning(f"[CRON] Unknown action: {task.action}")
 
     def _handle_daily_summary(self, task: ScheduledTask):
-        """Generates and sends the morning summary to the distributor."""
+        """Generates and sends the morning summary to the distributor with AI Coaching."""
         from models.distributor import Distributor
         from services.messaging_service import messaging_service
+        from services.ai_coach_service import ai_coach_service
         from skills.crm import CRMSkill
         import pytz
         
@@ -267,14 +272,50 @@ class CronService:
         g.current_company = distributor
         
         crm = CRMSkill()
-        report = crm.get_business_summary_report()
+        summary_data = crm.get_business_summary_data()
+        
+        # 1. Reset tasks and generate coaching message depending on Coach Mode status
+        level = distributor.herbalife_level or "Distribuidor Independiente"
+        if distributor.coach_mode_enabled:
+            # Reset daily tasks status in database for the new day
+            distributor.coach_daily_tasks_status = ai_coach_service.generate_daily_tasks_checklist(level)
+            db.session.commit()
+            
+            # Generate morning coach message
+            coach_message = ai_coach_service.generate_daily_coach_message(
+                distributor_name=distributor.name,
+                language=distributor.language or 'es',
+                level=level,
+                tasks_status=distributor.coach_daily_tasks_status
+            )
+        else:
+            # Fallback to standard daily coaching message
+            coach_message = ai_coach_service.generate_daily_coach_message(
+                distributor_name=distributor.name,
+                language=distributor.language or 'es',
+                level=level
+            )
+        
+        # 2. Generate the data report (if data exists)
+        report_text = crm.get_business_summary_report()
         
         dist_phone = distributor.whatsapp_phone or distributor.phone
         if dist_phone:
-            header = "☀️ *¡BUENOS DÍAS! AQUÍ TU RESUMEN MATUTINO*\n\n"
-            messaging_service.send_whatsapp(dist_phone, header + report, distributor.id)
+            if not report_text:
+                # No data to report, send ONLY the coaching message
+                final_message = f"🦁 *COACH ENPIAI - TU MENTOR DIARIO*\n\n{coach_message}"
+            else:
+                # Data exists, send both
+                final_message = (
+                    f"🦁 *COACH ENPIAI - TU MENTOR DIARIO*\n\n"
+                    f"{coach_message}\n\n"
+                    f"----------------------------\n"
+                    f"{report_text}"
+                )
             
-        # Schedule next day's summary in distributor's timezone
+            messaging_service.send_whatsapp(dist_phone, final_message, distributor.id)
+            
+        # 3. Schedule next day's summary in distributor's timezone
         tz = pytz.timezone(distributor.timezone or 'America/Guayaquil')
         now_tz = datetime.now(tz)
         
@@ -292,6 +333,78 @@ class CronService:
             scheduled_at=next_run_utc,
             action='daily_summary'
         )
+
+        # 4. Schedule today's mid-day and evening checks if Coach Mode is active
+        if distributor.coach_mode_enabled:
+            # Schedule Midday at 2:00 PM local time
+            midday_tz = now_tz.replace(hour=14, minute=0, second=0, microsecond=0)
+            if midday_tz > now_tz:
+                midday_utc = midday_tz.astimezone(pytz.utc).replace(tzinfo=None)
+                self.schedule_followup(
+                    distributor_id=distributor.id,
+                    message="Coach Midday",
+                    scheduled_at=midday_utc,
+                    action='coach_midday'
+                )
+                
+            # Schedule Evening at 8:00 PM local time
+            evening_tz = now_tz.replace(hour=20, minute=0, second=0, microsecond=0)
+            if evening_tz > now_tz:
+                evening_utc = evening_tz.astimezone(pytz.utc).replace(tzinfo=None)
+                self.schedule_followup(
+                    distributor_id=distributor.id,
+                    message="Coach Evening",
+                    scheduled_at=evening_utc,
+                    action='coach_evening'
+                )
+
+    def _handle_coach_midday(self, task: ScheduledTask):
+        """Generates and sends the mid-day coach reminder/tip."""
+        from models.distributor import Distributor
+        from services.messaging_service import messaging_service
+        from services.ai_coach_service import ai_coach_service
+        
+        distributor = Distributor.query.get(task.distributor_id)
+        if not distributor or not distributor.coach_mode_enabled: return
+        
+        level = distributor.herbalife_level or "Distribuidor Independiente"
+        country = distributor.country or "Ecuador"
+        
+        tip_message = ai_coach_service.generate_midday_coach_message(
+            distributor_name=distributor.name,
+            language=distributor.language or 'es',
+            level=level,
+            country=country
+        )
+        
+        dist_phone = distributor.whatsapp_phone or distributor.phone
+        if dist_phone:
+            messaging_service.send_whatsapp(dist_phone, tip_message, distributor.id)
+            logger.info(f"[CRON] Coach Mid-day message sent to {dist_phone}")
+
+    def _handle_coach_evening(self, task: ScheduledTask):
+        """Generates and sends the evening check-in to report challenges."""
+        from models.distributor import Distributor
+        from services.messaging_service import messaging_service
+        from services.ai_coach_service import ai_coach_service
+        
+        distributor = Distributor.query.get(task.distributor_id)
+        if not distributor or not distributor.coach_mode_enabled: return
+        
+        level = distributor.herbalife_level or "Distribuidor Independiente"
+        tasks_status = distributor.coach_daily_tasks_status or {}
+        
+        evening_message = ai_coach_service.generate_evening_coach_message(
+            distributor_name=distributor.name,
+            language=distributor.language or 'es',
+            level=level,
+            tasks_status=tasks_status
+        )
+        
+        dist_phone = distributor.whatsapp_phone or distributor.phone
+        if dist_phone:
+            messaging_service.send_whatsapp(dist_phone, evening_message, distributor.id)
+            logger.info(f"[CRON] Coach Evening message sent to {dist_phone}")
 
     def _handle_auto_followup(self, task: ScheduledTask):
         """Sends an automatic follow-up only if the user hasn't replied yet."""
@@ -341,24 +454,6 @@ class CronService:
             except Exception as e:
                 logger.error(f"[CRON] WhatsApp send failed: {e}")
                 raise
-
-    def _handle_send_email(self, task: ScheduledTask):
-        """Send email follow-up."""
-        payload = task.payload or {}
-        to_email = payload.get('to_email')
-        subject = payload.get('subject', 'Follow-up')
-        if not to_email:
-            logger.warning(f"[CRON] Task #{task.id}: No to_email in payload")
-            return
-        from services.email_service import EmailService
-        EmailService.send_email(to_email=to_email, subject=subject, body=task.message)
-
-    def _handle_check_in(self, task: ScheduledTask):
-        """
-        Check-in: query lead status and log. 
-        Future: could trigger a proactive message if lead hasn't responded.
-        """
-        logger.info(f"[CRON] Check-in for lead #{task.lead_id} (distributor #{task.distributor_id})")
 
     def _handle_send_email(self, task: ScheduledTask):
         """Send email follow-up."""

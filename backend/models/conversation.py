@@ -16,6 +16,7 @@ class ConversationChannel(str, Enum):
     WEBCHAT = 'webchat'
     EMAIL = 'email'
     INTERNAL = 'internal'  # Admin <-> Agent
+    PLAYGROUND = 'playground'  # Dashboard admin playground
 
 
 class ConversationStatus(str, Enum):

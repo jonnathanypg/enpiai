@@ -192,6 +192,29 @@ class IdentityResolver:
         """
         if not conversation:
             return {'found': False, 'type': 'unknown', 'context': 'Anonymous API user'}
+
+        # If it's a playground conversation, it's always the distributor (master mode)
+        channel_val = getattr(conversation, 'channel', None)
+        # Check both Enum and string comparison
+        if channel_val and (channel_val == 'playground' or getattr(channel_val, 'value', None) == 'playground'):
+            try:
+                from models.distributor import Distributor
+                distributor = Distributor.query.get(conversation.distributor_id)
+                if distributor:
+                    logger.info(f"[IdentityResolver] Playground conversation resolved to Distributor: {distributor.name}")
+                    return {
+                        'found': True,
+                        'type': 'distributor',
+                        'id': distributor.id,
+                        'name': distributor.name,
+                        'email': distributor.email,
+                        'context': (
+                            f"IDENTIDAD CONFIRMADA: Estás hablando con el propietario de la cuenta ({distributor.name}). "
+                            "MODO MAESTRO ACTIVADO. Responde como su Asistente Ejecutivo de Negocios."
+                        ),
+                    }
+            except Exception as e:
+                logger.warning(f"[IdentityResolver] Playground distributor lookup error: {e}")
         
         # If conversation has a lead_id
         if hasattr(conversation, 'lead_id') and conversation.lead_id:

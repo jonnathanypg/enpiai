@@ -8,7 +8,7 @@ Migration Path: Auth will migrate to DID-based tokens.
 from flask import Blueprint, request, jsonify, g
 from services.agent_orchestrator import get_agent_orchestrator
 from models.distributor import Distributor
-from models.conversation import Conversation, Message, MessageRole
+from models.conversation import Conversation, ConversationChannel, ConversationStatus, Message, MessageRole
 from models.customer import Customer
 from models.lead import Lead
 from extensions import db, limiter
@@ -82,15 +82,15 @@ def chat_completions():
         conversation = Conversation.query.filter_by(
             distributor_id=distributor.id,
             participant_id=user_identifier,
-            status='active'
+            status=ConversationStatus.ACTIVE
         ).first()
 
         if not conversation:
             conversation = Conversation(
                 distributor_id=distributor.id,
                 participant_id=user_identifier,
-                channel='api',
-                status='active',
+                channel=ConversationChannel.WEBCHAT,
+                status=ConversationStatus.ACTIVE,
                 participant_name=user_identifier if '@' in user_identifier else None
             )
             db.session.add(conversation)

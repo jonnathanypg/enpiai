@@ -59,6 +59,7 @@ def create_app(config_class=None, start_services=False):
     from routes.channels import channels_bp
     from routes.webhooks import webhooks_bp
     from routes.dashboard import dashboard_bp
+    from routes.coach import coach_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(distributors_bp, url_prefix='/api/distributors')
@@ -69,6 +70,7 @@ def create_app(config_class=None, start_services=False):
     app.register_blueprint(channels_bp, url_prefix='/api/channels')
     app.register_blueprint(webhooks_bp, url_prefix='/webhooks')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+    app.register_blueprint(coach_bp, url_prefix='/api/coach')
 
     from routes.google_auth import google_auth_bp
     app.register_blueprint(google_auth_bp, url_prefix='/api/auth/google')

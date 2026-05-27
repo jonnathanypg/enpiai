@@ -15,6 +15,7 @@ import {
     ShieldCheck,
     ChevronLeft,
     MessageSquare,
+    Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const distributorItems: NavItem[] = [
     { titleKey: 'sidebar.documents', href: '/documents', icon: FileText },
     { titleKey: 'sidebar.wellness', href: '/wellness', icon: HeartPulse },
     { titleKey: 'sidebar.playground', href: '/agents/playground', icon: MessageSquare },
+    { titleKey: 'sidebar.couch', href: '/couch', icon: Sparkles },
     { titleKey: 'sidebar.settings', href: '/settings', icon: Settings },
 ];
 

@@ -264,6 +264,28 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
+                                <Label htmlFor="herbalife_level">Nivel de Distribuidor</Label>
+                                <select
+                                    id="herbalife_level"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    value={formData.herbalife_level || 'Distribuidor Independiente'}
+                                    onChange={(e) => handleChange('herbalife_level', e.target.value)}
+                                >
+                                    <option value="Distribuidor Independiente">Distribuidor Independiente</option>
+                                    <option value="Consultor Mayor">Consultor Mayor</option>
+                                    <option value="Constructor del Éxito">Constructor del Éxito</option>
+                                    <option value="Productor Calificado">Productor Calificado</option>
+                                    <option value="Supervisor">Supervisor / Mayorista</option>
+                                    <option value="Equipo del Mundo">Equipo del Mundo</option>
+                                    <option value="Equipo del Mundo Activo">Equipo del Mundo Activo</option>
+                                    <option value="GET">Equipo de Expansión Global (GET)</option>
+                                    <option value="Equipo de Millonarios">Equipo de Millonarios</option>
+                                    <option value="Equipo del Presidente">Equipo del Presidente</option>
+                                    <option value="Club del Chairman">Club del Chairman</option>
+                                    <option value="Círculo del Fundador">Círculo del Fundador</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
                                 <Label htmlFor="website">{t('settings.website')}</Label>
                                 <Input
                                     id="website"
