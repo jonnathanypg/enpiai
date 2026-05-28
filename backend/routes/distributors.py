@@ -103,7 +103,8 @@ def update_agent_persona():
 
         persona_fields = [
             'agent_name', 'agent_gender', 'personality_prompt',
-            'custom_instructions', 'llm_provider', 'llm_model'
+            'custom_instructions', 'llm_provider', 'llm_model',
+            'preferred_voice'
         ]
 
         for field in persona_fields:

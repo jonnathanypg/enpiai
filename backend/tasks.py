@@ -162,7 +162,7 @@ def send_broadcast_message(self, distributor_id, channel, recipients, message):
 
 
 @celery.task(bind=True, max_retries=2, default_retry_delay=5)
-def process_webhook_message(self, distributor_id, conversation_id, message_text, channel, sender_phone=None, chat_id=None):
+def process_webhook_message(self, distributor_id, conversation_id, message_text, channel, sender_phone=None, chat_id=None, is_audio=False):
     """
     Process incoming webhook messages with AI agent in the background.
     Called by the Fire & Forget webhook pattern.
@@ -171,7 +171,7 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
     1. Loads the distributor + conversation from DB
     2. Runs the agent orchestrator
     3. Saves the AI reply
-    4. Sends the reply back via the messaging service
+    4. Sends the reply back via the messaging service (with optional voice synthesis)
     """
     try:
         from app import create_app
@@ -226,11 +226,45 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
                 # Send reply via messaging service
                 from services.messaging_service import messaging_service
                 if channel == 'whatsapp' and sender_phone:
+                    # Always send text transcription
                     messaging_service.send_whatsapp(
                         to_phone=sender_phone,
                         message=ai_reply_text,
                         distributor_id=distributor_id
                     )
+
+                    # Synthesize and send audio response if input was audio
+                    if is_audio:
+                        try:
+                            import uuid
+                            import re
+                            from services.voice_service import VoiceService
+
+                            voice_name = VoiceService.resolve_voice(distributor)
+                            filename = f"reply_{uuid.uuid4().hex}.mp3"
+                            voice_dir = os.path.join(app.config.get('UPLOAD_FOLDER', 'uploads'), 'voice')
+                            os.makedirs(voice_dir, exist_ok=True)
+                            output_path = os.path.join(voice_dir, filename)
+
+                            # Remove markdown formatting for cleaner neural voice output
+                            clean_text = re.sub(r'[*_`#~-]', '', ai_reply_text)
+                            logger.info(f"Synthesizing voice response for WhatsApp: '{clean_text[:50]}...' using '{voice_name}'")
+
+                            if VoiceService.synthesize(clean_text, voice_name, output_path):
+                                api_base = app.config.get('API_BASE_URL', 'http://localhost:5000')
+                                media_url = f"{api_base}/api/voice/file/{filename}"
+                                logger.info(f"Voice note synthesized successfully. Dispatching media URL: {media_url}")
+                                messaging_service.send_whatsapp_media(
+                                    to_phone=sender_phone,
+                                    media_url=media_url,
+                                    media_type="audio",
+                                    distributor_id=distributor_id,
+                                    file_name=filename
+                                )
+                            else:
+                                logger.error("Voice synthesis failed during task execution.")
+                        except Exception as voice_err:
+                            logger.error(f"Error handling WhatsApp audio synthesis/dispatch: {voice_err}")
                 elif channel == 'telegram' and chat_id:
                     messaging_service.send_telegram(
                         chat_id=chat_id,

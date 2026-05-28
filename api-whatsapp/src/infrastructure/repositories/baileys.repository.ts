@@ -432,7 +432,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
           messageContent = { video: { url: mediaUrl }, caption };
           break;
         case "audio":
-          messageContent = { audio: { url: mediaUrl }, mimetype: "audio/mpeg" };
+          messageContent = { audio: { url: mediaUrl }, mimetype: "audio/mp4", ptt: true };
           break;
         case "document":
           messageContent = {

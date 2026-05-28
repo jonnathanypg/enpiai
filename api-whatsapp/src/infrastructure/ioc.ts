@@ -53,6 +53,7 @@ wsTransporter.on("message", async (data) => {
     // Detect document/media attachments
     let attachment: any = null;
     const docMsg = msgContent.documentMessage || msgContent.documentWithCaptionMessage?.message?.documentMessage;
+    const audioMsg = msgContent.audioMessage;
     if (docMsg) {
       attachment = {
         type: 'document',
@@ -60,9 +61,20 @@ wsTransporter.on("message", async (data) => {
         filename: docMsg.fileName || docMsg.title || 'document',
         caption: docMsg.caption || msgContent.documentWithCaptionMessage?.message?.documentMessage?.caption || '',
       };
-      console.log(`[${data.companyId}] Document attachment detected: ${attachment.filename} (${attachment.mimetype})`);
+    } else if (audioMsg) {
+      attachment = {
+        type: 'audio',
+        mimetype: audioMsg.mimetype || 'audio/ogg; codecs=opus',
+        filename: 'voice_note.ogg',
+        caption: '',
+      };
+    }
 
-      // Download and save the document for backend processing
+    if (attachment) {
+      const isAudio = attachment.type === 'audio';
+      console.log(`[${data.companyId}] ${isAudio ? 'Audio' : 'Document'} attachment detected: ${attachment.filename} (${attachment.mimetype})`);
+
+      // Download and save the media for backend processing
       try {
         const stream = await Baileys.downloadMediaMessage(
           data.message,
@@ -78,14 +90,16 @@ wsTransporter.on("message", async (data) => {
           if (!fs.default.existsSync(tmpDir)) {
             fs.default.mkdirSync(tmpDir, { recursive: true });
           }
-          const safeName = `${Date.now()}_${attachment.filename.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+          const safeName = isAudio 
+            ? `${Date.now()}_voice_note.ogg`
+            : `${Date.now()}_${attachment.filename.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
           const filePath = path.default.join(tmpDir, safeName);
           fs.default.writeFileSync(filePath, stream as Buffer);
           attachment.local_path = filePath;
-          console.log(`[${data.companyId}] Document saved to: ${filePath}`);
+          console.log(`[${data.companyId}] Media saved to: ${filePath}`);
         }
       } catch (dlErr: any) {
-        console.error(`[${data.companyId}] Failed to download document: ${dlErr.message}`);
+        console.error(`[${data.companyId}] Failed to download media: ${dlErr.message}`);
       }
     }
 

@@ -176,13 +176,60 @@ class CronService:
 
     def _worker_loop(self, app):
         """Main loop: check for due tasks every 30 seconds."""
+        last_cleanup = 0
         while CronService._running:
             try:
                 with app.app_context():
                     self._process_due_tasks()
+                    
+                    # Run voice cleanup every 1 hour (3600 seconds)
+                    now_time = time.time()
+                    if now_time - last_cleanup > 3600:
+                        self._clean_voice_files()
+                        last_cleanup = now_time
             except Exception as e:
                 logger.error(f"[CRON] Worker error: {e}")
             time.sleep(30)
+
+    def _clean_voice_files(self):
+        """
+        Periodically clean up temporary voice files older than 7 days
+        to prevent VPS disk exhaustion.
+        """
+        try:
+            import os
+            import time
+            from flask import current_app
+            
+            voice_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'voice')
+            if not os.path.exists(voice_dir):
+                return
+                
+            logger.info(f"[CRON] Running periodic voice files cleanup in {voice_dir}...")
+            now = time.time()
+            deleted_count = 0
+            
+            for filename in os.listdir(voice_dir):
+                file_path = os.path.join(voice_dir, filename)
+                if not os.path.isfile(file_path):
+                    continue
+                    
+                # Skip non-audio files (just in case)
+                if not filename.endswith(('.mp3', '.ogg', '.webm', '.wav', '.m4a')):
+                    continue
+                    
+                # If file is older than 7 days (7 * 86400 seconds)
+                if os.path.getmtime(file_path) < (now - 7 * 86400):
+                    try:
+                        os.remove(file_path)
+                        deleted_count += 1
+                    except Exception as fe:
+                        logger.warning(f"[CRON] Could not delete voice file {file_path}: {fe}")
+                        
+            if deleted_count > 0:
+                logger.info(f"[CRON] Cleaned up {deleted_count} voice files older than 7 days.")
+        except Exception as e:
+            logger.error(f"[CRON] Voice files cleanup failed: {e}")
 
     def _process_due_tasks(self):
         """

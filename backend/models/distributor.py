@@ -40,6 +40,7 @@ class Distributor(db.Model):
     agent_gender = db.Column(db.Enum(AgentGender), default=AgentGender.NEUTRAL)
     personality_prompt = db.Column(db.Text, nullable=True)
     custom_instructions = db.Column(db.Text, nullable=True)
+    preferred_voice = db.Column(db.String(100), nullable=True)
 
     # Localization
     # (Declared below in business info section)
@@ -157,6 +158,7 @@ class Distributor(db.Model):
             'agent_gender': self.agent_gender.value if self.agent_gender else 'neutral',
             'personality_prompt': self.personality_prompt,
             'custom_instructions': self.custom_instructions,
+            'preferred_voice': self.preferred_voice,
             'llm_provider': self.llm_provider,
             'llm_model': self.llm_model,
             'pinecone_index': self.pinecone_index,

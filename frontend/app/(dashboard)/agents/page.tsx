@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bot, Save, Loader2, Sparkles, MessageSquare, Settings2, Zap } from 'lucide-react';
+import { Bot, Save, Loader2, Sparkles, MessageSquare, Settings2, Zap, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ interface AgentPersona {
     personality_prompt: string | null;
     custom_instructions: string | null;
     personal_story: string | null;
+    preferred_voice?: string | null;
 }
 
 interface AgentConfigData {
@@ -108,6 +109,20 @@ export default function AgentSetupPage() {
     const [objective, setObjective] = useState('general');
     const [features, setFeatures] = useState<Record<string, boolean>>({});
 
+    const [preferredVoice, setPreferredVoice] = useState('es-EC-LuisNeural');
+    const [testText, setTestText] = useState('¡Hola! Estoy probando mi nueva voz de inteligencia artificial en Enpi AI.');
+    const [testingVoice, setTestingVoice] = useState(false);
+
+    // --- Dynamic Voices list query ---
+    const { data: voicesResponse } = useQuery({
+        queryKey: ['voice-voices'],
+        queryFn: async () => {
+            const { data } = await apiClient.get<any[]>('/voice/voices');
+            return data;
+        }
+    });
+    const voicesList = voicesResponse || [];
+
     // Populate form when data loads
     useEffect(() => {
         if (settings) {
@@ -116,6 +131,7 @@ export default function AgentSetupPage() {
             setPersona(settings.personality_prompt || '');
             setCustomInstructions(settings.custom_instructions || '');
             setPersonalStory(settings.personal_story || '');
+            setPreferredVoice(settings.preferred_voice || 'es-EC-LuisNeural');
         }
     }, [settings]);
 
@@ -131,6 +147,29 @@ export default function AgentSetupPage() {
         }
     }, [agent]);
 
+    // Voice testing action
+    const handleTestVoice = async () => {
+        if (testingVoice || !testText.trim()) return;
+        setTestingVoice(true);
+        try {
+            const response = await apiClient.post('/voice/synthesize', {
+                text: testText,
+                voice_name: preferredVoice
+            }, {
+                responseType: 'blob'
+            });
+            const blob = new Blob([response.data], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.play();
+        } catch (error) {
+            console.error('Failed to test voice:', error);
+            toast.error('Error al generar la prueba de voz');
+        } finally {
+            setTestingVoice(false);
+        }
+    };
+
     // --- Mutations ---
     const savePersonaMutation = useMutation({
         mutationFn: async () => {
@@ -139,6 +178,7 @@ export default function AgentSetupPage() {
                 agent_gender: agentGender,
                 personality_prompt: persona,
                 custom_instructions: customInstructions,
+                preferred_voice: preferredVoice,
             });
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['distributor-settings'] }),
@@ -382,7 +422,83 @@ export default function AgentSetupPage() {
                 </CardContent>
             </Card>
 
-            {/* Card 3: Feature Toggles */}
+            {/* Card 3: Configuración de Voz (IAGS Protocol) */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Volume2 className="h-5 w-5 text-primary" />
+                        Configuración de Voz (IAGS Protocol)
+                    </CardTitle>
+                    <CardDescription>
+                        Selecciona el clon de voz neural que utilizará tu agente para responder notas de voz por WhatsApp y Chat Web.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="preferred_voice">Clon de Voz Neural</Label>
+                            <select
+                                id="preferred_voice"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                value={preferredVoice}
+                                onChange={(e) => setPreferredVoice(e.target.value)}
+                            >
+                                {voicesList.length > 0 ? (
+                                    voicesList.map((v: any) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name} ({v.lang})
+                                        </option>
+                                    ))
+                                ) : (
+                                    <>
+                                        <option value="es-EC-LuisNeural">Luis (Ecuador - Masculino) (es-EC)</option>
+                                        <option value="es-EC-RamonaNeural">Ramona (Ecuador - Femenino) (es-EC)</option>
+                                        <option value="es-MX-DaliaNeural">Dalia (México - Femenino) (es-MX)</option>
+                                        <option value="es-MX-JorgeNeural">Jorge (México - Masculino) (es-MX)</option>
+                                        <option value="es-US-PalomaNeural">Paloma (USA/Latam - Femenino) (es-US)</option>
+                                        <option value="es-US-AlonsoNeural">Alonso (USA/Latam - Masculino) (es-US)</option>
+                                        <option value="es-ES-ElviraNeural">Elvira (España - Femenino) (es-ES)</option>
+                                        <option value="es-ES-AlvaroNeural">Alvaro (España - Masculino) (es-ES)</option>
+                                    </>
+                                )}
+                            </select>
+                            <p className="text-xs text-muted-foreground">
+                                Las voces neurales de alta fidelidad proveen una conversación humanizada de acuerdo al acento regional de tus prospectos.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="test_voice_text">Probar Sintetizador de Voz</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="test_voice_text"
+                                    value={testText}
+                                    onChange={(e) => setTestText(e.target.value)}
+                                    placeholder="Escribe un mensaje de prueba..."
+                                    className="flex-1"
+                                />
+                                <Button 
+                                    type="button" 
+                                    variant="secondary" 
+                                    onClick={handleTestVoice}
+                                    disabled={testingVoice || !testText.trim()}
+                                >
+                                    {testingVoice ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        "Probar"
+                                    )}
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Escucha una muestra del tono de voz seleccionado directamente en tu navegador.
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Card 4: Feature Toggles */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
