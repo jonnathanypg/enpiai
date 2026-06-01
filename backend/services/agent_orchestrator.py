@@ -468,6 +468,18 @@ class AgentOrchestrator:
                     
                     logger.info(f"[LANGGRAPH] Final AIMessage found. Content length: {len(content) if content else 0}")
                     if content:
+                        # Humanize response for prospects/leads (not distributor Master Mode)
+                        if not is_distributor:
+                            try:
+                                from services.humanizer_service import ResponseHumanizer
+                                content = ResponseHumanizer.humanize(
+                                    planned_response=content,
+                                    conversation=conversation,
+                                    distributor=self.distributor
+                                )
+                            except Exception as humanize_err:
+                                logger.error(f"Failed to humanize response: {humanize_err}")
+
                         logger.debug(f"[LANGGRAPH] Content preview: {content[:100]}...")
                         
                         # --- PROACTIVE FEATURE: Auto-Followup Scheduling ---

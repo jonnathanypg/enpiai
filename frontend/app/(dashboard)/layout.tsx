@@ -54,6 +54,11 @@ export default function DashboardLayout({
         }
     }, [isLoadingMe, distributor, pathname, isRestricted, isPaywallRoute]);
 
+    // Close mobile navigation drawer on route change
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
+
     // We cover the screen if we are waiting on the API, or if we are actively redirecting out.
     // This entirely prevents the "flash" of the dashboard.
     const isBlocking = (isLoadingMe || isRestricted) && !isPaywallRoute;

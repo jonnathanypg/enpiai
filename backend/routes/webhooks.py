@@ -209,11 +209,24 @@ def whatsapp_webhook():
             db.session.add(conversation)
             db.session.flush()
 
-        # 3. Handle Lead Assignment (Agent-Driven)
-        # Webhooks no longer auto-create Leads. They map to existing Leads if available.
-        # Otherwise, the Conversation stays anonymous until the Agent captures the Lead.
-        lead = Lead.query.filter_by(distributor_id=distributor_id, phone=sender_phone).first()
-        if lead and not conversation.lead_id:
+        # 3. Handle Lead Assignment (Auto-Create/Map Leads)
+        phone_hash = Lead.generate_phone_hash(sender_phone)
+        lead = Lead.query.filter_by(distributor_id=distributor_id, phone_hash=phone_hash).first()
+        
+        if not lead:
+            lead_name = sender_name.strip() if sender_name else "Contacto WhatsApp"
+            lead = Lead(
+                distributor_id=distributor_id,
+                first_name=lead_name,
+                phone=sender_phone,
+                source=LeadSource.WHATSAPP,
+                is_ai_active=True
+            )
+            db.session.add(lead)
+            db.session.flush()
+            logger.info(f"Auto-created lead for WhatsApp participant {sender_phone} as '{lead_name}'")
+
+        if not conversation.lead_id:
             conversation.lead_id = lead.id
 
         # --- PHASE 9: AUTO-FOLLOWUP CANCELATION ---
@@ -321,16 +334,26 @@ def telegram_webhook():
             )
             db.session.add(conversation)
             
-            # Map existing Lead if possible, else leave anonymous
+            # Map existing Lead if possible, else auto-create
             lead = Lead.query.filter_by(
                 distributor_id=distributor_id, 
                 first_name=sender_first, 
                 last_name=sender_last
             ).first()
-            if lead:
-                conversation.lead_id = lead.id
-                
-            db.session.flush()
+            if not lead:
+                lead_name = sender_first.strip() if sender_first else "Contacto Telegram"
+                lead = Lead(
+                    distributor_id=distributor_id,
+                    first_name=lead_name,
+                    last_name=sender_last,
+                    source=LeadSource.TELEGRAM,
+                    is_ai_active=True
+                )
+                db.session.add(lead)
+                db.session.flush()
+                logger.info(f"Auto-created lead for Telegram participant {chat_id} as '{lead_name}'")
+            
+            conversation.lead_id = lead.id
 
         # 3. Save User Message (synchronous — fast DB write)
         user_msg = Message(

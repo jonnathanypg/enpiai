@@ -30,6 +30,41 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }
     }, [i18n]);
 
+    // Handle dynamic chunk load errors and Server Action failures due to container restarts
+    React.useEffect(() => {
+        const handleError = (e: ErrorEvent) => {
+            const errorMsg = e.message || '';
+            if (
+                errorMsg.includes('ChunkLoadError') || 
+                errorMsg.includes('Failed to fetch dynamically imported module') ||
+                errorMsg.includes('Failed to find Server Action')
+            ) {
+                console.warn('Stale assets or Server Action error detected. Reloading page...');
+                window.location.reload();
+            }
+        };
+
+        const handleRejection = (e: PromiseRejectionEvent) => {
+            const reason = e.reason?.message || '';
+            if (
+                reason.includes('ChunkLoadError') || 
+                reason.includes('Failed to fetch dynamically imported module') ||
+                reason.includes('Failed to find Server Action')
+            ) {
+                console.warn('Unhandled promise rejection (stale assets). Reloading page...');
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener('error', handleError);
+        window.addEventListener('unhandledrejection', handleRejection);
+
+        return () => {
+            window.removeEventListener('error', handleError);
+            window.removeEventListener('unhandledrejection', handleRejection);
+        };
+    }, []);
+
     return (
         <QueryClientProvider client={queryClient}>
             <NextThemesProvider
