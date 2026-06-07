@@ -79,8 +79,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-contain" />
                 </div>
                 {!collapsed && (
-                    <span className="text-xl font-extrabold tracking-tight bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">
-                        Enpi AI
+                    <span className="text-xl font-bold tracking-tight">
+                        Enpi<span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">AI</span>
                     </span>
                 )}
                 {!collapsed && (

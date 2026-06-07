@@ -9,8 +9,8 @@ export default function AuthLayout({
                 <div className="w-16 h-16 shrink-0">
                     <img src="/logo.png" alt="Enpi AI" className="w-full h-full object-contain" />
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">
-                    Enpi AI
+                <h1 className="text-2xl font-bold tracking-tight">
+                    Enpi<span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">AI</span>
                 </h1>
             </div>
             <div className="w-full max-w-md">{children}</div>
