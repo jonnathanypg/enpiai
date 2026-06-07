@@ -75,8 +75,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 "flex h-16 items-center border-b border-white/10 px-4",
                 collapsed ? "justify-center" : "justify-start gap-3"
             )}>
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden shrink-0 shadow-lg shadow-primary/10">
-                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-cover" />
+                <div className="flex items-center justify-center w-8 h-8 shrink-0">
+                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-contain" />
                 </div>
                 {!collapsed && (
                     <span className="text-xl font-extrabold tracking-tight bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">

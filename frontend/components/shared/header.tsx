@@ -70,8 +70,8 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
 
             {/* Logo for mobile */}
             <div className="flex lg:hidden ml-2 items-center gap-2">
-                <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 shadow-lg shadow-primary/10">
-                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-cover" />
+                <div className="w-8 h-8 shrink-0">
+                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-contain" />
                 </div>
                  <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                     Enpi AI
