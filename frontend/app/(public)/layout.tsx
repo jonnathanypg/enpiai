@@ -8,8 +8,11 @@ export default function PublicLayout({
             <main className="flex-1">
                 {children}
             </main>
-            <footer className="py-6 text-center text-sm text-muted-foreground">
-                Powered by <span className="font-semibold text-primary">EnpiAI</span>
+            <footer className="py-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <div className="w-5 h-5 rounded overflow-hidden">
+                    <img src="/logo.png" alt="Enpi AI" className="w-full h-full object-cover" />
+                </div>
+                <span>Powered by <span className="font-semibold text-primary">EnpiAI</span></span>
             </footer>
         </div>
     );

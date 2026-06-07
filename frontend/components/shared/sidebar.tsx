@@ -71,25 +71,46 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             )}
         >
             {/* Logo */}
-            <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+            <div className={cn(
+                "flex h-16 items-center border-b border-white/10 px-4",
+                collapsed ? "justify-center" : "justify-start gap-3"
+            )}>
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden shrink-0 shadow-lg shadow-primary/10">
+                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-cover" />
+                </div>
                 {!collapsed && (
                     <span className="text-xl font-extrabold tracking-tight bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">
                         Enpi AI
                     </span>
                 )}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onToggle}
-                    className="h-8 w-8 hover:bg-white/10"
-                >
-                    <ChevronLeft
-                        className={cn(
-                            'h-4 w-4 transition-transform text-muted-foreground',
-                            collapsed && 'rotate-180'
-                        )}
-                    />
-                </Button>
+                {!collapsed && (
+                    <div className="flex-1" />
+                )}
+                {!collapsed && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onToggle}
+                        className="h-8 w-8 hover:bg-white/10"
+                    >
+                        <ChevronLeft
+                            className={cn(
+                                'h-4 w-4 transition-transform text-muted-foreground',
+                                collapsed && 'rotate-180'
+                            )}
+                        />
+                    </Button>
+                )}
+                {collapsed && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onToggle}
+                        className="absolute -right-3 top-20 h-6 w-6 rounded-full bg-background border shadow-sm z-50"
+                    >
+                        <ChevronLeft className="h-3 w-3 rotate-180" />
+                    </Button>
+                )}
             </div>
 
             {/* Navigation */}
