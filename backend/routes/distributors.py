@@ -61,15 +61,22 @@ def update_settings():
         updatable = [
             'name', 'herbalife_id', 'herbalife_level', 'business_name',
             'timezone', 'language', 'country', 'city', 'email', 'phone',
-            'website', 'instagram', 'facebook', 'personal_story'
+            'website', 'instagram', 'facebook', 'personal_story', 'whatsapp_phone'
         ]
 
         for field in updatable:
             if field in data:
                 setattr(distributor, field, data[field])
 
+        # Synchronize current user profile details with updated configuration
+        if user:
+            if 'name' in data:
+                user.name = data['name']
+            if 'email' in data:
+                user.email = data['email']
+
         db.session.commit()
-        logger.info(f"Distributor {distributor.id} settings updated")
+        logger.info(f"Distributor {distributor.id} and User {user.id if user else None} settings updated")
 
         return jsonify({'data': distributor.to_dict()}), 200
 
@@ -96,7 +103,8 @@ def update_agent_persona():
 
         persona_fields = [
             'agent_name', 'agent_gender', 'personality_prompt',
-            'custom_instructions', 'llm_provider', 'llm_model'
+            'custom_instructions', 'llm_provider', 'llm_model',
+            'preferred_voice'
         ]
 
         for field in persona_fields:

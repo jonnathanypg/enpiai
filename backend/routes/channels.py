@@ -23,18 +23,26 @@ channels_bp = Blueprint('channels', __name__)
 
 
 def _get_distributor_id():
+    """Get distributor ID with Super Admin override support."""
     user_id = get_jwt_identity()
     user = User.query.get(int(user_id))
-    return user.distributor_id if user else None
+    if not user: return None
+    
+    # Super Admin Override
+    if user.role == 'super_admin':
+        header_id = request.headers.get('X-Distributor-Id')
+        if header_id:
+            return int(header_id)
+            
+    return user.distributor_id
 
 
 def _get_distributor():
-    """Get the full Distributor object for the authenticated user."""
-    user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
-    if not user or not user.distributor_id:
+    """Get the full Distributor object with Super Admin override support."""
+    dist_id = _get_distributor_id()
+    if not dist_id:
         return None
-    return Distributor.query.get(user.distributor_id)
+    return Distributor.query.get(dist_id)
 
 
 # ═══════════════════════════════════════════════════════════════

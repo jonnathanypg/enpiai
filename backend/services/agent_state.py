@@ -33,6 +33,7 @@ class AgentState(TypedDict):
     # ============ Phase 9: Enrichment ============
     agent_hints: Optional[str]  # Sentiment/identity context hints for prompt builder
     is_anonymous: bool  # Anonymous lead capture mandate flag
+    contact_type: str  # distributor, customer, lead, unknown
     
     # ============ Channel Context ============
     channel: str  # telegram, whatsapp, webchat, voice, email

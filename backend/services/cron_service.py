@@ -72,6 +72,27 @@ class CronService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
+    def cancel_conversation_tasks(conversation_id: int, action: str = None) -> int:
+        """Cancel all pending tasks for a specific conversation."""
+        query = ScheduledTask.query.filter_by(conversation_id=conversation_id, status='pending')
+        if action:
+            query = query.filter_by(action=action)
+        
+        tasks = query.all()
+        for t in tasks:
+            t.status = 'cancelled'
+        
+        try:
+            db.session.commit()
+            if tasks:
+                logger.info(f"[CRON] Cancelled {len(tasks)} pending tasks for conv {conversation_id}")
+            return len(tasks)
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[CRON] Failed to cancel tasks for conv {conversation_id}: {e}")
+            return 0
+
+    @staticmethod
     def schedule_followup(
         distributor_id: int,
         message: str,
@@ -84,22 +105,12 @@ class CronService:
         payload: dict = None,
     ) -> dict:
         """
-        Schedule a follow-up task.
-        
-        Args:
-            distributor_id: Owner distributor
-            message: The message to send when the task fires
-            delay_minutes: Minutes from now (alternative to scheduled_at)
-            scheduled_at: Exact datetime to fire
-            conversation_id: Optional conversation context
-            lead_id: Optional lead to contact
-            channel: Target channel
-            action: Type of action
-            payload: Extra data for the action
-            
-        Returns:
-            dict with task info
+        Schedule a follow-up task. 
+        Automatically cancels previous pending 'auto_followup' tasks for the same conversation.
         """
+        if conversation_id and action == 'auto_followup':
+            CronService.cancel_conversation_tasks(conversation_id, action='auto_followup')
+
         if scheduled_at is None:
             scheduled_at = datetime.utcnow() + timedelta(minutes=max(1, delay_minutes))
         
@@ -165,35 +176,110 @@ class CronService:
 
     def _worker_loop(self, app):
         """Main loop: check for due tasks every 30 seconds."""
+        last_cleanup = 0
         while CronService._running:
             try:
                 with app.app_context():
                     self._process_due_tasks()
+                    
+                    # Run voice cleanup every 1 hour (3600 seconds)
+                    now_time = time.time()
+                    if now_time - last_cleanup > 3600:
+                        self._clean_voice_files()
+                        last_cleanup = now_time
             except Exception as e:
                 logger.error(f"[CRON] Worker error: {e}")
             time.sleep(30)
 
-    def _process_due_tasks(self):
-        """Find and execute all tasks that are past their scheduled time."""
-        now = datetime.utcnow()
-        due_tasks = ScheduledTask.query.filter(
-            ScheduledTask.status == 'pending',
-            ScheduledTask.scheduled_at <= now,
-        ).all()
+    def _clean_voice_files(self):
+        """
+        Periodically clean up temporary voice files older than 7 days
+        to prevent VPS disk exhaustion.
+        """
+        try:
+            import os
+            import time
+            from flask import current_app
+            
+            voice_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'voice')
+            if not os.path.exists(voice_dir):
+                return
+                
+            logger.info(f"[CRON] Running periodic voice files cleanup in {voice_dir}...")
+            now = time.time()
+            deleted_count = 0
+            
+            for filename in os.listdir(voice_dir):
+                file_path = os.path.join(voice_dir, filename)
+                if not os.path.isfile(file_path):
+                    continue
+                    
+                # Skip non-audio files (just in case)
+                if not filename.endswith(('.mp3', '.ogg', '.webm', '.wav', '.m4a')):
+                    continue
+                    
+                # If file is older than 7 days (7 * 86400 seconds)
+                if os.path.getmtime(file_path) < (now - 7 * 86400):
+                    try:
+                        os.remove(file_path)
+                        deleted_count += 1
+                    except Exception as fe:
+                        logger.warning(f"[CRON] Could not delete voice file {file_path}: {fe}")
+                        
+            if deleted_count > 0:
+                logger.info(f"[CRON] Cleaned up {deleted_count} voice files older than 7 days.")
+        except Exception as e:
+            logger.error(f"[CRON] Voice files cleanup failed: {e}")
 
-        for task in due_tasks:
-            try:
-                self._execute_task(task)
-                task.status = 'executed'
-                task.executed_at = datetime.utcnow()
-                logger.info(f"[CRON] Executed task #{task.id} ({task.action})")
-            except Exception as e:
-                task.status = 'failed'
-                task.error_message = str(e)[:500]
-                logger.error(f"[CRON] Task #{task.id} failed: {e}")
+    def _process_due_tasks(self):
+        """
+        Find and execute all tasks that are past their scheduled time.
+        Uses a 'claim-first' strategy to be safe for multiple workers.
+        """
+        db.session.rollback()  # Mandatory first line per GEMINI.md protocol
+        now = datetime.utcnow()
         
-        if due_tasks:
-            db.session.commit()
+        # 1. Fetch due tasks. 
+        # We use a smaller batch size and with_for_update(skip_locked=True) 
+        # to ensure multiple workers don't collide.
+        try:
+            due_tasks = ScheduledTask.query.filter(
+                ScheduledTask.status == 'pending',
+                ScheduledTask.scheduled_at <= now,
+            ).with_for_update(skip_locked=True).limit(20).all()
+            
+            if not due_tasks:
+                return
+
+            for task in due_tasks:
+                try:
+                    # 2. Claim the task IMMEDIATELY by marking it as executed
+                    # This prevents other workers from picking it up if they query 
+                    # while we are executing (though skip_locked should handle it).
+                    task.status = 'executed'
+                    task.executed_at = datetime.utcnow()
+                    db.session.commit()
+
+                    # 3. Actually run the logic
+                    self._execute_task(task)
+                    logger.info(f"[CRON] Executed task #{task.id} ({task.action})")
+                    
+                except Exception as e:
+                    logger.error(f"[CRON] Task #{task.id} failed: {e}")
+                    # Re-open session and mark as failed if it wasn't a commit error
+                    try:
+                        db.session.rollback()
+                        task = ScheduledTask.query.get(task.id)
+                        if task:
+                            task.status = 'failed'
+                            task.error_message = str(e)[:500]
+                            db.session.commit()
+                    except Exception as rb_err:
+                        logger.error(f"[CRON] Could not mark task as failed: {rb_err}")
+                        db.session.rollback()
+        except Exception as e:
+            logger.error(f"[CRON] Error in _process_due_tasks: {e}")
+            db.session.rollback()
 
     def _execute_task(self, task: ScheduledTask):
         """
@@ -206,8 +292,189 @@ class CronService:
             self._handle_send_email(task)
         elif task.action == 'check_in':
             self._handle_check_in(task)
+        elif task.action == 'daily_summary':
+            self._handle_daily_summary(task)
+        elif task.action == 'auto_followup':
+            self._handle_auto_followup(task)
+        elif task.action == 'coach_midday':
+            self._handle_coach_midday(task)
+        elif task.action == 'coach_evening':
+            self._handle_coach_evening(task)
         else:
             logger.warning(f"[CRON] Unknown action: {task.action}")
+
+    def _handle_daily_summary(self, task: ScheduledTask):
+        """Generates and sends the morning summary to the distributor with AI Coaching."""
+        from models.distributor import Distributor
+        from services.messaging_service import messaging_service
+        from services.ai_coach_service import ai_coach_service
+        from skills.crm import CRMSkill
+        import pytz
+        
+        distributor = Distributor.query.get(task.distributor_id)
+        if not distributor: return
+
+        # Use CRMSkill to generate the report
+        from flask import g
+        g.current_company = distributor
+        
+        crm = CRMSkill()
+        summary_data = crm.get_business_summary_data()
+        
+        # 1. Reset tasks and generate coaching message depending on Coach Mode status
+        level = distributor.herbalife_level or "Distribuidor Independiente"
+        if distributor.coach_mode_enabled:
+            # Reset daily tasks status in database for the new day
+            distributor.coach_daily_tasks_status = ai_coach_service.generate_daily_tasks_checklist(level)
+            db.session.commit()
+            
+            # Generate morning coach message
+            coach_message = ai_coach_service.generate_daily_coach_message(
+                distributor_name=distributor.name,
+                language=distributor.language or 'es',
+                level=level,
+                tasks_status=distributor.coach_daily_tasks_status
+            )
+        else:
+            # Fallback to standard daily coaching message
+            coach_message = ai_coach_service.generate_daily_coach_message(
+                distributor_name=distributor.name,
+                language=distributor.language or 'es',
+                level=level
+            )
+        
+        # 2. Generate the data report (if data exists)
+        report_text = crm.get_business_summary_report()
+        
+        dist_phone = distributor.whatsapp_phone or distributor.phone
+        if dist_phone:
+            if not report_text:
+                # No data to report, send ONLY the coaching message
+                final_message = f"🦁 *COACH ENPIAI - TU MENTOR DIARIO*\n\n{coach_message}"
+            else:
+                # Data exists, send both
+                final_message = (
+                    f"🦁 *COACH ENPIAI - TU MENTOR DIARIO*\n\n"
+                    f"{coach_message}\n\n"
+                    f"----------------------------\n"
+                    f"{report_text}"
+                )
+            
+            messaging_service.send_whatsapp(dist_phone, final_message, distributor.id)
+            
+        # 3. Schedule next day's summary in distributor's timezone
+        tz = pytz.timezone(distributor.timezone or 'America/Guayaquil')
+        now_tz = datetime.now(tz)
+        
+        # Calculate next 8:00 AM in local time
+        next_run_tz = now_tz.replace(hour=8, minute=0, second=0, microsecond=0)
+        if next_run_tz <= now_tz:
+            next_run_tz += timedelta(days=1)
+            
+        # Convert back to UTC for storage in DB
+        next_run_utc = next_run_tz.astimezone(pytz.utc).replace(tzinfo=None)
+        
+        self.schedule_followup(
+            distributor_id=distributor.id,
+            message="Morning Summary",
+            scheduled_at=next_run_utc,
+            action='daily_summary'
+        )
+
+        # 4. Schedule today's mid-day and evening checks if Coach Mode is active
+        if distributor.coach_mode_enabled:
+            # Schedule Midday at 2:00 PM local time
+            midday_tz = now_tz.replace(hour=14, minute=0, second=0, microsecond=0)
+            if midday_tz > now_tz:
+                midday_utc = midday_tz.astimezone(pytz.utc).replace(tzinfo=None)
+                self.schedule_followup(
+                    distributor_id=distributor.id,
+                    message="Coach Midday",
+                    scheduled_at=midday_utc,
+                    action='coach_midday'
+                )
+                
+            # Schedule Evening at 8:00 PM local time
+            evening_tz = now_tz.replace(hour=20, minute=0, second=0, microsecond=0)
+            if evening_tz > now_tz:
+                evening_utc = evening_tz.astimezone(pytz.utc).replace(tzinfo=None)
+                self.schedule_followup(
+                    distributor_id=distributor.id,
+                    message="Coach Evening",
+                    scheduled_at=evening_utc,
+                    action='coach_evening'
+                )
+
+    def _handle_coach_midday(self, task: ScheduledTask):
+        """Generates and sends the mid-day coach reminder/tip."""
+        from models.distributor import Distributor
+        from services.messaging_service import messaging_service
+        from services.ai_coach_service import ai_coach_service
+        
+        distributor = Distributor.query.get(task.distributor_id)
+        if not distributor or not distributor.coach_mode_enabled: return
+        
+        level = distributor.herbalife_level or "Distribuidor Independiente"
+        country = distributor.country or "Ecuador"
+        
+        tip_message = ai_coach_service.generate_midday_coach_message(
+            distributor_name=distributor.name,
+            language=distributor.language or 'es',
+            level=level,
+            country=country
+        )
+        
+        dist_phone = distributor.whatsapp_phone or distributor.phone
+        if dist_phone:
+            messaging_service.send_whatsapp(dist_phone, tip_message, distributor.id)
+            logger.info(f"[CRON] Coach Mid-day message sent to {dist_phone}")
+
+    def _handle_coach_evening(self, task: ScheduledTask):
+        """Generates and sends the evening check-in to report challenges."""
+        from models.distributor import Distributor
+        from services.messaging_service import messaging_service
+        from services.ai_coach_service import ai_coach_service
+        
+        distributor = Distributor.query.get(task.distributor_id)
+        if not distributor or not distributor.coach_mode_enabled: return
+        
+        level = distributor.herbalife_level or "Distribuidor Independiente"
+        tasks_status = distributor.coach_daily_tasks_status or {}
+        
+        evening_message = ai_coach_service.generate_evening_coach_message(
+            distributor_name=distributor.name,
+            language=distributor.language or 'es',
+            level=level,
+            tasks_status=tasks_status
+        )
+        
+        dist_phone = distributor.whatsapp_phone or distributor.phone
+        if dist_phone:
+            messaging_service.send_whatsapp(dist_phone, evening_message, distributor.id)
+            logger.info(f"[CRON] Coach Evening message sent to {dist_phone}")
+
+    def _handle_auto_followup(self, task: ScheduledTask):
+        """Sends an automatic follow-up only if the user hasn't replied yet."""
+        from models.conversation import Conversation, Message, MessageRole
+        from services.messaging_service import messaging_service
+        
+        conv = Conversation.query.get(task.conversation_id)
+        if not conv: return
+
+        # CHECK: Did the user send a message after our task was scheduled?
+        # If the last message is from the user, we DON'T send an auto-followup 
+        # because the user already replied or the conversation is active.
+        # But wait, the logic is: if last message is from AI, then user hasn't replied.
+        last_msg = Message.query.filter_by(conversation_id=conv.id).order_by(Message.created_at.desc()).first()
+        
+        if last_msg and last_msg.role == MessageRole.ASSISTANT:
+            # User hasn't replied to our last AI message!
+            dist_phone = task.payload.get('distributor_phone')
+            lead_phone = task.payload.get('lead_phone')
+            
+            if lead_phone:
+                messaging_service.send_whatsapp(lead_phone, task.message, task.distributor_id)
+                logger.info(f"[CRON] Auto-followup sent to {lead_phone} for conv {conv.id}")
 
     def _handle_send_message(self, task: ScheduledTask):
         """Send a WhatsApp or Telegram message."""

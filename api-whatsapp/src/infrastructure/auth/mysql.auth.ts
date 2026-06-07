@@ -19,7 +19,11 @@ export const useMySQLAuthState = async (sessionId: string): Promise<{ state: Aut
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `;
 
-    await pool.query(createTableQuery);
+    try {
+        await pool.query(createTableQuery);
+    } catch (error) {
+        console.warn(`[${sessionId}] Warning: Could not verify/create table ${TABLE_NAME} (assumed to exist):`, error);
+    }
 
     const writeData = async (data: any, key: string) => {
         const pk_id = `${sessionId}-${key}`;

@@ -5,6 +5,10 @@ echo "1. Testing System Health..."
 curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health
 echo " (Expected: 200)"
 
+echo "1b. Testing System API Health..."
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health
+echo " (Expected: 200)"
+
 echo "2. Testing Auth Login Endpoint (OPTIONS)..."
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS http://localhost:5000/api/auth/login)
 echo "Status: $CODE (Expected: 200)"

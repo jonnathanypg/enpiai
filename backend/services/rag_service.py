@@ -256,20 +256,19 @@ class RAGService:
             logger.error(f"Error purging namespace '{namespace}': {e}")
             return False
 
-    def upsert_document_async(self, text_chunks, distributor_id, document_id, metadata=None):
+    def upsert_document_async(self, filepath, distributor_id, document_id, metadata=None):
         """Non-blocking document upsert via Celery task queue."""
         try:
             from tasks import index_document_rag
             index_document_rag.delay(
-                text_chunks=text_chunks,
+                filepath=filepath,
                 distributor_id=distributor_id,
                 document_id=document_id,
                 metadata=metadata
             )
             logger.info(f"Document {document_id} upsert dispatched to Celery worker")
         except Exception as e:
-            logger.warning(f"Celery dispatch failed ({e}), falling back to sync upsert")
-            self.upsert_document(text_chunks, distributor_id, document_id, metadata)
+            logger.error(f"Celery dispatch failed ({e}). Cannot fallback to sync without text extraction.")
 
 
 # Singleton instance

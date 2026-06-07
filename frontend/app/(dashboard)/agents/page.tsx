@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bot, Save, Loader2, Sparkles, MessageSquare, Settings2, Zap } from 'lucide-react';
+import { Bot, Save, Loader2, Sparkles, MessageSquare, Settings2, Zap, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ interface AgentPersona {
     personality_prompt: string | null;
     custom_instructions: string | null;
     personal_story: string | null;
+    preferred_voice?: string | null;
 }
 
 interface AgentConfigData {
@@ -48,30 +49,30 @@ interface AgentFeature {
 }
 
 const TONE_OPTIONS = [
-    { value: 'friendly', label: 'Amigable', emoji: '😊' },
-    { value: 'professional', label: 'Profesional', emoji: '💼' },
-    { value: 'sales', label: 'Vendedor', emoji: '🎯' },
-    { value: 'wellness_coach', label: 'Coach de Bienestar', emoji: '🌿' },
-    { value: 'support', label: 'Soporte', emoji: '🛟' },
-    { value: 'casual', label: 'Casual', emoji: '😎' },
-    { value: 'formal', label: 'Formal', emoji: '🎩' },
+    { value: 'friendly', labelKey: 'common.friendly', emoji: '😊' },
+    { value: 'professional', labelKey: 'common.professional', emoji: '💼' },
+    { value: 'sales', labelKey: 'common.sales', emoji: '🎯' },
+    { value: 'wellness_coach', labelKey: 'common.wellness_coach', emoji: '🌿' },
+    { value: 'support', labelKey: 'common.support', emoji: '🛟' },
+    { value: 'casual', labelKey: 'common.casual', emoji: '😎' },
+    { value: 'formal', labelKey: 'common.formal', emoji: '🎩' },
 ];
 
 const OBJECTIVE_OPTIONS = [
-    { value: 'general', label: 'General' },
-    { value: 'customer_service', label: 'Atención al Cliente' },
-    { value: 'sales', label: 'Ventas' },
-    { value: 'scheduling', label: 'Agendamiento' },
-    { value: 'lead_qualification', label: 'Calificación de Leads' },
-    { value: 'wellness_evaluation', label: 'Evaluación de Bienestar' },
-    { value: 'distributor_assistant', label: 'Asistente del Distribuidor' },
+    { value: 'general', labelKey: 'common.general' },
+    { value: 'customer_service', labelKey: 'common.customer_service' },
+    { value: 'sales', labelKey: 'common.sales' },
+    { value: 'scheduling', labelKey: 'common.scheduling' },
+    { value: 'lead_qualification', labelKey: 'common.lead_qualification' },
+    { value: 'wellness_evaluation', labelKey: 'common.wellness_evaluation' },
+    { value: 'distributor_assistant', labelKey: 'common.distributor_assistant' },
 ];
 
-const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
-    channel: { label: 'Canales', icon: '📡' },
-    integration: { label: 'Integraciones', icon: '🔗' },
-    skill: { label: 'Habilidades del Agente', icon: '🧠' },
-    ai_feature: { label: 'Funciones de IA', icon: '✨' },
+const CATEGORY_LABELS: Record<string, { labelKey: string; icon: string }> = {
+    channel: { labelKey: 'agentSetup.integrations', icon: '📡' },
+    integration: { labelKey: 'agentSetup.integrations', icon: '🔗' },
+    skill: { labelKey: 'agentSetup.tools', icon: '🧠' },
+    ai_feature: { labelKey: 'agentSetup.aiFeatures', icon: '✨' },
 };
 
 export default function AgentSetupPage() {
@@ -108,6 +109,20 @@ export default function AgentSetupPage() {
     const [objective, setObjective] = useState('general');
     const [features, setFeatures] = useState<Record<string, boolean>>({});
 
+    const [preferredVoice, setPreferredVoice] = useState('es-EC-LuisNeural');
+    const [testText, setTestText] = useState('¡Hola! Estoy probando mi nueva voz de inteligencia artificial en Enpi AI.');
+    const [testingVoice, setTestingVoice] = useState(false);
+
+    // --- Dynamic Voices list query ---
+    const { data: voicesResponse } = useQuery({
+        queryKey: ['voice-voices'],
+        queryFn: async () => {
+            const { data } = await apiClient.get<any[]>('/voice/voices');
+            return data;
+        }
+    });
+    const voicesList = voicesResponse || [];
+
     // Populate form when data loads
     useEffect(() => {
         if (settings) {
@@ -116,6 +131,7 @@ export default function AgentSetupPage() {
             setPersona(settings.personality_prompt || '');
             setCustomInstructions(settings.custom_instructions || '');
             setPersonalStory(settings.personal_story || '');
+            setPreferredVoice(settings.preferred_voice || 'es-EC-LuisNeural');
         }
     }, [settings]);
 
@@ -131,6 +147,29 @@ export default function AgentSetupPage() {
         }
     }, [agent]);
 
+    // Voice testing action
+    const handleTestVoice = async () => {
+        if (testingVoice || !testText.trim()) return;
+        setTestingVoice(true);
+        try {
+            const response = await apiClient.post('/voice/synthesize', {
+                text: testText,
+                voice_name: preferredVoice
+            }, {
+                responseType: 'blob'
+            });
+            const blob = new Blob([response.data], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.play();
+        } catch (error) {
+            console.error('Failed to test voice:', error);
+            toast.error('Error al generar la prueba de voz');
+        } finally {
+            setTestingVoice(false);
+        }
+    };
+
     // --- Mutations ---
     const savePersonaMutation = useMutation({
         mutationFn: async () => {
@@ -139,6 +178,7 @@ export default function AgentSetupPage() {
                 agent_gender: agentGender,
                 personality_prompt: persona,
                 custom_instructions: customInstructions,
+                preferred_voice: preferredVoice,
             });
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['distributor-settings'] }),
@@ -261,16 +301,16 @@ export default function AgentSetupPage() {
                             </p>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="agent_gender">Género del Agente</Label>
+                            <Label htmlFor="agent_gender">{t('agentSetup.agentGender')}</Label>
                             <select
                                 id="agent_gender"
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 value={agentGender}
                                 onChange={(e) => setAgentGender(e.target.value)}
                             >
-                                <option value="neutral">Neutral</option>
-                                <option value="female">Femenino</option>
-                                <option value="male">Masculino</option>
+                                <option value="neutral">{t('agentSetup.gender.neutral')}</option>
+                                <option value="female">{t('agentSetup.gender.female')}</option>
+                                <option value="male">{t('agentSetup.gender.male')}</option>
                             </select>
                         </div>
                     </div>
@@ -294,35 +334,35 @@ export default function AgentSetupPage() {
 
                     <div className="space-y-2">
                         <Label htmlFor="custom_instructions">
-                            Instrucciones Personalizadas{' '}
-                            <span className="text-muted-foreground">(opcional)</span>
+                            {t('agentSetup.customInstructions')}{' '}
+                            <span className="text-muted-foreground">({t('common.optional', { defaultValue: 'opcional' })})</span>
                         </Label>
                         <Textarea
                             id="custom_instructions"
-                            placeholder="ej. Nunca recomiende batidos de chocolate. Siempre pregunte por alergias alimentarias antes de sugerir productos."
+                            placeholder={t('agentSetup.customInstructionsPlaceholder', { defaultValue: 'ej. Nunca recomiende batidos de chocolate. Siempre pregunte por alergias alimentarias antes de sugerir productos.' })}
                             value={customInstructions}
                             onChange={(e) => setCustomInstructions(e.target.value)}
                             rows={3}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Reglas específicas que el agente seguirá siempre. Estas tienen prioridad sobre el comportamiento predeterminado.
+                            {t('agentSetup.customInstructionsHelp')}
                         </p>
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="personal_story">
-                            Tu Historia Personal{' '}
-                            <span className="text-muted-foreground">(opcional)</span>
+                            {t('agentSetup.personalStory')}{' '}
+                            <span className="text-muted-foreground">({t('common.optional', { defaultValue: 'opcional' })})</span>
                         </Label>
                         <Textarea
                             id="personal_story"
-                            placeholder="ej. Soy distribuidor Herbalife desde 2018. Mi pasión es ayudar a las personas a alcanzar su peso ideal a través de una alimentación balanceada..."
+                            placeholder={t('agentSetup.personalStoryPlaceholder', { defaultValue: 'ej. Soy distribuidor Herbalife desde 2018. Mi pasión es ayudar a las personas a alcanzar su peso ideal a través de una alimentación balanceada...' })}
                             value={personalStory}
                             onChange={(e) => setPersonalStory(e.target.value)}
                             rows={3}
                         />
                         <p className="text-xs text-muted-foreground">
-                            El agente usará tu historia para conectar emocionalmente con los prospectos y personalizar sus respuestas.
+                            {t('agentSetup.personalStoryHelp')}
                         </p>
                     </div>
                 </CardContent>
@@ -333,16 +373,16 @@ export default function AgentSetupPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <MessageSquare className="h-5 w-5 text-primary" />
-                        Comportamiento del Agente
+                        {t('agentSetup.behaviorTitle')}
                     </CardTitle>
                     <CardDescription>
-                        Define el tono de voz y el objetivo principal de tu asistente.
+                        {t('agentSetup.behaviorDescription')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-2">
-                            <Label>Tono de Voz</Label>
+                            <Label>{t('agentSetup.toneLabel')}</Label>
                             <div className="grid grid-cols-2 gap-2">
                                 {TONE_OPTIONS.map((opt) => (
                                     <button
@@ -356,13 +396,13 @@ export default function AgentSetupPage() {
                                         }`}
                                     >
                                         <span>{opt.emoji}</span>
-                                        <span>{opt.label}</span>
+                                        <span>{t(opt.labelKey)}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label>Objetivo Principal</Label>
+                            <Label>{t('agentSetup.objectiveLabel')}</Label>
                             <select
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 value={objective}
@@ -370,27 +410,103 @@ export default function AgentSetupPage() {
                             >
                                 {OBJECTIVE_OPTIONS.map((opt) => (
                                     <option key={opt.value} value={opt.value}>
-                                        {opt.label}
+                                        {t(opt.labelKey)}
                                     </option>
                                 ))}
                             </select>
                             <p className="text-xs text-muted-foreground">
-                                Esto guía al agente sobre qué priorizar en las conversaciones.
+                                {t('agentSetup.objectiveHelp')}
                             </p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Card 3: Feature Toggles */}
+            {/* Card 3: Configuración de Voz (IAGS Protocol) */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Volume2 className="h-5 w-5 text-primary" />
+                        Configuración de Voz (IAGS Protocol)
+                    </CardTitle>
+                    <CardDescription>
+                        Selecciona el clon de voz neural que utilizará tu agente para responder notas de voz por WhatsApp y Chat Web.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="preferred_voice">Clon de Voz Neural</Label>
+                            <select
+                                id="preferred_voice"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                value={preferredVoice}
+                                onChange={(e) => setPreferredVoice(e.target.value)}
+                            >
+                                {voicesList.length > 0 ? (
+                                    voicesList.map((v: any) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name} ({v.lang})
+                                        </option>
+                                    ))
+                                ) : (
+                                    <>
+                                        <option value="es-EC-LuisNeural">Luis (Ecuador - Masculino) (es-EC)</option>
+                                        <option value="es-EC-RamonaNeural">Ramona (Ecuador - Femenino) (es-EC)</option>
+                                        <option value="es-MX-DaliaNeural">Dalia (México - Femenino) (es-MX)</option>
+                                        <option value="es-MX-JorgeNeural">Jorge (México - Masculino) (es-MX)</option>
+                                        <option value="es-US-PalomaNeural">Paloma (USA/Latam - Femenino) (es-US)</option>
+                                        <option value="es-US-AlonsoNeural">Alonso (USA/Latam - Masculino) (es-US)</option>
+                                        <option value="es-ES-ElviraNeural">Elvira (España - Femenino) (es-ES)</option>
+                                        <option value="es-ES-AlvaroNeural">Alvaro (España - Masculino) (es-ES)</option>
+                                    </>
+                                )}
+                            </select>
+                            <p className="text-xs text-muted-foreground">
+                                Las voces neurales de alta fidelidad proveen una conversación humanizada de acuerdo al acento regional de tus prospectos.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="test_voice_text">Probar Sintetizador de Voz</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="test_voice_text"
+                                    value={testText}
+                                    onChange={(e) => setTestText(e.target.value)}
+                                    placeholder="Escribe un mensaje de prueba..."
+                                    className="flex-1"
+                                />
+                                <Button 
+                                    type="button" 
+                                    variant="secondary" 
+                                    onClick={handleTestVoice}
+                                    disabled={testingVoice || !testText.trim()}
+                                >
+                                    {testingVoice ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        "Probar"
+                                    )}
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Escucha una muestra del tono de voz seleccionado directamente en tu navegador.
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Card 4: Feature Toggles */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Zap className="h-5 w-5 text-primary" />
-                        Habilidades y Funciones
+                        {t('agentSetup.featuresTitle')}
                     </CardTitle>
                     <CardDescription>
-                        Activa o desactiva las capacidades del agente. Las habilidades desactivadas no estarán disponibles durante las conversaciones.
+                        {t('agentSetup.featuresDescription')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -403,7 +519,7 @@ export default function AgentSetupPage() {
                             <div key={category}>
                                 {idx > 0 && <Separator className="mb-6" />}
                                 <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                                    {CATEGORY_LABELS[category]?.icon} {CATEGORY_LABELS[category]?.label || category}
+                                    {CATEGORY_LABELS[category]?.icon} {t(CATEGORY_LABELS[category]?.labelKey || category)}
                                 </h4>
                                 <div className="grid gap-3 md:grid-cols-2">
                                     {feats
@@ -445,8 +561,8 @@ export default function AgentSetupPage() {
                     {Object.keys(groupedFeatures).length === 0 && (
                         <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
                             <Settings2 className="mb-2 h-8 w-8 opacity-20" />
-                            <p>No hay un agente configurado aún.</p>
-                            <p className="text-xs">Se creará uno automáticamente cuando guardes la configuración.</p>
+                            <p>{t('agentSetup.noAgentConfigured')}</p>
+                            <p className="text-xs">{t('agentSetup.noAgentConfiguredHelp')}</p>
                         </div>
                     )}
                 </CardContent>

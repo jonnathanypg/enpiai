@@ -64,6 +64,9 @@ class WellnessEvaluation(db.Model):
     # Observations / free-text notes
     observations = db.Column(db.Text, nullable=True)
 
+    # Localization
+    language = db.Column(db.String(10), default='es')
+
     # Source
     source = db.Column(db.String(50), default='web_form')  # web_form, conversational, manual
 
@@ -97,13 +100,50 @@ class WellnessEvaluation(db.Model):
         if not self.bmi:
             return None
         if self.bmi < 18.5:
-            return 'Bajo peso'
+            return 'underweight'
         elif self.bmi < 25:
-            return 'Normal'
+            return 'normal'
         elif self.bmi < 30:
-            return 'Sobrepeso'
+            return 'overweight'
         else:
-            return 'Obesidad'
+            return 'obese'
+
+    def get_summary(self):
+        """Returns a detailed summary for AI agent context."""
+        summary = [
+            f"Evaluación de Bienestar ({self.created_at.strftime('%Y-%m-%d') if self.created_at else 'Reciente'})",
+            f"- Datos: Edad {self.age}, Género {self.gender}, Altura {self.height_cm}cm, Peso {self.weight_kg}kg",
+            f"- IMC: {self.bmi} ({self.get_bmi_category()})",
+            f"- Objetivo: {self.primary_goal}",
+        ]
+        
+        if self.target_weight_kg:
+            summary.append(f"- Peso Objetivo: {self.target_weight_kg}kg")
+        
+        if self.energy_level:
+            summary.append(f"- Energía: {self.energy_level}/10")
+            
+        if self.symptoms:
+            # Handle both list and string if necessary
+            s_list = self.symptoms if isinstance(self.symptoms, list) else [self.symptoms]
+            summary.append(f"- Síntomas: {', '.join(s_list)}")
+            
+        if self.diagnosis:
+            summary.append(f"- Diagnóstico AI: {self.diagnosis[:500]}...")
+            
+        if self.recommendations:
+            summary.append(f"- Recomendaciones: {self.recommendations[:500]}...")
+            
+        if self.recommended_products:
+            p_list = []
+            for p in self.recommended_products:
+                if isinstance(p, dict):
+                    p_list.append(p.get('name', 'Producto'))
+                else:
+                    p_list.append(str(p))
+            summary.append(f"- Productos Sugeridos: {', '.join(p_list)}")
+            
+        return "\n".join(summary)
 
     def _resolve_contact_info(self):
         """Resolve name and email from linked lead or customer."""
@@ -158,6 +198,7 @@ class WellnessEvaluation(db.Model):
             'sleep_hours': self.sleep_hours,
             'sleep_quality': self.sleep_quality,
             'observations': self.observations,
+            'language': self.language,
             'source': self.source,
             'diagnosis': self.diagnosis,
             'recommendations': self.recommendations,

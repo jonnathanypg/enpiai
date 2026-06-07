@@ -20,7 +20,7 @@ class PlatformConfig(db.Model):
     # --- LLM Controls ---
     enable_failover = db.Column(db.Boolean, default=False, nullable=False)
     default_llm_provider = db.Column(db.String(50), default='openai')
-    default_llm_model = db.Column(db.String(100), default='gpt-4')
+    default_llm_model = db.Column(db.String(100), default='gpt-5-nano')
 
     # --- RAG Controls ---
     global_rag_enabled = db.Column(db.Boolean, default=True, nullable=False)
@@ -30,6 +30,7 @@ class PlatformConfig(db.Model):
     maintenance_mode = db.Column(db.Boolean, default=False, nullable=False)
     max_agents_per_distributor = db.Column(db.Integer, default=3)
     max_documents_per_distributor = db.Column(db.Integer, default=50)
+    platform_distributor_id = db.Column(db.Integer, db.ForeignKey('distributors.id'), nullable=True)
 
     # --- Timestamps ---
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -55,6 +56,7 @@ class PlatformConfig(db.Model):
             'maintenance_mode': self.maintenance_mode,
             'max_agents_per_distributor': self.max_agents_per_distributor,
             'max_documents_per_distributor': self.max_documents_per_distributor,
+            'platform_distributor_id': self.platform_distributor_id,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 

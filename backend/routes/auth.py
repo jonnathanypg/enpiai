@@ -56,6 +56,7 @@ def register():
         distributor = Distributor(
             name=distributor_name,
             herbalife_id=data.get('herbalife_id'),
+            herbalife_level=data.get('herbalife_level', 'Distribuidor Independiente'),
             email=email,
             phone=data.get('phone'),
             country=data.get('country'),
@@ -350,43 +351,90 @@ def google_auth():
         return jsonify({'error': str(e)}), 500
 
 
-@auth_bp.route('/change-password', methods=['POST'])
-@jwt_required()
-def change_password():
-    """Change password for the authenticated user (Distributor or Super Admin)."""
+@auth_bp.route('/platform-chat', methods=['POST'])
+@limiter.limit("20 per minute")
+def platform_chat():
+    """
+    Public endpoint for the platform's support agent (Web Chat).
+    Uses the platform_distributor_id configured in PlatformConfig.
+    """
     db.session.rollback()
-
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+        message = data.get('message', '').strip()
+        conv_id = data.get('conversation_id')
+        
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
 
-        current_password = data.get('current_password', '')
-        new_password = data.get('new_password', '')
+        from models.platform_config import PlatformConfig
+        from models.distributor import Distributor
+        from models.conversation import Conversation, ConversationChannel, Message, MessageRole
+        from services.agent_orchestrator import get_agent_orchestrator
 
-        if not current_password or not new_password:
-            return jsonify({'error': 'Current password and new password are required'}), 400
+        config = PlatformConfig.get_config()
+        dist_id = config.platform_distributor_id
+        
+        if not dist_id:
+            return jsonify({'error': 'Platform agent not configured'}), 503
+            
+        distributor = Distributor.query.get(dist_id)
+        if not distributor:
+            return jsonify({'error': 'Platform distributor not found'}), 503
 
-        if len(new_password) < 6:
-            return jsonify({'error': 'New password must be at least 6 characters'}), 400
+        # Resolve or Create Conversation
+        # For public webchat, we use a transient session-based identifier
+        # If no conv_id, create a new one
+        conversation = None
+        if conv_id:
+            conversation = Conversation.query.get(conv_id)
+            
+        if not conversation or conversation.distributor_id != distributor.id:
+            # Create a transient conversation for the web user
+            conversation = Conversation(
+                distributor_id=distributor.id,
+                participant_id=f"web_{uuid.uuid4().hex[:8]}",
+                participant_name="Visitante Web",
+                channel=ConversationChannel.WEBCHAT
+            )
+            db.session.add(conversation)
+            db.session.flush()
 
-        current_user_id = get_jwt_identity()
-        user = User.query.get(int(current_user_id))
-
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-
-        if not user.check_password(current_password):
-            return jsonify({'error': 'Current password is incorrect'}), 401
-
-        user.set_password(new_password)
+        # Save human message
+        msg = Message(
+            conversation_id=conversation.id,
+            content=message,
+            role=MessageRole.USER
+        )
+        db.session.add(msg)
         db.session.commit()
 
-        logger.info(f"Password changed for user {user.email}")
+        # Invoke Orchestrator
+        orchestrator = get_agent_orchestrator(distributor)
+        result = orchestrator.process_message(
+            conversation=conversation,
+            user_message=message,
+            channel=ConversationChannel.WEBCHAT
+        )
 
-        return jsonify({'message': 'Password updated successfully'}), 200
+        # Save AI response
+        if result.get('content'):
+            ai_msg = Message(
+                conversation_id=conversation.id,
+                content=result['content'],
+                role=MessageRole.ASSISTANT
+            )
+            db.session.add(ai_msg)
+            db.session.commit()
+
+        return jsonify({
+            'data': {
+                'content': result.get('content'),
+                'conversation_id': conversation.id
+            }
+        }), 200
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Change password error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Platform chat error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500

@@ -63,47 +63,34 @@ graph TD
 
 ## 2. 🏗️ Infraestructura Core (Raíz)
 
-### 2.1 [app.py](file:///Users/jonnathan/Desktop/EnpiAI/backend/app.py)
-**Propósito**: Fábrica de la Aplicación (Entry Point).
+### 2.1 [fastapi_app.py](file:///root/enpiai/backend/fastapi_app.py)
+**Propósito**: Unified Gateway (Entry Point).
 *   **Inicialización del Núcleo**:
-    *   Instancia `Flask(__name__)` que actúa como el contenedor WSGI principal.
-    *   Carga la configuración mediante `app.config.from_object(Config)`, inyectando variables de entorno en el contexto de la app.
-    *   **Extensiones**:
-        *   `db.init_app(app)`: Vincula SQLAlchemy al ciclo de vida de la solicitud.
-        *   `jwt.init_app(app)`: Configura el manejo de tokens Bearer para autenticación segura.
-        *   `migrate.init_app(app, db)`: Habilita comandos de migración (`flask db upgrade`) para gestión de esquema.
-        *   `limiter.init_app(app)`: Activa el rate limiting global (Redis/Memoria) para prevenir ataques DDoS.
-        *   `cors.init_app(app)`: Habilita peticiones Cross-Origin permitidas (crítico para frontend separado).
-*   **Registro Modular (Blueprints)**:
-    *   Itera sobre los módulos en `routes/` y registra cada Blueprint con su prefijo URL específico:
-        *   `/api/auth`: Rutas de Login y Registro.
-        *   `/webhooks`: Receptores de eventos externos (WhatsApp, Stripe).
-        *   `/api/admin`: Endpoints para el Panel de Control Administrativo.
-        *   `/api/contacts`: Identidad unificada y gestión de contactos 360.
-*   **Manejadores de Errores Globales**:
-    *   `@app.errorhandler(404)`: Captura recursos no encontrados y retorna JSON estandarizado `{"error": "Resource not found"}`.
-    *   `@app.errorhandler(500)`: Captura excepciones no controladas, loguea el stacktrace completo y retorna JSON `{"error": "Internal Server Error"}`.
-    *   `@jwt.expired_token_loader`: Retorna 401 con mensaje específico cuando el token ha caducado.
+    *   Instancia `FastAPI()` que actúa como el gateway asíncrono principal.
+    *   Monta la aplicación Flask (`app.py`) como un `WSGIMiddleware` (`a2wsgi`) para manejar rutas heredadas.
+    *   **Extensiones y Middleware**:
+        *   `CORSMiddleware`: Habilita peticiones Cross-Origin permitidas.
+        *   `SessionLocal`: Configura el pool de conexiones de SQLAlchemy compartido.
+*   **Webhooks Asíncronos**:
+    *   `POST /webhooks/whatsapp`: Maneja la recepción de mensajes de forma asíncrona, guardando el registro inicial y despachando a Celery inmediatamente.
+*   **Health Checks**:
+    *   Implementa endpoints `/health` y `/api/health` para monitoreo de conectividad de DB y Celery.
 
-### 2.2 [config.py](file:///Users/jonnathan/Desktop/EnpiAI/backend/config.py)
+### 2.2 [app.py](file:///root/enpiai/backend/app.py)
+**Propósito**: Fábrica de la Aplicación Flask (Legacy logic).
+*   **Inicialización**:
+    *   Configura extensiones como `db.init_app`, `jwt.init_app`, `migrate.init_app`.
+    *   Registra Blueprints para rutas de Auth, CRM, Wellness, etc.
+
+### 2.3 [config.py](file:///root/enpiai/backend/config.py)
 **Propósito**: Gestión Centralizada de Configuración.
 *   **Clase `Config`**:
-    *   **Base de Datos Resiliente**:
-        *   `SQLALCHEMY_DATABASE_URI`: Prioriza MySQL remoto (`mysql+pymysql://...`), con fallback a SQLite local para desarrollo.
-        *   `SQLALCHEMY_ENGINE_OPTIONS`:
-            *   `pool_recycle`: 280 segundos. (Reinicia conexiones antes del timeout de 300s de MySQL por defecto).
-            *   `pool_pre_ping`: True. (Verifica si la conexión está viva antes de usarla, eliminado errores "Gone Away").
-    *   **Seguridad y Cifrado**:
-        *   `SECRET_KEY`: Semilla criptográfica para firma de cookies de sesión.
-        *   `JWT_SECRET_KEY`: Semilla para firma y verificación de tokens JWT.
-        *   `ENCRYPTION_KEY`: Clave maestra Fernet (AES-128) para la capa de Soberanía de Datos (cifrado de columnas PII).
-    *   **Integraciones IA**:
-        *   `OPENAI_API_KEY`: Motor principal (GPT-4o).
-        *   `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`: Motores de respaldo (Failover strategy).
-        *   `PINECONE_API_KEY`: Base de datos vectorial para RAG.
     *   **Infraestructura Asíncrona**:
-        *   `CELERY_BROKER_URL`: URL de conexión a Redis (canal de comunicación Broker).
-        *   `CELERY_RESULT_BACKEND`: URL de conexión a Redis (almacenamiento de resultados).
+        *   `CELERY_BROKER_URL`: Redis en el puerto **6381** (EnpiAI instance).
+        *   `CELERY_RESULT_BACKEND`: Redis en el puerto **6381**.
+    *   **Base de Datos Resiliente**:
+        *   `pool_recycle`: 300 segundos.
+        *   `pool_pre_ping`: True.
 
 ### 2.3 [celery_app.py](file:///Users/jonnathan/Desktop/EnpiAI/backend/celery_app.py)
 **Propósito**: Worker Instance de Celery.
@@ -185,7 +172,7 @@ graph TD
 *   **Patrón de Estrategia**:
     *   Interfaz unificada `generate_response(messages, tools)`.
 *   **Failover Cascade**:
-    *   Intento 1: OpenAI (GPT-4o).
+    *   Intento 1: OpenAI (gpt-5-nano).
     *   Exception: Captura timeout o error 5xx de OpenAI.
     *   Intento 2: Anthropic (Claude 3.5 Sonnet).
     *   Exception: Captura error.
@@ -299,13 +286,13 @@ graph TD
 ## 8. 📋 Deployment & Operations
 
 ### 8.1 Requisitos de Producción
-*   **Python**: 3.9+
+*   **Python**: 3.12+
 *   **Base de Datos**: MySQL 8.0 (con soporte JSON y UTF8MB4).
-*   **Cache/Broker**: Redis 6+ (Persistencia recomendada).
+*   **Cache/Broker**: Redis 6+ (Puerto 6381).
 *   **Vector DB**: Pinecone Serverless.
 
 ### 8.2 Comandos de Gestión
-*   **Iniciar API**: `gunicorn -w 4 -b 0.0.0.0:5000 app:app`
+*   **Iniciar Unified Gateway**: `uvicorn fastapi_app:app --host 0.0.0.0 --port 5000`
 *   **Iniciar Worker**: `celery -A celery_app.celery worker --loglevel=info`
 *   **Migrar DB**: `flask db upgrade`
 *   **Verificar Schema**: `python3 verify_schema.py`
@@ -315,7 +302,7 @@ graph TD
 FLASK_APP=app.py
 FLASK_ENV=production
 DATABASE_URL=mysql+pymysql://user:pass@host/db
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://localhost:6381/0
 OPENAI_API_KEY=sk-...
 ENCRYPTION_KEY=... (Generar con Fernet.generate_key())
 ```

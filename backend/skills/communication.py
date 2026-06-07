@@ -23,8 +23,26 @@ class CommunicationSkill(BaseSkill):
                 func=self.send_email,
                 name="send_email",
                 description="Send an email to a user."
+            ),
+            StructuredTool.from_function(
+                func=self.send_whatsapp_message,
+                name="send_whatsapp_message",
+                description="[DISTRIBUTOR ONLY] Send a WhatsApp message to a specific phone number."
             )
         ]
+
+    def send_whatsapp_message(self, phone: str, message: str) -> str:
+        distributor = getattr(g, 'current_company', None)
+        if not distributor:
+            return "Error: context missing"
+            
+        from services.messaging_service import messaging_service
+        success = messaging_service.send_whatsapp(phone, message, distributor.id)
+        
+        if success:
+            return f"WhatsApp message sent successfully to {phone}."
+        else:
+            return f"Failed to send WhatsApp message to {phone}."
 
     def send_email(self, to_email: str, subject: str, content: str) -> str:
         distributor = getattr(g, 'current_company', None)
@@ -38,4 +56,8 @@ class CommunicationSkill(BaseSkill):
             return "Failed to send email. Detailed logs checked."
 
     def get_system_prompt_addition(self) -> str:
-        return "Use 'send_email' to send summaries, receipts, or requested information."
+        return (
+            "Use 'send_email' to send summaries, receipts, or requested information. "
+            "Use 'send_whatsapp_message' when the distributor asks you to send a specific "
+            "WhatsApp message to a lead or customer's phone number."
+        )

@@ -17,21 +17,21 @@ Este documento sirve como manual técnico y guía de desarrollo para el proyecto
 
 ## 2. Arquitectura del Sistema
 
-La plataforma se construye sobre una arquitectura de microservicios, con un backend principal en Python (Flask) y un servicio dedicado en Node.js para la integración con WhatsApp. Esta separación permite un desarrollo y escalado más flexible y robusto.
+La plataforma se construye sobre una arquitectura de microservicios, con un **Unified Gateway en FastAPI** que integra lógica de Flask y un servicio dedicado en Node.js para WhatsApp.
 
 ### 2.1. Diagrama de Arquitectura de Alto Nivel
 
 ```
 +---------------------+      +---------------------+      +---------------------+
-|      Frontend       |----->|       Backend       |<---->|     Base de Datos     |
-| (React/Vue/Angular) |      |    (Python/Flask)   |      |       (MySQL)       |
+|      Frontend       |----->|   Unified Gateway   |<---->|     Base de Datos     |
+| (Next.js 16/React 19)|      | (FastAPI + Flask)   |      |       (MySQL)       |
 +---------------------+      +---------------------+      +---------------------+
                                      ^
                                      |
                                      v
 +---------------------+      +---------------------+      +---------------------+
 |     Integraciones   |----->|   Agentes de IA     |<---->|    Vector DB        |
-| (Google, Mail, etc) |      | (Orquestador/RAG)   |      |      (Pinecone)     |
+| (Google, Mail, etc) |      | (LangGraph/Celery)  |      |      (Pinecone)     |
 +---------------------+      +---------------------+      +---------------------+
                                      ^
                                      |
@@ -44,48 +44,40 @@ La plataforma se construye sobre una arquitectura de microservicios, con un back
 
 ### 2.2. Componentes Principales
 
-*   **Frontend:** Una aplicación de una sola página (SPA) construida con un framework moderno como React, Vue o Angular, que se comunica con el backend a través de una API REST.
-*   **Backend (Python/Flask):** El núcleo de la aplicación. Gestiona la lógica de negocio, la autenticación, el acceso a la base de datos y la orquestación de los agentes de IA.
-*   **API WhatsApp (Node.js):** Un servicio independiente que gestiona la conexión con la API de WhatsApp, permitiendo un sistema multi-tenant para que cada distribuidor pueda conectar su propio número.
-*   **Base de Datos Relacional (MySQL):** Almacena todos los datos de la aplicación, incluyendo usuarios, clientes, prospectos, configuraciones, etc.
-*   **Base de Datos Vectorial (Pinecone):** Se utiliza para la memoria a largo plazo de los agentes de IA (RAG), almacenando documentos, conversaciones y otra información relevante.
-*   **Agentes de IA:** Un sistema multi-agente que gestiona las interacciones con clientes y distribuidores, utilizando un orquestador para gestionar el estado y las habilidades de cada agente.
+*   **Frontend:** Aplicación moderna construida con **Next.js 16** y **React 19**, utilizando App Router para optimización y Server Actions para interactividad.
+*   **Unified Gateway (FastAPI):** El punto de entrada principal. Maneja webhooks asíncronos y expone APIs de alto rendimiento, mientras mantiene compatibilidad con la lógica de negocio heredada de Flask vía WSGI.
+*   **API WhatsApp (Node.js):** Microservicio basado en Baileys para gestión multi-tenant de sesiones de WhatsApp.
+*   **Base de Datos Relacional (MySQL):** Almacenamiento persistente con soporte para encriptación a nivel de aplicación (Sovereign SQL Layer).
+*   **Base de Datos Vectorial (Pinecone):** Memoria semántica aislada por tenant (`namespace=dist_ID`).
+*   **Agentes de IA:** Orquestación basada en **LangGraph** con ejecución asíncrona mediante **Celery** y **Redis**.
 
 ## 3. Pila Tecnológica (Tech Stack)
 
-*   **Backend:** Python 3.10+, Flask 3.0
-*   **Frontend:** A definir (React, Angular o Vue.js)
-*   **Base de Datos:** MySQL
+*   **Backend:** Python 3.12+, FastAPI, Flask 3.0
+*   **Frontend:** Next.js 16, React 19, Tailwind CSS v4, Shadcn UI
+*   **Base de Datos:** MySQL 8.0
 *   **ORM:** SQLAlchemy
 *   **Base de Datos Vectorial:** Pinecone
-*   **Servicio de WhatsApp:** Node.js 18+
-*   **Autenticación:** JWT (JSON Web Tokens) y Google OAuth
-*   **Integraciones:**
-    *   Google Calendar API
-    *   Google Gmail API (o SMTP genérico)
-    *   Python Telegram Bot
-*   **Despliegue:** Docker, Gunicorn, Nginx
+*   **Servicio de WhatsApp:** Node.js 20+ (Baileys)
+*   **Autenticación:** JWT y Google OAuth
+*   **Gestión de Tareas:** Celery + Redis (Puerto 6381)
+*   **Despliegue:** PM2, Nginx, Docker
 
 ## 4. Estructura del Proyecto
-
-La estructura del proyecto seguirá las convenciones estándar de las aplicaciones Flask, utilizando "Blueprints" para modularizar la aplicación.
 
 ```
 /
 ├── api-whatsapp/          # Servicio de WhatsApp (Node.js)
-├── backend/               # Aplicación principal de Flask
-│   ├── app/               # Lógica de la aplicación
-│   │   ├── __init__.py    # Fábrica de la aplicación
-│   │   ├── routes/        # Blueprints de las rutas
-│   │   ├── models/        # Modelos de la base de datos
-│   │   ├── services/      # Lógica de negocio y servicios
-│   │   └── static/        # Archivos estáticos
-│   ├── migrations/        # Migraciones de la base de datos
-│   ├── tests/             # Pruebas unitarias y de integración
-│   ├── .env.example       # Archivo de ejemplo para variables de entorno
-│   ├── config.py          # Clases de configuración
-│   └── requirements.txt   # Dependencias de Python
-├── docs/                  # Documentación del proyecto
+├── backend/               # Aplicación principal (Unified Gateway)
+│   ├── fastapi_app.py     # Entry Point FastAPI
+│   ├── app.py             # App Factory Flask
+│   ├── routes/            # Blueprints y Rutas
+│   ├── models/            # Modelos con Encriptación PII
+│   ├── services/          # Orquestación LangGraph y Lógica
+│   ├── skills/            # Herramientas modulares de los agentes
+│   ├── tasks.py           # Tareas de Celery
+│   └── requirements.txt   # Dependencias
+├── frontend/              # Aplicación Next.js 16
 └── README.md              # README principal
 ```
 

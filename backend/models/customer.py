@@ -92,7 +92,7 @@ def before_insert_customer(mapper, connection, target):
     if target.email:
         target.email_hash = Lead.generate_hash(target.email)
     if target.phone:
-        target.phone_hash = Lead.generate_hash(target.phone)
+        target.phone_hash = Lead.generate_phone_hash(target.phone)
 
 
 @db.event.listens_for(Customer, 'before_update')
@@ -106,4 +106,4 @@ def before_update_customer(mapper, connection, target):
     if hist_email.has_changes():
         target.email_hash = Lead.generate_hash(target.email)
     if hist_phone.has_changes():
-        target.phone_hash = Lead.generate_hash(target.phone)
+        target.phone_hash = Lead.generate_phone_hash(target.phone)

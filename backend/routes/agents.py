@@ -11,7 +11,7 @@ from extensions import db
 from models.user import User
 from models.agent_config import AgentConfig, AgentFeature, DEFAULT_FEATURES
 from models.distributor import Distributor
-from models.conversation import Conversation
+from models.conversation import Conversation, ConversationChannel, ConversationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -230,16 +230,16 @@ def playground_chat():
         conversation = Conversation.query.filter_by(
             distributor_id=distributor.id,
             participant_id=user_identifier,
-            channel='playground',
-            status='active'
+            channel=ConversationChannel.PLAYGROUND,
+            status=ConversationStatus.ACTIVE
         ).first()
 
         if not conversation:
             conversation = Conversation(
                 distributor_id=distributor.id,
                 participant_id=user_identifier,
-                channel='playground',
-                status='active',
+                channel=ConversationChannel.PLAYGROUND,
+                status=ConversationStatus.ACTIVE,
                 participant_name=user.name or user.email
             )
             db.session.add(conversation)

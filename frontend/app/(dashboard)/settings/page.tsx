@@ -26,6 +26,7 @@ interface DistributorSettings {
     language: string;
     email: string | null;
     phone: string | null;
+    whatsapp_phone: string | null;
     website: string | null;
     instagram: string | null;
     facebook: string | null;
@@ -211,6 +212,18 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
+                                <Label htmlFor="whatsapp_phone">{t('settings.whatsappPhone')}</Label>
+                                <Input
+                                    id="whatsapp_phone"
+                                    value={formData.whatsapp_phone || ''}
+                                    onChange={(e) => handleChange('whatsapp_phone', e.target.value)}
+                                    placeholder="+1234567890"
+                                />
+                                <p className="text-[10px] text-muted-foreground">
+                                    {t('settings.whatsappPhoneHelp')}
+                                </p>
+                            </div>
+                            <div className="space-y-2">
                                 <Label htmlFor="personal_story">{t('settings.personalStory')}</Label>
                                 <Input
                                     id="personal_story"
@@ -249,6 +262,28 @@ export default function SettingsPage() {
                                     onChange={(e) => handleChange('herbalife_id', e.target.value)}
                                     placeholder="Your Herbalife member ID"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="herbalife_level">Nivel de Distribuidor</Label>
+                                <select
+                                    id="herbalife_level"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    value={formData.herbalife_level || 'Distribuidor Independiente'}
+                                    onChange={(e) => handleChange('herbalife_level', e.target.value)}
+                                >
+                                    <option value="Distribuidor Independiente">Distribuidor Independiente</option>
+                                    <option value="Consultor Mayor">Consultor Mayor</option>
+                                    <option value="Constructor del Éxito">Constructor del Éxito</option>
+                                    <option value="Productor Calificado">Productor Calificado</option>
+                                    <option value="Supervisor">Supervisor / Mayorista</option>
+                                    <option value="Equipo del Mundo">Equipo del Mundo</option>
+                                    <option value="Equipo del Mundo Activo">Equipo del Mundo Activo</option>
+                                    <option value="GET">Equipo de Expansión Global (GET)</option>
+                                    <option value="Equipo de Millonarios">Equipo de Millonarios</option>
+                                    <option value="Equipo del Presidente">Equipo del Presidente</option>
+                                    <option value="Club del Chairman">Club del Chairman</option>
+                                    <option value="Círculo del Fundador">Círculo del Fundador</option>
+                                </select>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="website">{t('settings.website')}</Label>

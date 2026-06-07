@@ -30,7 +30,7 @@ webhooks_bp = Blueprint('webhooks', __name__)
 # Celery Tasks for async processing
 # ---------------------------------------------------------------------------
 
-def _process_message_async(distributor_id, conversation_id, message_text, channel, sender_phone=None, chat_id=None):
+def _process_message_async(distributor_id, conversation_id, message_text, channel, sender_phone=None, chat_id=None, is_audio=False):
     """
     Dispatch AI processing to Celery. Falls back to sync if Celery is unavailable.
     """
@@ -42,22 +42,24 @@ def _process_message_async(distributor_id, conversation_id, message_text, channe
             message_text=message_text,
             channel=channel,
             sender_phone=sender_phone,
-            chat_id=chat_id
+            chat_id=chat_id,
+            is_audio=is_audio
         )
         logger.info(f"Webhook message dispatched to Celery (conv={conversation_id})")
         return True
     except Exception as e:
         logger.warning(f"Celery dispatch failed ({e}), processing synchronously")
-        return _process_message_sync(distributor_id, conversation_id, message_text, channel, sender_phone, chat_id)
+        return _process_message_sync(distributor_id, conversation_id, message_text, channel, sender_phone, chat_id, is_audio)
 
 
-def _process_message_sync(distributor_id, conversation_id, message_text, channel, sender_phone=None, chat_id=None):
+def _process_message_sync(distributor_id, conversation_id, message_text, channel, sender_phone=None, chat_id=None, is_audio=False):
     """
     Synchronous fallback when Celery is unavailable.
     """
     try:
         from models.distributor import Distributor
         from services.agent_orchestrator import get_agent_orchestrator
+        import os
 
         distributor = Distributor.query.get(distributor_id)
         conversation = Conversation.query.get(conversation_id)
@@ -93,6 +95,34 @@ def _process_message_sync(distributor_id, conversation_id, message_text, channel
                     message=ai_reply_text,
                     distributor_id=distributor_id
                 )
+
+                if is_audio:
+                    try:
+                        import uuid
+                        import re
+                        from services.voice_service import VoiceService
+                        from flask import current_app
+
+                        voice_name = VoiceService.resolve_voice(distributor)
+                        filename = f"reply_{uuid.uuid4().hex}.mp3"
+                        voice_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'voice')
+                        os.makedirs(voice_dir, exist_ok=True)
+                        output_path = os.path.join(voice_dir, filename)
+
+                        clean_text = re.sub(r'[*_`#~-]', '', ai_reply_text)
+                        if VoiceService.synthesize(clean_text, voice_name, output_path):
+                            api_base = current_app.config.get('API_BASE_URL', 'http://localhost:5000')
+                            media_url = f"{api_base}/api/voice/file/{filename}"
+                            messaging_service.send_whatsapp_media(
+                                to_phone=sender_phone,
+                                media_url=media_url,
+                                media_type="audio",
+                                distributor_id=distributor_id,
+                                file_name=filename
+                            )
+                    except Exception as voice_err:
+                        logger.error(f"Sync fallback audio synthesis/dispatch failed: {voice_err}")
+
             elif channel == 'telegram' and chat_id:
                 messaging_service.send_telegram(
                     chat_id=chat_id,
@@ -129,6 +159,26 @@ def whatsapp_webhook():
         sender_phone = data.get('from', '').strip()
         sender_name = data.get('fromName', '')
         message_text = data.get('message', '')
+        attachment = data.get('attachment')
+
+        is_audio = False
+        if attachment and attachment.get('type') == 'audio' and attachment.get('local_path'):
+            from services.voice_service import VoiceService
+            audio_path = attachment.get('local_path')
+            logger.info(f"Transcribing incoming WhatsApp audio: {audio_path}")
+            transcription = VoiceService.transcribe(audio_path)
+            if transcription:
+                message_text = transcription
+                is_audio = True
+                logger.info(f"Audio transcribed successfully: '{message_text}'")
+                # Remove temporary audio file
+                try:
+                    import os
+                    os.remove(audio_path)
+                except Exception as ex:
+                    logger.warning(f"Could not remove temporary audio file: {ex}")
+            else:
+                message_text = "[Audio no transcribible]"
 
         if not distributor_id or not sender_phone or not message_text:
             return jsonify({'error': 'companyId, from, and message are required'}), 400
@@ -159,21 +209,46 @@ def whatsapp_webhook():
             db.session.add(conversation)
             db.session.flush()
 
-        # 3. Handle Lead Assignment (Agent-Driven)
-        # Webhooks no longer auto-create Leads. They map to existing Leads if available.
-        # Otherwise, the Conversation stays anonymous until the Agent captures the Lead.
-        lead = Lead.query.filter_by(distributor_id=distributor_id, phone=sender_phone).first()
-        if lead and not conversation.lead_id:
+        # 3. Handle Lead Assignment (Auto-Create/Map Leads)
+        phone_hash = Lead.generate_phone_hash(sender_phone)
+        lead = Lead.query.filter_by(distributor_id=distributor_id, phone_hash=phone_hash).first()
+        
+        if not lead:
+            lead_name = sender_name.strip() if sender_name else "Contacto WhatsApp"
+            lead = Lead(
+                distributor_id=distributor_id,
+                first_name=lead_name,
+                phone=sender_phone,
+                source=LeadSource.WHATSAPP,
+                is_ai_active=True
+            )
+            db.session.add(lead)
+            db.session.flush()
+            logger.info(f"Auto-created lead for WhatsApp participant {sender_phone} as '{lead_name}'")
+
+        if not conversation.lead_id:
             conversation.lead_id = lead.id
 
+        # --- PHASE 9: AUTO-FOLLOWUP CANCELATION ---
+        try:
+            from services.cron_service import CronService
+            CronService.cancel_conversation_tasks(conversation.id, action='auto_followup')
+        except Exception as cron_err:
+            logger.warning(f"Failed to cancel pending follow-ups: {cron_err}")
+
         # 4. Save User Message (synchronous — fast DB write)
+        # If it's a system message (like a call), we can flag it in metadata
+        is_system = data.get('isSystemMessage', False)
+        
         user_msg = Message(
             conversation_id=conversation.id,
             role=MessageRole.USER,
             content=message_text,
             message_metadata={
                 'messageId': data.get('messageId'),
-                'timestamp': data.get('timestamp')
+                'timestamp': data.get('timestamp'),
+                'is_system': is_system,
+                'system_type': data.get('metadata', {}).get('type') if is_system else None
             }
         )
         db.session.add(user_msg)
@@ -186,7 +261,8 @@ def whatsapp_webhook():
             conversation_id=conversation.id,
             message_text=message_text,
             channel='whatsapp',
-            sender_phone=sender_phone
+            sender_phone=sender_phone,
+            is_audio=is_audio
         )
 
         # 6. Return immediately — don't block the webhook caller
@@ -258,16 +334,26 @@ def telegram_webhook():
             )
             db.session.add(conversation)
             
-            # Map existing Lead if possible, else leave anonymous
+            # Map existing Lead if possible, else auto-create
             lead = Lead.query.filter_by(
                 distributor_id=distributor_id, 
                 first_name=sender_first, 
                 last_name=sender_last
             ).first()
-            if lead:
-                conversation.lead_id = lead.id
-                
-            db.session.flush()
+            if not lead:
+                lead_name = sender_first.strip() if sender_first else "Contacto Telegram"
+                lead = Lead(
+                    distributor_id=distributor_id,
+                    first_name=lead_name,
+                    last_name=sender_last,
+                    source=LeadSource.TELEGRAM,
+                    is_ai_active=True
+                )
+                db.session.add(lead)
+                db.session.flush()
+                logger.info(f"Auto-created lead for Telegram participant {chat_id} as '{lead_name}'")
+            
+            conversation.lead_id = lead.id
 
         # 3. Save User Message (synchronous — fast DB write)
         user_msg = Message(

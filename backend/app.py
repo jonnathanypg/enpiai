@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_app(config_class=None):
+def create_app(config_class=None, start_services=False):
     """Application factory pattern"""
     app = Flask(__name__)
 
@@ -59,6 +59,7 @@ def create_app(config_class=None):
     from routes.channels import channels_bp
     from routes.webhooks import webhooks_bp
     from routes.dashboard import dashboard_bp
+    from routes.coach import coach_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(distributors_bp, url_prefix='/api/distributors')
@@ -69,6 +70,7 @@ def create_app(config_class=None):
     app.register_blueprint(channels_bp, url_prefix='/api/channels')
     app.register_blueprint(webhooks_bp, url_prefix='/webhooks')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+    app.register_blueprint(coach_bp, url_prefix='/api/coach')
 
     from routes.google_auth import google_auth_bp
     app.register_blueprint(google_auth_bp, url_prefix='/api/auth/google')
@@ -93,6 +95,54 @@ def create_app(config_class=None):
     # Phase 12: Unified Identity
     from routes.contacts import contacts_bp
     app.register_blueprint(contacts_bp, url_prefix='/api/contacts')
+
+    # -------------------------------------------------------------------
+    # Proactive Initialization & Background Workers (Conditional)
+    # -------------------------------------------------------------------
+    if start_services:
+        with app.app_context():
+            try:
+                from services.cron_service import CronService, ScheduledTask
+                from models.distributor import Distributor
+                from datetime import datetime, time, timedelta
+                import pytz
+
+                db.session.rollback()
+                distributors = Distributor.query.all()
+                for dist in distributors:
+                    # Check if a daily_summary is already pending
+                    exists = ScheduledTask.query.filter_by(
+                        distributor_id=dist.id, 
+                        action='daily_summary', 
+                        status='pending'
+                    ).first()
+                    
+                    if not exists:
+                        # Use distributor's timezone
+                        tz = pytz.timezone(dist.timezone or 'America/Guayaquil')
+                        now_tz = datetime.now(tz)
+                        
+                        # Schedule for the next 8:00 AM local time
+                        scheduled_time_tz = now_tz.replace(hour=8, minute=0, second=0, microsecond=0)
+                        if scheduled_time_tz <= now_tz:
+                            scheduled_time_tz += timedelta(days=1)
+                        
+                        # Convert to UTC for storage
+                        scheduled_time_utc = scheduled_time_tz.astimezone(pytz.utc).replace(tzinfo=None)
+                        
+                        CronService.schedule_followup(
+                            distributor_id=dist.id,
+                            message="Morning Summary Initialization",
+                            scheduled_at=scheduled_time_utc,
+                            action='daily_summary'
+                        )
+                        logger.info(f"Initialized proactive morning summary for {dist.name}")
+                
+                # Start Background Cron Worker
+                cron = CronService.get_instance()
+                cron.start_worker(app)
+            except Exception as e:
+                logger.warning(f"Services initialization failed: {e}")
 
 
     # -------------------------------------------------------------------
@@ -139,8 +189,10 @@ def create_app(config_class=None):
     return app
 
 
-# Create app instance
-app = create_app()
+# Create app instance (services disabled by default for safety in multi-worker environments)
+app = create_app(start_services=os.getenv('FLASK_ENV') == 'development')
 
 if __name__ == '__main__':
+    # Start services when running directly
+    app = create_app(start_services=True)
     app.run(debug=True, host='0.0.0.0', port=5000)

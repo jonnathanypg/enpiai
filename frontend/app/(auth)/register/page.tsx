@@ -32,6 +32,7 @@ const registerSchema = z.object({
     distributor_name: z.string().min(2, 'Business name is required'),
     country: z.string().optional(),
     language: z.string().optional(),
+    herbalife_level: z.string().optional(),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -198,6 +199,28 @@ export default function RegisterPage() {
                             <option value="en">English</option>
                             <option value="es">Español</option>
                             <option value="pt">Português</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="herbalife_level">Nivel de Distribuidor Inicial</Label>
+                        <select
+                            id="herbalife_level"
+                            {...register('herbalife_level')}
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            disabled={isLoading}
+                        >
+                            <option value="Distribuidor Independiente">Distribuidor Independiente</option>
+                            <option value="Consultor Mayor">Consultor Mayor</option>
+                            <option value="Constructor del Éxito">Constructor del Éxito</option>
+                            <option value="Productor Calificado">Productor Calificado</option>
+                            <option value="Supervisor">Supervisor / Mayorista</option>
+                            <option value="Equipo del Mundo">Equipo del Mundo</option>
+                            <option value="Equipo del Mundo Activo">Equipo del Mundo Activo</option>
+                            <option value="GET">Equipo de Expansión Global (GET)</option>
+                            <option value="Equipo de Millonarios">Equipo de Millonarios</option>
+                            <option value="Equipo del Presidente">Equipo del Presidente</option>
+                            <option value="Club del Chairman">Club del Chairman</option>
+                            <option value="Círculo del Fundador">Círculo del Fundador</option>
                         </select>
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading}>

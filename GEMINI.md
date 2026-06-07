@@ -38,6 +38,27 @@ To prevent "MySQL has gone away" errors and stale transactions:
         config = db.Column(EncryptedJSON)        # Mandatory for secrets
     ```
 
+### 4. Frontend Stability & Server Actions
+- **Rule**: Every production deployment **MUST** have a persistent `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` in the `.env` file.
+- **Reason**: To prevent "Failed to find Server Action" errors after container/process restarts.
+
+### 5. VPS Deployment & Port Management
+- **Rule**: Each project instance (EnpiAI, Pymai) on the same VPS MUST use its dedicated port range to avoid collisions.
+- **Port Mapping (EnpiAI)**:
+    - Frontend: `3000`
+    - API (FastAPI): `5000`
+    - WhatsApp Microservice: `3001`
+    - Redis: `6381`
+- **Port Mapping (Pymai)**:
+    - Frontend: `3010`
+    - API (FastAPI): `5010`
+    - WhatsApp Microservice: `3011`
+    - Redis: `6380`
+
+### 6. Messaging & Humanized Delivery
+- **Rule**: Long AI responses MUST be split into multiple parts (max 400 chars per part) with a ~1.5s delay to simulate human typing.
+- **Rule**: Agents should prioritize sending the Wellness Evaluation link early in the conversation to capture data.
+
 ---
 
 ## 🛠 Technical Architecture (The "Stack")
@@ -74,7 +95,7 @@ To prevent "MySQL has gone away" errors and stale transactions:
 | **Scheduling** | 🟢 Ready | Google Calendar (Consensual) |
 | **Payments** | 🟡 Testing | dLocal integration for subscriptions |
 | **CRM** | 🟢 Ready | Unified 360° Contact Profile + Timeline |
-| **WhatsApp** | 🟢 Ready | `api-whatsapp` local microservice (Multi-tenant) |
+| **WhatsApp** | 🟡 Unstable | Remote DB latency causing session drops |
 | **Telegram** | 🟢 Ready | `python-telegram-bot` integrated |
 | **Email** | 🟢 Ready | SMTP + SendGrid support |
 

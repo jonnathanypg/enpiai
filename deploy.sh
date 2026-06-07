@@ -30,10 +30,11 @@ echo "📱 Preparing WhatsApp Gateway (api-whatsapp)..."
 cd api-whatsapp
 if [ ! -f ".env" ]; then
     echo "⚠️ Warning: api-whatsapp/.env not found. Creating a template..."
-    echo "MYSQL_HOST=localhost" > .env
-    echo "MYSQL_USER=root" >> .env
-    echo "MYSQL_PASSWORD=" >> .env
-    echo "MYSQL_DATABASE=enpiai" >> .env
+    echo "DB_HOST=localhost" > .env
+    echo "DB_USER=root" >> .env
+    echo "DB_PASSWORD=" >> .env
+    echo "DB_NAME=enpiai" >> .env
+    echo "DB_PORT=3306" >> .env
     echo "BACKEND_URL=http://localhost:5000" >> .env
     echo "PORT=3001" >> .env
     echo "❗️ IMPORTANT: Please edit api-whatsapp/.env with your real DB credentials before PM2 starts."

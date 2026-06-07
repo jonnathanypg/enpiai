@@ -17,7 +17,7 @@ def test_chat_completion():
     }
     
     payload = {
-        "model": "gpt-4o",
+        "model": "gpt-5-nano",
         "messages": [
             {"role": "user", "content": "Hola, ¿qué productos vendes?"}
         ],

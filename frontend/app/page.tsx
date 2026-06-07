@@ -21,19 +21,22 @@ import {
   Leaf,
 } from 'lucide-react';
 
+import { PlatformChatWidget } from '@/components/features/platform-chat-widget';
+
 export default function HomePage() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background relative">
+      <PlatformChatWidget />
       {/* ═══════════════════════════════════════════════
           NAVIGATION
       ═══════════════════════════════════════════════ */}
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 text-white text-sm font-bold shadow-md shadow-green-500/20">
-              E
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden shadow-md shadow-green-500/20">
+              <img src="/logo.png" alt="Enpi AI" className="w-full h-full object-cover" />
             </div>
             <span className="text-xl font-bold tracking-tight">
               Enpi<span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">AI</span>
@@ -435,8 +438,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-green-500 to-emerald-600 text-white text-xs font-bold">
-                E
+              <div className="flex h-6 w-6 items-center justify-center rounded-md overflow-hidden">
+                <img src="/logo.png" alt="Enpi AI" className="w-full h-full object-cover" />
               </div>
               <span className="text-sm font-semibold">
                 Enpi<span className="text-green-500">AI</span>

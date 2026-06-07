@@ -4,16 +4,16 @@
 El proyecto **EnpiAI** sigue una arquitectura moderna HTA (Hypermedia-Driven, Task-Queue, Agentic), dividida en microservicios independientes orquestados por PM2 en tu VPS:
 
 1. **Frontend (`enpiai-frontend` - Puerto 3000)**: Construido en Next.js (App Router). Maneja el dashboard multi-tenant, CRM (vista 360), y configuración de los Agentes.
-2. **Backend Core (`enpiai-backend` - Puerto 5000)**: Aplicación Flask que expone las APIs REST y los Webhooks.
+2. **Backend Gateway (`enpiai-fastapi` - Puerto 5000)**: Aplicación FastAPI que actúa como punto de entrada unificado, manejando webhooks asíncronos y delegando a Flask para rutas legacy.
 3. **Redis (`enpiai-redis` - Puerto 6381)**: Actúa como el broker de mensajes para Celery y como caché.
 4. **Worker AI (`enpiai-worker`)**: Un proceso de Celery que toma las tareas pesadas en segundo plano (consultas a GPT-5/OpenAI, LangGraph, generación de RAG, creación de PDFs).
 5. **Gateway de WhatsApp (`enpiai-whatsapp` - Puerto 3001)**: Un microservicio en Node.js que envuelve la librería Baileys. Mantiene las conexiones persistentes con WhatsApp Web, guarda las sesiones en MySQL, y envía webhooks al backend.
 
 ### ¿Cómo es el flujo de un mensaje en Producción?
 1. **Entrada:** Un cliente escribe a WhatsApp. `enpiai-whatsapp` detecta el mensaje usando Baileys (`messages.upsert`).
-2. **Notificación:** Node.js (via `ioc.ts`) toma el texto, detecta adjuntos y hace un **HTTP POST** a tu backend Flask (`/webhooks/whatsapp`).
-3. **Recepción Rápida:** Flask recibe el webhook, guarda el mensaje del usuario en MySQL (tabla `messages`), y **no bloquea el proceso**. Inmediatamente responde `200 OK` (Fire & Forget) y lanza una tarea asíncrona a Celery (`process_webhook_message.delay()`).
-4. **Procesamiento AI:** El `enpiai-worker` toma la tarea de Redis. Carga el `get_agent_orchestrator`, envía el contexto a OpenAI (LangGraph), recibe la respuesta, y guarda el mensaje generado en MySQL.
+2. **Notificación:** Node.js toma el texto, detecta adjuntos y hace un **HTTP POST** a tu backend FastAPI (`/webhooks/whatsapp`).
+3. **Recepción Rápida:** FastAPI recibe el webhook de forma asíncrona, guarda el mensaje del usuario en MySQL (tabla `messages`), e inmediatamente responde `200 OK` (Fire & Forget), lanzando la tarea de procesamiento a Celery (`process_webhook_message.send_task`).
+4. **Procesamiento AI:** El `enpiai-worker` toma la tarea de Redis. Carga el `AgentOrchestrator`, envía el contexto a OpenAI (LangGraph), recibe la respuesta, y guarda el mensaje generado en MySQL.
 5. **Salida:** Celery hace un **HTTP POST** hacia `enpiai-whatsapp` (Puerto 3001) para enviar el mensaje de vuelta al número del cliente. Node.js finalmente usa Baileys para entregar el mensaje en WhatsApp.
 
 ---

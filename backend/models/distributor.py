@@ -40,13 +40,14 @@ class Distributor(db.Model):
     agent_gender = db.Column(db.Enum(AgentGender), default=AgentGender.NEUTRAL)
     personality_prompt = db.Column(db.Text, nullable=True)
     custom_instructions = db.Column(db.Text, nullable=True)
+    preferred_voice = db.Column(db.String(100), nullable=True)
 
     # Localization
-    language = db.Column(db.String(5), default='en')  # en, es, fr, pt
+    # (Declared below in business info section)
 
     # LLM Configuration (Platform-managed — distributors do NOT provide their own keys)
     llm_provider = db.Column(db.String(50), default='openai')
-    llm_model = db.Column(db.String(100), default='gpt-4')
+    llm_model = db.Column(db.String(100), default='gpt-5-nano')
 
     # Platform API Keys (encrypted — Sovereign SQL Layer)
     api_keys = db.Column(EncryptedJSON, nullable=True)
@@ -85,6 +86,13 @@ class Distributor(db.Model):
 
     # Personal story (used by agent in conversations)
     personal_story = db.Column(db.Text, nullable=True)
+
+    # Coach Mode Configuration
+    coach_mode_enabled = db.Column(db.Boolean, default=False)
+    coach_music_preference = db.Column(db.String(50), default='spanish')
+    coach_level_progress = db.Column(db.Integer, default=0)
+    coach_daily_tasks_status = db.Column(db.JSON, nullable=True)
+    coach_last_research_advice = db.Column(db.Text, nullable=True)
 
     # Relationships
     users = db.relationship('User', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
@@ -150,6 +158,7 @@ class Distributor(db.Model):
             'agent_gender': self.agent_gender.value if self.agent_gender else 'neutral',
             'personality_prompt': self.personality_prompt,
             'custom_instructions': self.custom_instructions,
+            'preferred_voice': self.preferred_voice,
             'llm_provider': self.llm_provider,
             'llm_model': self.llm_model,
             'pinecone_index': self.pinecone_index,
@@ -172,6 +181,11 @@ class Distributor(db.Model):
             'whatsapp_phone': self.whatsapp_phone,
             'google_connected': self.google_credentials is not None and bool(self.google_credentials),
             'google_calendar_id': self.google_calendar_id,
+            'coach_mode_enabled': self.coach_mode_enabled,
+            'coach_music_preference': self.coach_music_preference,
+            'coach_level_progress': self.coach_level_progress,
+            'coach_daily_tasks_status': self.coach_daily_tasks_status,
+            'coach_last_research_advice': self.coach_last_research_advice,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

@@ -35,26 +35,13 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def extract_text_from_pdf(filepath):
-    text = ""
-    try:
-        with pdfplumber.open(filepath) as pdf:
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-    except Exception as e:
-        logger.error(f"PDF extraction error: {e}")
-    return text
-
-
 @rag_bp.route('', methods=['GET'])
 @jwt_required()
 def list_documents():
     """
     List RAG documents.
-    - Super Admin: lists global docs (distributor_id IS NULL)
-    - Distributor: lists their own docs
+    - Super Admin: lists global docs (distributor_id IS NULL) or specific distributor docs via header.
+    - Distributor: lists their own docs.
     """
     db.session.rollback()
 
@@ -63,16 +50,28 @@ def list_documents():
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
-        if user.role == UserRole.SUPER_ADMIN:
-            docs = Document.query.filter(
-                Document.distributor_id.is_(None)
-            ).order_by(Document.created_at.desc()).all()
-        else:
-            if not user.distributor_id:
-                return jsonify({'error': 'Distributor not found'}), 404
-            docs = Document.query.filter_by(
-                distributor_id=user.distributor_id
-            ).order_by(Document.created_at.desc()).all()
+        distributor_id = user.distributor_id
+        is_super_admin = user.role == UserRole.SUPER_ADMIN
+        
+        # Super Admin Override
+        if is_super_admin:
+            override_id = request.headers.get('X-Distributor-Id')
+            if override_id:
+                distributor_id = int(override_id)
+            else:
+                # Default Super Admin behavior: global docs
+                docs = Document.query.filter(
+                    Document.distributor_id.is_(None)
+                ).order_by(Document.created_at.desc()).all()
+                return jsonify({'data': [d.to_dict() for d in docs]}), 200
+
+        # Normal or Overridden flow
+        if not distributor_id:
+            return jsonify({'error': 'Distributor not found'}), 404
+            
+        docs = Document.query.filter_by(
+            distributor_id=distributor_id
+        ).order_by(Document.created_at.desc()).all()
 
         return jsonify({'data': [d.to_dict() for d in docs]}), 200
 
@@ -86,23 +85,27 @@ def list_documents():
 def upload_document():
     """
     Upload and process a document.
-    - Super Admin: saved as global doc (distributor_id=None, namespace="global")
-    - Distributor: saved under their own tenant
-    
-    IMPORTANT: Text extraction (especially PDF) can take 30+ seconds.
-    We MUST release the DB connection before extraction to prevent
-    'MySQL server has gone away' errors on remote databases.
+    - Super Admin: global doc or specific distributor doc via header.
+    - Distributor: saved under their own tenant.
     """
     db.session.rollback()
 
     try:
-        # ── Step 1: Authenticate & extract user info into Python primitives ──
+        import uuid
         user = _get_current_user()
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
         is_super_admin = user.role == UserRole.SUPER_ADMIN
-        distributor_id = None if is_super_admin else user.distributor_id
+        distributor_id = user.distributor_id
+        
+        # Super Admin Override
+        if is_super_admin:
+            override_id = request.headers.get('X-Distributor-Id')
+            if override_id:
+                distributor_id = int(override_id)
+            else:
+                distributor_id = None # Global doc
 
         if not is_super_admin and not distributor_id:
             return jsonify({'error': 'Distributor not found'}), 404
@@ -118,9 +121,12 @@ def upload_document():
         if not (file and allowed_file(file.filename)):
             return jsonify({'error': 'File type not allowed'}), 400
 
-        filename = secure_filename(file.filename)
-        file_ext = filename.rsplit('.', 1)[1].lower()
         original_filename = file.filename
+        file_ext = original_filename.rsplit('.', 1)[1].lower()
+        
+        # Generate unique filename to prevent overwrites
+        safe_name = secure_filename(original_filename)
+        filename = f"{uuid.uuid4().hex}_{safe_name}"
 
         # ── Step 3: Save file to disk ──
         folder_name = 'global' if is_super_admin else f'dist_{distributor_id}'
@@ -129,29 +135,7 @@ def upload_document():
         filepath = os.path.join(upload_dir, filename)
         file.save(filepath)
 
-        # ── Step 4: RELEASE the DB connection before the slow extraction ──
-        # This is critical: close the session so the connection returns to the pool.
-        # Without this, MySQL kills our idle connection during the 30+ second extraction.
-        db.session.remove()
-
-        # ── Step 5: Extract text (SLOW — no DB connection held) ──
-        text_content = ""
-        if file_ext == 'pdf':
-            text_content = extract_text_from_pdf(filepath)
-        elif file_ext in ['txt', 'md']:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                text_content = f.read()
-
-        if not text_content:
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            return jsonify({'error': 'Could not extract text from file'}), 400
-
-        # Chunking (Simple)
-        chunk_size = 1000
-        chunks = [text_content[i:i+chunk_size] for i in range(0, len(text_content), chunk_size)]
-
-        # ── Step 6: Get a FRESH DB connection (pool_pre_ping ensures it's alive) ──
+        # ── Step 4: Create Document Record (Unprocessed) ──
         doc = Document(
             distributor_id=distributor_id,
             filename=filename,
@@ -160,17 +144,19 @@ def upload_document():
             file_size=os.path.getsize(filepath),
             file_path=filepath,
             is_processed=False,
-            chunk_count=len(chunks)
+            chunk_count=0
         )
         db.session.add(doc)
         db.session.commit()
 
-        # ── Step 7: Dispatch to RAG Service (async via Celery) ──
-        rag_service.upsert_document_async(
-            text_chunks=chunks,
+        # ── Step 5: Dispatch to RAG Service (async via Celery) ──
+        # We pass the filepath instead of extracted chunks
+        from tasks import index_document_rag
+        index_document_rag.delay(
+            filepath=filepath,
             distributor_id=distributor_id,
             document_id=doc.id,
-            metadata={'filename': filename, 'type': file_ext}
+            metadata={'filename': original_filename, 'type': file_ext}
         )
 
         return jsonify({'data': doc.to_dict(), 'message': 'File uploaded and processing started'}), 202

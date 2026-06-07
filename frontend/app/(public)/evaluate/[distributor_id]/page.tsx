@@ -4,12 +4,18 @@ import { useState, use } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowRight, Loader2, Download, Share2, Mail, MessageCircle, Send } from 'lucide-react';
+import { ArrowRight, Loader2, Download, Share2, Mail, MessageCircle, Send, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery } from '@tanstack/react-query';
@@ -86,6 +92,32 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
     const [resultData, setResultData] = useState<any>(null);
+    const [isPolling, setIsPolling] = useState(false);
+
+    // ── Polling logic ─────────────────────────────────────────────────────
+    useEffect(() => {
+        let pollInterval: NodeJS.Timeout;
+
+        if (step === 6 && resultData && !resultData.diagnosis) {
+            setIsPolling(true);
+            pollInterval = setInterval(async () => {
+                try {
+                    const { data } = await apiClient.get(`/wellness/evaluate/results/${resultData.id}`);
+                    if (data.data.diagnosis) {
+                        setResultData(data.data);
+                        setIsPolling(false);
+                        clearInterval(pollInterval);
+                    }
+                } catch (err) {
+                    console.error('Polling error:', err);
+                }
+            }, 3000); // Poll every 3 seconds
+        }
+
+        return () => {
+            if (pollInterval) clearInterval(pollInterval);
+        };
+    }, [step, resultData?.id, resultData?.diagnosis]);
 
     // Fetch distributor public profile for language preference
     const { data: profile } = useQuery({
@@ -96,11 +128,14 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
         },
     });
 
+    const [hasInitializedLanguage, setHasInitializedLanguage] = useState(false);
+
     useEffect(() => {
-        if (profile?.language && i18n.language !== profile.language) {
+        if (profile?.language && !hasInitializedLanguage) {
             i18n.changeLanguage(profile.language);
+            setHasInitializedLanguage(true);
         }
-    }, [profile?.language, i18n]);
+    }, [profile?.language, hasInitializedLanguage, i18n]);
 
     const {
         register,
@@ -154,6 +189,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                 pulse: values.pulse ? Number(values.pulse) : undefined,
                 energy_level: values.energy_level ? Number(values.energy_level) : undefined,
                 symptoms: selectedSymptoms,
+                language: i18n.language,
             };
             const { data } = await apiClient.post(`/wellness/evaluate/${distributor_id}`, payload);
             setResultData(data.data);
@@ -184,7 +220,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                             <div className="grid grid-cols-2 gap-2 text-sm">
                                 <p><span className="font-medium">{t('wellnessForm.firstName')}:</span> {resultData.first_name || '—'}</p>
                                 <p><span className="font-medium">{t('wellnessForm.age')}:</span> {resultData.age}</p>
-                                <p><span className="font-medium">{t('wellnessForm.gender')}:</span> {resultData.gender}</p>
+                                <p><span className="font-medium">{t('wellnessForm.gender')}:</span> {t(`wellnessForm.${resultData.gender}`)}</p>
                                 <p><span className="font-medium">{t('wellnessForm.email')}:</span> {resultData.email || '—'}</p>
                             </div>
                         </section>
@@ -196,7 +232,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                 <p><span className="font-medium">{t('wellnessForm.weight')}:</span> {resultData.weight_kg} kg</p>
                                 <p><span className="font-medium">{t('wellnessForm.height')}:</span> {resultData.height_cm} cm</p>
                                 <p><span className="font-medium">{t('wellnessForm.bmi')}:</span> {resultData.bmi}</p>
-                                <p><span className="font-medium">{t('wellnessForm.bmiCategory')}:</span> {resultData.bmi_category}</p>
+                                <p><span className="font-medium">{t('wellnessForm.bmiCategory')}:</span> {t(`wellnessForm.bmi_${resultData.bmi_category}`)}</p>
                                 {resultData.blood_pressure && (
                                     <p><span className="font-medium">{t('wellnessForm.bloodPressure')}:</span> {resultData.blood_pressure}</p>
                                 )}
@@ -223,21 +259,35 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                             )}
                         </section>
 
-                        {/* AI Diagnosis */}
-                        <section className="bg-muted/50 rounded-lg p-4">
-                            <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.diagnosisTitle')}</h3>
-                            <p className="text-sm leading-relaxed">
-                                {resultData.diagnosis || t('wellnessForm.noDiagnosis')}
-                            </p>
-                        </section>
+                        {isPolling ? (
+                            <section className="bg-muted/30 rounded-lg p-8 text-center space-y-4 border-2 border-dashed">
+                                <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+                                <div className="space-y-1">
+                                    <h3 className="font-bold text-lg">{t('wellnessForm.analyzingTitle')}</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {t('wellnessForm.analyzingDesc')}
+                                    </p>
+                                </div>
+                            </section>
+                        ) : (
+                            <>
+                                {/* AI Diagnosis */}
+                                <section className="bg-muted/50 rounded-lg p-4">
+                                    <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.diagnosisTitle')}</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        {resultData.diagnosis || t('wellnessForm.noDiagnosis')}
+                                    </p>
+                                </section>
 
-                        {/* AI Recommendations */}
-                        <section className="bg-green-50 dark:bg-green-950/20 rounded-lg p-4">
-                            <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.recommendationsTitle')}</h3>
-                            <p className="text-sm leading-relaxed">
-                                {resultData.recommendations || t('wellnessForm.noRecommendations')}
-                            </p>
-                        </section>
+                                {/* AI Recommendations */}
+                                <section className="bg-green-50 dark:bg-green-950/20 rounded-lg p-4">
+                                    <h3 className="font-semibold text-lg mb-2">{t('wellnessForm.recommendationsTitle')}</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        {resultData.recommendations || t('wellnessForm.noRecommendations')}
+                                    </p>
+                                </section>
+                            </>
+                        )}
                     </CardContent>
                     
                     <CardFooter className="flex flex-col gap-6 pt-6 border-t">
@@ -247,7 +297,7 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                 {t('wellnessForm.startNew')}
                             </Button>
                             
-                            {resultData.pdf_url && (
+                            {!isPolling && resultData.pdf_url && (
                                 <Button 
                                     variant="secondary" 
                                     className="flex-1 min-w-[140px] bg-green-600 hover:bg-green-700 text-white border-none"
@@ -258,28 +308,40 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                             )}
                             
                             {/* Share Dropdown logic (simplified for public page) */}
-                            <div className="flex gap-2">
-                                <Button 
-                                    variant="outline" 
-                                    title={t('wellnessForm.shareViaWhatsApp')}
-                                    onClick={() => {
-                                        const text = encodeURIComponent(`¡Hola! Mira mi análisis de bienestar 🌿: ${resultData.pdf_url}`);
-                                        window.open(`https://wa.me/?text=${text}`, '_blank');
-                                    }}
-                                >
-                                    <MessageCircle className="h-4 w-4 text-green-500" />
-                                </Button>
-                                <Button 
-                                    variant="outline"
-                                    title={t('wellnessForm.shareViaTelegram')}
-                                    onClick={() => {
-                                        const text = encodeURIComponent(`🌿 Mi análisis de bienestar: ${resultData.pdf_url}`);
-                                        window.open(`https://t.me/share/url?url=${resultData.pdf_url}&text=${text}`, '_blank');
-                                    }}
-                                >
-                                    <Send className="h-4 w-4 text-blue-400" />
-                                </Button>
-                            </div>
+                            {!isPolling && resultData.pdf_url && (
+                                <div className="flex gap-2">
+                                    <Button 
+                                        variant="outline" 
+                                        title={t('wellnessForm.shareViaWhatsApp')}
+                                        onClick={() => {
+                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://enpi.click';
+                                            const absolutePdfUrl = resultData.pdf_url.startsWith('http') 
+                                                ? resultData.pdf_url 
+                                                : `${baseUrl}${resultData.pdf_url}`;
+                                            const shareMsg = t('wellnessForm.shareMessage', { defaultValue: '¡Hola! Mira mi análisis de bienestar 🌿:' });
+                                            const text = encodeURIComponent(`${shareMsg} ${absolutePdfUrl}`);
+                                            window.open(`https://wa.me/?text=${text}`, '_blank');
+                                        }}
+                                    >
+                                        <MessageCircle className="h-4 w-4 text-green-500" />
+                                    </Button>
+                                    <Button 
+                                        variant="outline"
+                                        title={t('wellnessForm.shareViaTelegram')}
+                                        onClick={() => {
+                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://enpi.click';
+                                            const absolutePdfUrl = resultData.pdf_url.startsWith('http') 
+                                                ? resultData.pdf_url 
+                                                : `${baseUrl}${resultData.pdf_url}`;
+                                            const shareMsg = t('wellnessForm.shareMessage', { defaultValue: '🌿 Mi análisis de bienestar:' });
+                                            const text = encodeURIComponent(`${shareMsg} ${absolutePdfUrl}`);
+                                            window.open(`https://t.me/share/url?url=${absolutePdfUrl}&text=${text}`, '_blank');
+                                        }}
+                                    >
+                                        <Send className="h-4 w-4 text-blue-400" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Referral Section */}
@@ -311,6 +373,29 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
 
     return (
         <div className="mx-auto flex max-w-lg flex-col px-4 py-8 md:py-12">
+            {/* Language Selector */}
+            <div className="flex justify-end mb-4">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 gap-2 text-muted-foreground hover:text-foreground">
+                            <Languages className="h-4 w-4" />
+                            <span className="text-xs font-medium uppercase">{i18n.language}</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => i18n.changeLanguage('es')}>
+                            {t('wellnessForm.spanish')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => i18n.changeLanguage('en')}>
+                            {t('wellnessForm.english')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => i18n.changeLanguage('pt')}>
+                            {t('wellnessForm.portuguese')}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
             {/* Progress */}
             <div className="mb-8 space-y-2">
                 <Progress value={progress} className="h-2" />
@@ -393,12 +478,18 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>{t('wellnessForm.bloodPressure')}</Label>
+                                    <Label className="flex items-center gap-2">
+                                        {t('wellnessForm.bloodPressure')}
+                                        <span className="text-[10px] font-normal text-muted-foreground uppercase">{t('wellnessForm.optional')}</span>
+                                    </Label>
                                     <Input {...register('blood_pressure')} placeholder={t('wellnessForm.bloodPressurePlaceholder')} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>{t('wellnessForm.pulse')}</Label>
+                                        <Label className="flex items-center gap-2">
+                                            {t('wellnessForm.pulse')}
+                                            <span className="text-[10px] font-normal text-muted-foreground uppercase">{t('wellnessForm.optional')}</span>
+                                        </Label>
                                         <Input type="number" {...register('pulse')} placeholder={t('wellnessForm.pulsePlaceholder')} />
                                     </div>
                                     <div className="space-y-2">

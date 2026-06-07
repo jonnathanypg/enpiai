@@ -74,20 +74,36 @@ def wellness_evaluation_link() -> str:
 # ==============================================================================
 
 @tool
-def lookup_customer(email: str) -> str:
+def lookup_customer(email: str = None, phone: str = None) -> str:
     """
-    Look up a customer or lead by email. 
-    Use this to verify identity before scheduling or payments.
+    Look up a customer or lead by email or phone. 
+    Use this to verify identity or check history.
     
     Args:
-        email: The user's email address.
+        email: (Optional) The user's email address.
+        phone: (Optional) The user's phone number.
     """
+    db.session.rollback()
     distributor = getattr(g, 'current_company', None)
     if not distributor:
         return "Error: context missing"
         
-    # Check Customer first
-    customer = Customer.query.filter_by(distributor_id=distributor.id, email=email).first()
+    if not email and not phone:
+        return "Error: either email or phone is required."
+
+    email_h = Lead.generate_hash(email) if email else None
+    phone_h = Lead.generate_phone_hash(phone) if phone else None
+    
+    # 1. Check Customer
+    query = Customer.query.filter(Customer.distributor_id == distributor.id)
+    if email_h and phone_h:
+        query = query.filter(db.or_(Customer.email_hash == email_h, Customer.phone_hash == phone_h))
+    elif email_h:
+        query = query.filter(Customer.email_hash == email_h)
+    else:
+        query = query.filter(Customer.phone_hash == phone_h)
+        
+    customer = query.first()
     if customer:
         return json.dumps({
             "status": "found",
@@ -96,8 +112,16 @@ def lookup_customer(email: str) -> str:
             "id": customer.id
         })
         
-    # Check Lead
-    lead = Lead.query.filter_by(distributor_id=distributor.id, email=email).first()
+    # 2. Check Lead
+    query = Lead.query.filter(Lead.distributor_id == distributor.id)
+    if email_h and phone_h:
+        query = query.filter(db.or_(Lead.email_hash == email_h, Lead.phone_hash == phone_h))
+    elif email_h:
+        query = query.filter(Lead.email_hash == email_h)
+    else:
+        query = query.filter(Lead.phone_hash == phone_h)
+        
+    lead = query.first()
     if lead:
         return json.dumps({
             "status": "found",
@@ -110,25 +134,34 @@ def lookup_customer(email: str) -> str:
 
 
 @tool
-def register_lead(first_name: str, last_name: str, email: str, phone: str = None) -> str:
+def register_lead(first_name: str, last_name: str, email: str = None, phone: str = None) -> str:
     """
-    Register a new prospect/lead in the system.
+    Register a new contact in the system.
     
     Args:
         first_name: Customer's first name
         last_name: Customer's last name
-        email: Customer's email
+        email: (Optional) Customer's email
         phone: (Optional) Customer's phone
     """
+    db.session.rollback()
     distributor = getattr(g, 'current_company', None)
     if not distributor:
         return "Error: context missing"
         
     try:
-        # Check if exists
-        existing = Lead.query.filter_by(distributor_id=distributor.id, email=email).first()
+        # Check if exists by hash
+        email_h = Lead.generate_hash(email) if email else None
+        phone_h = Lead.generate_phone_hash(phone) if phone else None
+        
+        existing = None
+        if email_h:
+            existing = Lead.query.filter_by(distributor_id=distributor.id, email_hash=email_h).first()
+        if not existing and phone_h:
+            existing = Lead.query.filter_by(distributor_id=distributor.id, phone_hash=phone_h).first()
+            
         if existing:
-            return f"Lead already exists with ID: {existing.id}"
+            return f"Contact already exists with ID: {existing.id}"
             
         new_lead = Lead(
             distributor_id=distributor.id,
@@ -137,7 +170,7 @@ def register_lead(first_name: str, last_name: str, email: str, phone: str = None
             email=email,
             phone=phone,
             status=LeadStatus.NEW,
-            source="agent_chat"
+            source=LeadSource.AGENT_CHAT
         )
         db.session.add(new_lead)
         db.session.commit()
@@ -216,6 +249,7 @@ def schedule_appointment(date: str, time: str, email: str, topic: str) -> str:
         email: User's email for invite
         topic: Reason for meeting
     """
+    db.session.rollback()
     distributor = getattr(g, 'current_company', None)
     if not distributor:
         return "Error: context missing"

@@ -228,6 +228,21 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
         }
       });
 
+      // Track message status updates (e.g., PENDING -> SENT -> DELIVERED)
+      socket.ev.on("messages.update", (updates: any) => {
+        for (const { key, update } of updates) {
+          if (update.status) {
+            console.log(`[${companyId}] Message status update: ID=${key.id}, Status=${update.status} (1=Pending, 2=Sent, 3=Delivered, 4=Read, 5=Played, 6=Error)`);
+          }
+        }
+      });
+
+      // Handle incoming calls (Audio/Video)
+      socket.ev.on("call", async (call: any) => {
+        console.log(`[${companyId}] Incoming call detected:`, JSON.stringify(call, null, 2));
+        this.emit("call", { companyId, call });
+      });
+
       return { status: "initializing", message: "Session started, scan QR code" };
     } catch (error) {
       console.error(`[${companyId}] Failed to start session:`, error);
@@ -353,11 +368,15 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     companyId?: string;
   }): Promise<any> {
     const targetCompanyId = companyId || "default";
-    console.log(`[${targetCompanyId}] Sending message to ${phone}: ${message}`);
     const session = this.sessions.get(targetCompanyId);
-    console.log(`[${targetCompanyId}] Connection status: ${session?.state?.connection}`);
+    const connStatus = session?.state?.connection || "none";
+    
+    console.log(`[${targetCompanyId}] Sending message to ${phone}. Connection status: ${connStatus}`);
 
-    // Relaxed check: Allow sending if session exists, even if state is not explicitly "open" (sometimes it lags)
+    if (connStatus !== "open") {
+      console.warn(`[${targetCompanyId}] Warning: Attempting to send message while connection is ${connStatus}. This may result in PENDING status.`);
+    }
+
     if (!session) {
       throw new Error(`Session for ${targetCompanyId} not found`);
     }
@@ -413,7 +432,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
           messageContent = { video: { url: mediaUrl }, caption };
           break;
         case "audio":
-          messageContent = { audio: { url: mediaUrl }, mimetype: "audio/mpeg" };
+          messageContent = { audio: { url: mediaUrl }, mimetype: "audio/mp4", ptt: true };
           break;
         case "document":
           messageContent = {
