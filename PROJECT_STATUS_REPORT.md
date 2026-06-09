@@ -1,13 +1,13 @@
 # Project Status Report: EnpiAI
 
 **Project Name**: Herbalife Distributor SaaS Platform
-**Status Date:** May 25, 2026
-**Overall Progress:** 85% (Stabilization Phase)
+**Status Date:** June 9, 2026
+**Overall Progress:** 95% (Production-Ready Core)
 
 ---
 
 ## 1. Executive Summary
-EnpiAI is currently in a high-stakes stabilization phase. The core agentic infrastructure (LangGraph/FastAPI) is advanced and stable. The transition to Next.js 16/React 19 is successfully completed. Current focus is on mitigating **Remote Database Latency** and fine-tuning the **Multi-Tenant WhatsApp Gateway** which suffers from occasional session drops due to remote DB instability.
+EnpiAI is currently in a high-stakes stabilization phase. The core agentic infrastructure (LangGraph/FastAPI) is advanced and stable. The transition to Next.js 16/React 19 is successfully completed. Recent milestones include the complete migration from dLocal to **PayPal ACDC** for subscriptions and the resolution of critical bugs flagged during the CTO Audit. Current focus is on mitigating **Remote Database Latency** and fine-tuning the **Multi-Tenant WhatsApp Gateway**.
 
 ---
 
@@ -38,8 +38,9 @@ EnpiAI is currently in a high-stakes stabilization phase. The core agentic infra
 | **Agent Orchestration** | 95% | 🟢 Ready |
 | **RAG (Vector Memory)** | 100% | 🟢 Ready |
 | **WhatsApp Multi-Tenancy** | 80% | 🟡 Unstable (DB) |
-| **Frontend Dashboard UI** | 85% | 🟢 Stabilizing |
-| **Celery Bg Processors** | 90% | 🟢 Ready |
+| **Frontend Dashboard UI** | 95% | 🟢 Ready |
+| **Celery Bg Processors** | 100% | 🟢 Ready |
+| **Payments (PayPal ACDC)** | 100% | 🟢 Ready |
 
 ---
 
@@ -51,9 +52,18 @@ EnpiAI is currently in a high-stakes stabilization phase. The core agentic infra
 
 ## 5. Immediate Next Steps
 1.  **DB Stabilization**: Evaluate moving the MySQL database to the local VPS or using a more reliable provider to eliminate latency spikes.
-2.  **Nginx Audit**: Fix the routing for the `/api/health` endpoint to point to FastAPI.
-3.  **Process Shielding**: Implement fail-ban or better protection for `enpiai-fastapi` against bot probes.
-4.  **UI Polish**: Continue refining the Dashboard UI now that Server Actions are stable.
+2.  **Process Shielding**: Implement fail-ban or better protection for `enpiai-fastapi` against bot probes.
+3.  **UI Polish**: Continue refining the Dashboard UI now that Server Actions and Themes (Dark/Light) are stable.
+
+---
+
+## 6. Recent Resolutions (June 2026 CTO Audit)
+- ✅ Migrated from legacy dLocal gateway to **PayPal Advanced Credit and Debit Cards (ACDC)**. Supported plans and direct credit block recharges.
+- ✅ Fixed `CORS` wildcard vulnerability.
+- ✅ Resolved `is_o_model` LLM false positive rules.
+- ✅ Repaired Celery context leaks (`flask.g` proxy fixed with `threading.local`).
+- ✅ Resolved PDF newline escape bugs for perfect vector semantic chunking.
+- ✅ Fixed frontend typo (`couch` to `coach`) and fully locked down middleware routes.
 
 ---
 

@@ -1047,46 +1047,46 @@ SECRET_KEY = os.getenv(...)   # debería ser: SECRET_KEY: str = os.getenv(...)
 
 ## 20. PLAN DE ACCIÓN PRIORIZADO
 
-### 🔴 PRIORIDAD 1 — CRÍTICOS (Esta semana, ~6h de trabajo)
+### 🔴 PRIORIDAD 1 — CRÍTICOS (Resueltos - Junio 2026)
 
-| Fix | Descripción | Archivo | Esfuerzo |
-|-----|-------------|---------|----------|
-| FIX-001 | `"\\n"` → `"\n"` en tasks.py:75 + **re-indexar todos los PDFs en Pinecone** | `tasks.py` | 1h + indexación |
-| FIX-002 | CORS: lista explícita de orígenes en lugar de wildcard | `fastapi_app.py:39-45` | 30min |
-| FIX-003 | `is_o_model` check con set exacto de nombres | `agent_orchestrator.py:77` | 30min |
-| FIX-004 | `gpt-5-nano` → `gpt-4o-mini` en config + orchestrator (3 lugares) | `config.py:72`, `agent_orchestrator.py:63,99` | 30min |
-| FIX-005 | Validar `distributor_id != None` en webhook FastAPI antes de procesar | `fastapi_app.py:105` | 30min |
-| FIX-006 | Completar rutas protegidas + matcher en middleware | `frontend/middleware.ts` | 30min |
+| Fix | Descripción | Archivo | Esfuerzo | Estado |
+|-----|-------------|---------|----------|--------|
+| FIX-001 | `"\\n"` → `"\n"` en tasks.py:75 + **re-indexar todos los PDFs en Pinecone** | `tasks.py` | 1h + indexación | ✅ Resuelto |
+| FIX-002 | CORS: lista explícita de orígenes en lugar de wildcard | `fastapi_app.py:39-45` | 30min | ✅ Resuelto |
+| FIX-003 | `is_o_model` check con set exacto de nombres | `agent_orchestrator.py:77` | 30min | ✅ Resuelto |
+| FIX-004 | `gpt-5-nano` → `gpt-4o-mini` en config + orchestrator (3 lugares) | `config.py:72`, `agent_orchestrator.py:63,99` | 30min | ✅ Resuelto |
+| FIX-005 | Validar `distributor_id != None` en webhook FastAPI antes de procesar | `fastapi_app.py:105` | 30min | ✅ Resuelto |
+| FIX-006 | Completar rutas protegidas + matcher en middleware | `frontend/middleware.ts` | 30min | ✅ Resuelto |
 
-### 🟠 PRIORIDAD 2 — ALTOS (Esta quincena, ~15h)
+### 🟠 PRIORIDAD 2 — ALTOS (Parcialmente Resueltos)
 
-| Fix | Descripción | Archivo | Esfuerzo |
-|-----|-------------|---------|----------|
-| FIX-007 | Reemplazar `flask.g` por `threading.local` en tool_node | `agent_orchestrator.py:301` | 2h |
-| FIX-008 | Añadir columna `pinecone_ids JSON` al modelo Document + migración | `models/document.py` | 1h |
-| FIX-009 | Añadir `soft_time_limit=60` al task `process_webhook_message` | `tasks.py` | 30min |
-| FIX-010 | Deduplicar follow-ups: verificar si ya existe uno pendiente antes de crear | `agent_orchestrator.py:488-512` | 2h |
-| FIX-011 | Inyectar últimos 20 mensajes MySQL en el estado inicial LangGraph | `agent_orchestrator.py` | 3h |
-| FIX-012 | Unificar env var `GOOGLE_API_KEY` → `GOOGLE_AI_API_KEY` | `agent_orchestrator.py:71` | 30min |
-| FIX-013 | Añadir autenticación (API key o JWT) al endpoint `/api/voice/interact` | `fastapi_app.py` | 1h |
-| FIX-014 | Renombrar `couch` → `coach` en frontend + actualizar imports | Frontend | 1h |
-| FIX-015 | Añadir `time.sleep(0.5)` entre mensajes en `send_broadcast_message` | `tasks.py` | 30min |
-| FIX-016 | Añadir índices MySQL faltantes via nueva migración | `migrations/` | 2h |
-| FIX-017 | Validación de SECRET_KEY en startup de producción | `config.py` / `create_app()` | 30min |
+| Fix | Descripción | Archivo | Esfuerzo | Estado |
+|-----|-------------|---------|----------|--------|
+| FIX-007 | Reemplazar `flask.g` por `threading.local` en tool_node | `agent_orchestrator.py:301` | 2h | ✅ Resuelto |
+| FIX-008 | Añadir columna `pinecone_ids JSON` al modelo Document + migración | `models/document.py` | 1h | ✅ Resuelto |
+| FIX-009 | Añadir `soft_time_limit=60` al task `process_webhook_message` | `tasks.py` | 30min | 🟡 Pendiente |
+| FIX-010 | Deduplicar follow-ups: verificar si ya existe uno pendiente antes de crear | `agent_orchestrator.py:488-512` | 2h | ✅ Resuelto |
+| FIX-011 | Inyectar últimos 20 mensajes MySQL en el estado inicial LangGraph | `agent_orchestrator.py` | 3h | ✅ Resuelto |
+| FIX-012 | Unificar env var `GOOGLE_API_KEY` → `GOOGLE_AI_API_KEY` | `agent_orchestrator.py:71` | 30min | ✅ Resuelto |
+| FIX-013 | Añadir autenticación (API key o JWT) al endpoint `/api/voice/interact` | `fastapi_app.py` | 1h | ✅ Resuelto |
+| FIX-014 | Renombrar `couch` → `coach` en frontend + actualizar imports | Frontend | 1h | ✅ Resuelto |
+| FIX-015 | Añadir `time.sleep(0.5)` entre mensajes en `send_broadcast_message` | `tasks.py` | 30min | ✅ Resuelto |
+| FIX-016 | Añadir índices MySQL faltantes via nueva migración | `migrations/` | 2h | ✅ Resuelto |
+| FIX-017 | Validación de SECRET_KEY en startup de producción | `config.py` / `create_app()` | 30min | ✅ Resuelto |
 
-### 🟡 PRIORIDAD 3 — MEDIOS (Próximo sprint, ~10h)
+### 🟡 PRIORIDAD 3 — MEDIOS (Parcialmente Resueltos)
 
-| Fix | Descripción | Esfuerzo |
-|-----|-------------|----------|
-| FIX-018 | Rate limiter → Redis storage | 1h |
-| FIX-019 | CORS + auth en microservicio WhatsApp (`app.ts`) | 2h |
-| FIX-020 | Garantizar `pinecone_namespace` nunca es None en `rag_service.py` | 1h |
-| FIX-021 | Redis con `--requirepass` y `--bind 127.0.0.1` en PM2 | 1h |
-| FIX-022 | `max_memory_restart: "500M"` para PM2 enpiai-whatsapp | 30min |
-| FIX-023 | Simplificar cleanup triple en `process_webhook_message` | 1h |
-| FIX-024 | Limpiar archivos `.mp3` temporales de `uploads/voice/` (cron job) | 1h |
-| FIX-025 | Eliminar directorio `migrations/` obsoleto de la raíz | 30min |
-| FIX-026 | Añadir `process.on('uncaughtException')` en `api-whatsapp/src/app.ts` | 30min |
+| Fix | Descripción | Esfuerzo | Estado |
+|-----|-------------|----------|--------|
+| FIX-018 | Rate limiter → Redis storage | 1h | 🟡 Pendiente |
+| FIX-019 | CORS + auth en microservicio WhatsApp (`app.ts`) | 2h | 🟡 Pendiente |
+| FIX-020 | Garantizar `pinecone_namespace` nunca es None en `rag_service.py` | 1h | 🟡 Pendiente |
+| FIX-021 | Redis con `--requirepass` y `--bind 127.0.0.1` en PM2 | 1h | 🟡 Pendiente |
+| FIX-022 | `max_memory_restart: "500M"` para PM2 enpiai-whatsapp | 30min | 🟡 Pendiente |
+| FIX-023 | Simplificar cleanup triple en `process_webhook_message` | 1h | ✅ Resuelto |
+| FIX-024 | Limpiar archivos `.mp3` temporales de `uploads/voice/` (cron job) | 1h | 🟡 Pendiente |
+| FIX-025 | Eliminar directorio `migrations/` obsoleto de la raíz | 30min | ✅ Resuelto |
+| FIX-026 | Añadir `process.on('uncaughtException')` en `api-whatsapp/src/app.ts` | 30min | 🟡 Pendiente |
 
 ### 🟢 PRIORIDAD 4 — MEJORAS (Backlog)
 
