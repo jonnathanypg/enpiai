@@ -1,7 +1,7 @@
 import sys
 import os
 from app import create_app
-from extensions import db
+from extensions import db, ctx
 from models.distributor import Distributor
 from services.ai_coach_service import ai_coach_service
 from skills.coach import CoachSkill
@@ -76,7 +76,7 @@ def test_coach_logic():
         # Test 5: Skill execution
         print("\nTesting Coach Skill tools...")
         from flask import g
-        g.current_company = dist
+        ctx.current_company = dist
         skill = CoachSkill()
         
         # Test get_coach_roadmap tool

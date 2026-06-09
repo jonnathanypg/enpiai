@@ -10,7 +10,8 @@ export default function PublicLayout({
             </main>
             <footer className="py-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <div className="w-5 h-5 shrink-0">
-                    <img src="/logo.png" alt="Enpi AI" className="w-full h-full object-contain" />
+                    <img src="/favicon-enpiai-ligth.png" alt="Enpi AI" className="w-full h-full object-contain dark:hidden" />
+                    <img src="/favicon-enpiai-dark.png" alt="Enpi AI" className="w-full h-full object-contain hidden dark:block" />
                 </div>
                 <span>Powered by <span className="font-semibold text-primary">EnpiAI</span></span>
             </footer>

@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 def create_app(config_class=None, start_services=False):
     """Application factory pattern"""
+    if os.getenv('FLASK_ENV') == 'production' and not os.getenv('SECRET_KEY'):
+        raise RuntimeError("SECRET_KEY must be configured in production environment")
+
     app = Flask(__name__)
 
     # Load configuration
@@ -75,10 +78,7 @@ def create_app(config_class=None, start_services=False):
     from routes.google_auth import google_auth_bp
     app.register_blueprint(google_auth_bp, url_prefix='/api/auth/google')
 
-    from routes.payments import payments_bp
-    app.register_blueprint(payments_bp, url_prefix='/api/payments')
-
-    # Phase 13: dLocal Go Subscription Billing
+    # Phase 13: PayPal Subscription Billing
     from routes.billing import billing_bp
     app.register_blueprint(billing_bp)
 

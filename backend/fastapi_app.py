@@ -38,10 +38,15 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://app.enpiai.com",
+        "https://enpiai.com",
+        "http://localhost:3000",
+        "http://localhost:5173", # Vite dev
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 # Database Engine Setup
@@ -102,7 +107,13 @@ async def whatsapp_webhook_async(request: Request):
 
     # Dispatch to Celery
     try:
-        distributor_id = data.get('companyId')
+        distributor_id_raw = data.get('companyId')
+        distributor_id = int(distributor_id_raw) if distributor_id_raw else None
+        
+        if not distributor_id:
+            logger.warning(f"Webhook discarded: Missing or invalid companyId (distributor_id): {data}")
+            return {"status": "ignored", "reason": "missing_distributor_id"}
+
         sender_phone = data.get('from', '').strip()
         message_text = data.get('message', '')
         attachment = data.get('attachment')
@@ -241,12 +252,20 @@ async def voice_interact(
     file: UploadFile = File(...),
     distributor_id: Optional[int] = Form(None),
     conversation_id: Optional[int] = Form(None),
-    channel: Optional[str] = Form("webchat")
+    channel: Optional[str] = Form("webchat"),
+    x_api_key: Optional[str] = Header(None)
 ):
     """
     Receives user audio file, transcribes it, runs AgentOrchestrator to get response,
     synthesizes the response to audio, and returns text and audio path.
     """
+    # Simple API Key check to prevent unauthenticated abuse
+    # Expected keys: PLATFORM_API_KEY (internal) or WHATSAPP_API_SECRET
+    expected_api_key = os.getenv('PLATFORM_API_KEY') or os.getenv('WHATSAPP_API_SECRET')
+    
+    if expected_api_key and x_api_key != expected_api_key:
+        logger.warning(f"Unauthorized voice interact attempt: x-api-key={x_api_key}")
+        raise HTTPException(status_code=401, detail="Unauthorized voice access")
     from services.voice_service import VoiceService
     from models.distributor import Distributor
     from models.conversation import Conversation, ConversationChannel, ConversationStatus, Message, MessageRole

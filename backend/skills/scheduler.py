@@ -7,7 +7,7 @@ from services.google_service import google_service
 from models.lead import Lead
 from models.customer import Customer
 from models.appointment import Appointment
-from extensions import db
+from extensions import db, ctx
 
 class SchedulerSkill(BaseSkill):
     def __init__(self):
@@ -40,7 +40,7 @@ class SchedulerSkill(BaseSkill):
         """
         Check calendar availability for a specific date (YYYY-MM-DD).
         """
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: No distributor context found."
 
@@ -70,7 +70,7 @@ class SchedulerSkill(BaseSkill):
         Schedule a meeting on Google Calendar.
         """
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: No distributor context found."
 

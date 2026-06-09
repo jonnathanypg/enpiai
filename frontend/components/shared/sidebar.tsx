@@ -36,7 +36,7 @@ const distributorItems: NavItem[] = [
     { titleKey: 'sidebar.documents', href: '/documents', icon: FileText },
     { titleKey: 'sidebar.wellness', href: '/wellness', icon: HeartPulse },
     { titleKey: 'sidebar.playground', href: '/agents/playground', icon: MessageSquare },
-    { titleKey: 'sidebar.couch', href: '/couch', icon: Sparkles },
+    { titleKey: 'sidebar.coach', href: '/coach', icon: Sparkles },
     { titleKey: 'sidebar.settings', href: '/settings', icon: Settings },
 ];
 
@@ -76,7 +76,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 collapsed ? "justify-center" : "justify-start gap-3"
             )}>
                 <div className="flex items-center justify-center w-8 h-8 shrink-0">
-                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-contain" />
+                    <img src="/favicon-enpiai-ligth.png" alt="Enpi AI" className="w-full h-full object-contain dark:hidden" />
+                    <img src="/favicon-enpiai-dark.png" alt="Enpi AI" className="w-full h-full object-contain hidden dark:block" />
                 </div>
                 {!collapsed && (
                     <span className="text-xl font-bold tracking-tight">

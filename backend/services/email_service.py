@@ -54,7 +54,7 @@ EMAIL_STRINGS = {
         'sub_activated_account': 'Account',
         'sub_activated_subscription': 'Subscription',
         'sub_activated_payment': 'Payment',
-        'sub_activated_payment_value': 'Confirmed via dLocal Go',
+        'sub_activated_payment_value': 'Confirmed via PayPal',
         'sub_activated_enjoy': 'You now have full access to all automation, CRM, and AI tools. Enjoy! 🚀',
 
         # Subscription deactivated
@@ -142,7 +142,7 @@ EMAIL_STRINGS = {
         'sub_activated_account': 'Cuenta',
         'sub_activated_subscription': 'Suscripción',
         'sub_activated_payment': 'Pago',
-        'sub_activated_payment_value': 'Confirmado vía dLocal Go',
+        'sub_activated_payment_value': 'Confirmado vía PayPal',
         'sub_activated_enjoy': 'Ahora tienes acceso completo a todas las herramientas de automatización, CRM e IA. ¡Disfruta! 🚀',
 
         'sub_deactivated_subject': '⚠️ Actualización de Suscripción — EnpiAI',
@@ -225,7 +225,7 @@ EMAIL_STRINGS = {
         'sub_activated_account': 'Conta',
         'sub_activated_subscription': 'Assinatura',
         'sub_activated_payment': 'Pagamento',
-        'sub_activated_payment_value': 'Confirmado via dLocal Go',
+        'sub_activated_payment_value': 'Confirmado via PayPal',
         'sub_activated_enjoy': 'Agora você tem acesso total a todas as ferramentas de automação, CRM e IA. Aproveite! 🚀',
 
         'sub_deactivated_subject': '⚠️ Atualização de Assinatura — EnpiAI',
@@ -483,7 +483,7 @@ class EmailService:
     # ──────────────────────────────────────────────
 
     def send_subscription_activated(self, to_email, distributor_name, lang='en'):
-        """Send notification when dLocal confirms a subscription payment."""
+        """Send notification when PayPal confirms a subscription payment."""
         t = lambda key, **kw: self._t(lang, key, **kw)
         content = f"""
         <h2>{t('sub_activated_title')}</h2>

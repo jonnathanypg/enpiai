@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List
 from langchain_core.tools import StructuredTool
 from flask import g
-from extensions import db
+from extensions import db, ctx
 from .base_skill import BaseSkill
 
 class CronSkill(BaseSkill):
@@ -53,8 +53,8 @@ class CronSkill(BaseSkill):
             channel: 'whatsapp' or 'email'
         """
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
-        conversation_id = getattr(g, 'current_conversation_id', None)
+        distributor = getattr(ctx, 'current_company', None)
+        conversation_id = getattr(ctx, 'current_conversation_id', None)
         
         if not distributor:
             return "Error: context missing"
@@ -86,7 +86,7 @@ class CronSkill(BaseSkill):
     def list_pending_followups(self) -> str:
         """List all pending scheduled follow-ups for this distributor."""
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -100,7 +100,7 @@ class CronSkill(BaseSkill):
     def cancel_followup(self, task_id: int) -> str:
         """Cancel a pending scheduled follow-up by its ID."""
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             

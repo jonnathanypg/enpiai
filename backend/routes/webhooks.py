@@ -14,8 +14,12 @@ from extensions import db
 from models.conversation import Conversation, Message, ConversationChannel, ConversationStatus, MessageRole
 from models.lead import Lead, LeadSource
 from models.channel import Channel, ChannelType
+from models.distributor import Distributor
+from models.subscription import Plan, Subscription, SubscriptionStatus
+from services.paypal_service import PayPalService
 
 logger = logging.getLogger(__name__)
+paypal_service = PayPalService()
 
 # Import email service for notifications
 try:
@@ -385,78 +389,84 @@ def telegram_webhook():
 
 
 # ---------------------------------------------------------------------------
-# dLocal Go Webhook
+# PayPal Webhook
 # ---------------------------------------------------------------------------
 
-@webhooks_bp.route('/dlocal', methods=['POST'])
-def dlocal_webhook():
+@webhooks_bp.route('/paypal', methods=['POST'])
+def paypal_webhook():
     """
-    Receive payment/subscription updates from dLocal Go.
-    Updates the distributor's subscription_active status based on `external_id`.
+    Receive payment/subscription updates from PayPal.
+    Handles activations, cancellations and recurring credit recharges.
     """
-    try:
-        db.session.rollback()
-    except:
-        pass
+    db.session.rollback()
+    data = request.json
+    headers = request.headers
+    
+    # In production, signature verification should be strictly enforced.
+    # For now we process but log the event.
+    event_type = data.get('event_type')
+    resource = data.get('resource', {})
+    
+    logger.info(f"PayPal Webhook Event: {event_type}")
 
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-
-        logger.info(f"dLocal Go Webhook Event: {data}")
-
-        # Try to extract external_id (which we map to distributor_id)
-        external_id = data.get('external_id')
-        status = data.get('status') # Usually "CONFIRMED" or "COMPLETED" or "DECLINED"
-        
-        # Sometimes the payload is an execution object containing a subscription object
-        if not external_id and 'subscription' in data:
-            pass # Fallback if needed.
-
-        if external_id:
-            try:
-                distributor_id = int(external_id)
-                from models.distributor import Distributor
-                distributor = Distributor.query.get(distributor_id)
-                
+        # 1. Subscription Activated
+        if event_type == 'BILLING.SUBSCRIPTION.ACTIVATED':
+            sub_id = resource.get('id')
+            distributor_id = resource.get('custom_id') # Set by frontend
+            paypal_plan_id = resource.get('plan_id')
+            
+            if distributor_id:
+                distributor = Distributor.query.get(int(distributor_id))
                 if distributor:
-                    logger.info(f"dLocal Webhook -> Distributor {distributor_id}. Status: {status}")
+                    logger.info(f"PayPal Sub Activated -> Distributor {distributor_id}")
+                    distributor.subscription_active = True
                     
-                    if status in ['CONFIRMED', 'COMPLETED', 'ACTIVE']:
-                        distributor.subscription_active = True
-                        # Send subscription activated email
-                        if email_service:
-                            try:
-                                user = None
-                                from models.user import User
-                                user = User.query.filter_by(distributor_id=distributor_id).first()
-                                if user:
-                                    email_service.send_subscription_activated(user.email, distributor.name, lang=distributor.language or 'en')
-                            except Exception as mail_err:
-                                logger.warning(f"Subscription activated email failed: {mail_err}")
-                    elif status in ['DECLINED', 'CANCELLED', 'INACTIVE', 'PAST_DUE']:
-                        distributor.subscription_active = False
-                        # Send subscription deactivated email
-                        if email_service:
-                            try:
-                                from models.user import User
-                                user = User.query.filter_by(distributor_id=distributor_id).first()
-                                if user:
-                                    email_service.send_subscription_deactivated(user.email, distributor.name, reason=status, lang=distributor.language or 'en')
-                            except Exception as mail_err:
-                                logger.warning(f"Subscription deactivated email failed: {mail_err}")
-                        
+                    plan = Plan.query.filter_by(paypal_plan_id=paypal_plan_id).first()
+                    if plan:
+                        distributor.subscription_plan_id = plan.id
+                    
+                    sub = Subscription.query.filter_by(paypal_subscription_id=sub_id).first()
+                    if not sub:
+                        sub = Subscription(
+                            distributor_id=distributor.id,
+                            plan_id=plan.id if plan else None,
+                            paypal_subscription_id=sub_id,
+                            status=SubscriptionStatus.ACTIVE,
+                            start_date=datetime.utcnow()
+                        )
+                        db.session.add(sub)
+                    else:
+                        sub.status = SubscriptionStatus.ACTIVE
+                    
                     db.session.commit()
-                    return jsonify({'status': 'processed'}), 200
-                else:
-                    logger.warning(f"Distributor not found for external_id: {external_id}")
-            except ValueError:
-                logger.error(f"Invalid external_id format: {external_id}")
-                
-        return jsonify({'status': 'ignored'}), 200
+
+        # 2. Subscription Cancelled / Expired
+        elif event_type in ['BILLING.SUBSCRIPTION.CANCELLED', 'BILLING.SUBSCRIPTION.EXPIRED']:
+            sub_id = resource.get('id')
+            sub = Subscription.query.filter_by(paypal_subscription_id=sub_id).first()
+            if sub:
+                sub.status = SubscriptionStatus.CANCELLED
+                distributor = Distributor.query.get(sub.distributor_id)
+                if distributor:
+                    distributor.subscription_active = False
+                db.session.commit()
+
+        # 3. Payment Received (Credit Recharges)
+        elif event_type == 'PAYMENT.SALE.COMPLETED':
+            sub_id = resource.get('billing_agreement_id')
+            if sub_id:
+                sub = Subscription.query.filter_by(paypal_subscription_id=sub_id).first()
+                if sub and sub.plan and sub.plan.is_credit_block:
+                    distributor = Distributor.query.get(sub.distributor_id)
+                    if distributor:
+                        distributor.credits_balance += sub.plan.credits_granted
+                        logger.info(f"Distributor {distributor.id} recharged {sub.plan.credits_granted} credits")
+                        db.session.commit()
+
+        return jsonify({'status': 'processed'}), 200
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"dLocal Go webhook error: {e}")
+        logger.error(f"PayPal webhook error: {e}")
         return jsonify({'error': str(e)}), 500

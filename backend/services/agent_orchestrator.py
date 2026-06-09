@@ -69,7 +69,7 @@ class AgentOrchestrator:
         
         # 1. Resolve Keys
         openai_key = api_keys.get('openai_api_key') or os.getenv('OPENAI_API_KEY')
-        google_key = api_keys.get('google_api_key') or os.getenv('GOOGLE_API_KEY')
+        google_key = api_keys.get('google_api_key') or os.getenv('GOOGLE_AI_API_KEY')
         
         llms = []
         
@@ -298,8 +298,8 @@ class AgentOrchestrator:
                     if tool_obj:
                         try:
                             # Context Injection
-                            g.current_company = self.distributor
-                            g.current_conversation_id = state.get("conversation_id")
+                            ctx.current_company = self.distributor
+                            ctx.current_conversation_id = state.get("conversation_id")
                             result = tool_obj.invoke(tool_args)
                         except Exception as e:
                             logger.error(f"Tool error {tool_name}: {e}")
@@ -346,7 +346,7 @@ class AgentOrchestrator:
         """Process a message using the modular agent architecture (Phase 9 enhanced)."""
         
         try:
-            from extensions import db
+            from extensions import db, ctx
             db.session.rollback()
         except Exception as e:
             logger.debug(f"Preventive rollback failed (likely no active session): {e}")
@@ -487,27 +487,38 @@ class AgentOrchestrator:
                             # If this was a customer/lead (not master mode), schedule a 24h follow-up
                             if initial_state.get('contact_type') not in ['distributor'] and channel == 'whatsapp':
                                 from services.cron_service import CronService
+                                from models.scheduled_task import ScheduledTask
                                 
-                                # Use a more natural and subtle message
-                                name = initial_state.get('contact_name') or 'hola'
-                                if name.lower() == 'hola':
-                                    followup_msg = "¿Pudiste revisar lo que te comenté? ¡Quedo atento por si tienes cualquier duda!"
-                                else:
-                                    followup_msg = f"¡Hola {name}! ¿Cómo vas? Solo pasaba por aquí para ver si tuviste oportunidad de revisar la info. ¡Cualquier cosa me avisas!"
-                                
-                                CronService.schedule_followup(
-                                    distributor_id=self.distributor.id,
-                                    message=followup_msg,
-                                    delay_minutes=1440, # 24 hours
+                                # Check if a follow-up is already pending for this conversation
+                                pending_task = ScheduledTask.query.filter_by(
                                     conversation_id=conversation.id,
-                                    lead_id=conversation.lead_id,
                                     action='auto_followup',
-                                    payload={
-                                        'lead_phone': conversation.participant_id,
-                                        'type': 'auto_followup_cascade',
-                                        'step': 1
-                                    }
-                                )
+                                    status='pending'
+                                ).first()
+                                
+                                if not pending_task:
+                                    # Use a more natural and subtle message
+                                    name = initial_state.get('contact_name') or 'hola'
+                                    if name.lower() == 'hola':
+                                        followup_msg = "¿Pudiste revisar lo que te comenté? ¡Quedo atento por si tienes cualquier duda!"
+                                    else:
+                                        followup_msg = f"¡Hola {name}! ¿Cómo vas? Solo pasaba por aquí para ver si tuviste oportunidad de revisar la info. ¡Cualquier cosa me avisas!"
+                                    
+                                    CronService.schedule_followup(
+                                        distributor_id=self.distributor.id,
+                                        message=followup_msg,
+                                        delay_minutes=1440, # 24 hours
+                                        conversation_id=conversation.id,
+                                        lead_id=conversation.lead_id,
+                                        action='auto_followup',
+                                        payload={
+                                            'lead_phone': conversation.participant_id,
+                                            'type': 'auto_followup_cascade',
+                                            'step': 1
+                                        }
+                                    )
+                                else:
+                                    logger.debug(f"[LANGGRAPH] Skipping auto-followup schedule: already pending for conv {conversation.id}")
                         except Exception as followup_err:
                             logger.warning(f"Failed to schedule auto-followup: {followup_err}")
 

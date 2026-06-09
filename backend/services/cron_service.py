@@ -10,7 +10,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from typing import Optional
-from extensions import db
+from extensions import db, ctx
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class CronService:
 
     def _clean_voice_files(self):
         """
-        Periodically clean up temporary voice files older than 7 days
+        Periodically clean up temporary voice files older than 1 day
         to prevent VPS disk exhaustion.
         """
         try:
@@ -218,8 +218,8 @@ class CronService:
                 if not filename.endswith(('.mp3', '.ogg', '.webm', '.wav', '.m4a')):
                     continue
                     
-                # If file is older than 7 days (7 * 86400 seconds)
-                if os.path.getmtime(file_path) < (now - 7 * 86400):
+                # If file is older than 1 day (1 * 86400 seconds)
+                if os.path.getmtime(file_path) < (now - 1 * 86400):
                     try:
                         os.remove(file_path)
                         deleted_count += 1
@@ -227,7 +227,7 @@ class CronService:
                         logger.warning(f"[CRON] Could not delete voice file {file_path}: {fe}")
                         
             if deleted_count > 0:
-                logger.info(f"[CRON] Cleaned up {deleted_count} voice files older than 7 days.")
+                logger.info(f"[CRON] Cleaned up {deleted_count} voice files older than 1 day.")
         except Exception as e:
             logger.error(f"[CRON] Voice files cleanup failed: {e}")
 
@@ -316,7 +316,7 @@ class CronService:
 
         # Use CRMSkill to generate the report
         from flask import g
-        g.current_company = distributor
+        ctx.current_company = distributor
         
         crm = CRMSkill()
         summary_data = crm.get_business_summary_data()

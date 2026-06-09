@@ -72,7 +72,7 @@ def index_document_rag(self, filepath, distributor_id, document_id, metadata=Non
                         for page in pdf.pages:
                             page_text = page.extract_text()
                             if page_text:
-                                text_content += page_text + "\\n"
+                                text_content += page_text + "\n"
                 except Exception as e:
                     logger.error(f"PDF extraction error in worker: {e}")
             elif file_ext in ['txt', 'md', 'csv']:
@@ -138,17 +138,22 @@ def send_broadcast_message(self, distributor_id, channel, recipients, message):
             from extensions import db as task_db
             task_db.session.rollback()
             from services.messaging_service import messaging_service
+sent = 0
+errors = 0
+import time
+for recipient in recipients:
+    try:
+        messaging_service.send_message(
+            channel=channel,
+            to=recipient,
+            message=message,
+            distributor_id=distributor_id
+        )
+        sent += 1
+        time.sleep(0.5) # FIX-015: Add delay to avoid rate limiting
+    except Exception as e:
 
-            sent = 0
-            errors = 0
-            for recipient in recipients:
-                try:
-                    messaging_service.send_message(
-                        channel=channel,
-                        to=recipient,
-                        message=message,
-                        distributor_id=distributor_id
-                    )
+                    time.sleep(0.5)
                     sent += 1
                 except Exception as e:
                     logger.warning(f"Broadcast send error to {recipient}: {e}")
@@ -272,29 +277,16 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
                     )
 
             logger.info(f"Webhook task completed: conv={conversation_id}, reply_sent={bool(ai_reply_text)}")
-            
-            # Final cleanup inside the context to prevent teardown from failing on stale connections
-            try:
-                task_db.session.rollback()
-                task_db.session.remove()
-            except Exception as e:
-                logger.debug(f"Task cleanup error (non-critical): {e}")
-            
             return {'status': 'success', 'reply_sent': bool(ai_reply_text)}
 
     except Exception as exc:
         logger.error(f"Webhook task failed: {exc}")
-        # Ensure session is cleaned up on error
-        try:
-            from extensions import db as task_db
-            task_db.session.remove()
-        except Exception as e:
-            logger.debug(f"Task cleanup error on exception: {e}")
         raise self.retry(exc=exc)
     finally:
         # Cleanup connection pool
         try:
             from extensions import db as task_db
+            task_db.session.rollback()
             task_db.session.remove()
         except Exception as e:
             logger.debug(f"Task cleanup error in finally: {e}")

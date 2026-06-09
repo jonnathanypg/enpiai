@@ -17,7 +17,7 @@ from models.lead import Lead, LeadStatus
 from models.customer import Customer
 from models.appointment import Appointment
 from models.wellness_evaluation import WellnessEvaluation
-from extensions import db
+from extensions import db, ctx
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def consult_knowledge_base(query: str) -> str:
     Returns:
         String with relevant information found.
     """
-    distributor = getattr(g, 'current_company', None)
+    distributor = getattr(ctx, 'current_company', None)
     if not distributor:
         return "Error: No distributor context found."
         
@@ -60,7 +60,7 @@ def wellness_evaluation_link() -> str:
     Returns the link for the public wellness evaluation form.
     Use this when a user wants to start a health assessment.
     """
-    distributor = getattr(g, 'current_company', None)
+    distributor = getattr(ctx, 'current_company', None)
     if not distributor:
         return "Error: No distributor context found."
         
@@ -84,7 +84,7 @@ def lookup_customer(email: str = None, phone: str = None) -> str:
         phone: (Optional) The user's phone number.
     """
     db.session.rollback()
-    distributor = getattr(g, 'current_company', None)
+    distributor = getattr(ctx, 'current_company', None)
     if not distributor:
         return "Error: context missing"
         
@@ -145,7 +145,7 @@ def register_lead(first_name: str, last_name: str, email: str = None, phone: str
         phone: (Optional) Customer's phone
     """
     db.session.rollback()
-    distributor = getattr(g, 'current_company', None)
+    distributor = getattr(ctx, 'current_company', None)
     if not distributor:
         return "Error: context missing"
         
@@ -211,7 +211,7 @@ def check_availability(date: str, preferred_time: str = None) -> str:
         date: Date in YYYY-MM-DD format.
         preferred_time: Optional preferred time (e.g. "14:00")
     """
-    distributor = getattr(g, 'current_company', None)
+    distributor = getattr(ctx, 'current_company', None)
     if not distributor:
         return "Error: context missing"
         
@@ -250,7 +250,7 @@ def schedule_appointment(date: str, time: str, email: str, topic: str) -> str:
         topic: Reason for meeting
     """
     db.session.rollback()
-    distributor = getattr(g, 'current_company', None)
+    distributor = getattr(ctx, 'current_company', None)
     if not distributor:
         return "Error: context missing"
         
@@ -308,7 +308,7 @@ def send_email(to_email: str, subject: str, content: str) -> str:
         subject: Email subject
         content: HTML content of the email
     """
-    distributor = getattr(g, 'current_company', None)
+    distributor = getattr(ctx, 'current_company', None)
     
     # Check if this distributor has specific email settings
     from_email = distributor.contact_email if distributor else None

@@ -215,8 +215,9 @@ export interface Plan {
     features: Record<string, unknown> | null;
     is_active: boolean;
     is_default: boolean;
-    dlocal_plan_id: string | null;
-    dlocal_plan_token: string | null;
+    is_credit_block?: boolean;
+    credits_granted?: number;
+    paypal_plan_id: string | null;
 }
 
 export interface Subscription {

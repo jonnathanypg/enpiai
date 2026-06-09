@@ -71,7 +71,8 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             {/* Logo for mobile */}
             <div className="flex lg:hidden ml-2 items-center gap-2">
                 <div className="w-8 h-8 shrink-0">
-                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-contain" />
+                    <img src="/favicon-enpiai-ligth.png" alt="Enpi AI" className="w-full h-full object-contain dark:hidden" />
+                    <img src="/favicon-enpiai-dark.png" alt="Enpi AI" className="w-full h-full object-contain hidden dark:block" />
                 </div>
                  <span className="text-lg font-bold tracking-tight">
                     Enpi<span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">AI</span>

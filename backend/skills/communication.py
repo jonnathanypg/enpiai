@@ -1,3 +1,4 @@
+from extensions import ctx
 from typing import List
 from langchain_core.tools import StructuredTool
 from flask import g
@@ -32,7 +33,7 @@ class CommunicationSkill(BaseSkill):
         ]
 
     def send_whatsapp_message(self, phone: str, message: str) -> str:
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -45,7 +46,7 @@ class CommunicationSkill(BaseSkill):
             return f"Failed to send WhatsApp message to {phone}."
 
     def send_email(self, to_email: str, subject: str, content: str) -> str:
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         from_email = distributor.email if distributor else None
         
         success = email_service.send(to_email, subject, content, from_email=from_email)

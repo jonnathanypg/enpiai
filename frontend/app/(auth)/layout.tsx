@@ -7,7 +7,8 @@ export default function AuthLayout({
         <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
             <div className="mb-8 flex flex-col items-center gap-2">
                 <div className="w-16 h-16 shrink-0">
-                    <img src="/logo.png" alt="Enpi AI" className="w-full h-full object-contain" />
+                    <img src="/favicon-enpiai-ligth.png" alt="Enpi AI" className="w-full h-full object-contain dark:hidden" />
+                    <img src="/favicon-enpiai-dark.png" alt="Enpi AI" className="w-full h-full object-contain hidden dark:block" />
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight">
                     Enpi<span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">AI</span>

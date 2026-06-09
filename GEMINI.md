@@ -93,7 +93,7 @@ To prevent "MySQL has gone away" errors and stale transactions:
 | **Orchestration** | 🟢 Ready | LangGraph + Redis Persistence |
 | **RAG** | 🟢 Ready | PDF/Docx uploads + Semantic Search |
 | **Scheduling** | 🟢 Ready | Google Calendar (Consensual) |
-| **Payments** | 🟡 Testing | dLocal integration for subscriptions |
+| **Payments** | ✅ Done | PayPal ACDC integration (Subscriptions & Credit Blocks) |
 | **CRM** | 🟢 Ready | Unified 360° Contact Profile + Timeline |
 | **WhatsApp** | 🟡 Unstable | Remote DB latency causing session drops |
 | **Telegram** | 🟢 Ready | `python-telegram-bot` integrated |

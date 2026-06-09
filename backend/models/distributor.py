@@ -115,10 +115,11 @@ class Distributor(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     subscription_tier = db.Column(db.Enum(SubscriptionTier), default=SubscriptionTier.FREE)
     
-    # Billing / dLocal Go
+    # Billing / PayPal (was dLocal)
     subscription_active = db.Column(db.Boolean, default=False)
     is_courtesy = db.Column(db.Boolean, default=False)
     subscription_plan_id = db.Column(db.Integer, db.ForeignKey('plans.id'), nullable=True)
+    credits_balance = db.Column(db.Integer, default=0)
     
     # Billing relationships
     subscription_plan = db.relationship('Plan')

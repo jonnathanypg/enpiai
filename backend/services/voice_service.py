@@ -23,44 +23,40 @@ class VoiceService:
     """
 
     @staticmethod
-    def get_openai_client():
-        try:
-            import openai
-            api_key = config.OPENAI_API_KEY
-            if not api_key:
-                logger.error("OpenAI API Key not configured in VoiceService.")
-                return None
-            return openai.OpenAI(api_key=api_key)
-        except ImportError:
-            logger.error("OpenAI package not installed.")
-            return None
-
-    @staticmethod
     def transcribe(audio_path: str) -> str:
         """
-        Transcribes an audio file using OpenAI Whisper.
+        Transcribes an audio file using MediaSuite Custom API.
         """
         if not os.path.exists(audio_path):
             logger.error(f"Audio file not found: {audio_path}")
             return ""
 
-        client = VoiceService.get_openai_client()
-        if not client:
-            logger.error("Cannot transcribe: OpenAI client is unavailable.")
-            return ""
+        import requests
+        
+        url = os.getenv("WHISPER_API_URL", "https://media.weblifetech.com/api/external/transcribe")
+        api_key = os.getenv("WHISPER_API_KEY")
+        
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
 
         try:
-            logger.info(f"Starting Whisper transcription for: {audio_path}")
+            logger.info(f"Starting Custom API transcription for: {audio_path}")
             with open(audio_path, "rb") as audio_file:
-                transcription = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file
-                )
-            text = transcription.text or ""
+                # We specify the filename, the file object, and a generic audio mime type.
+                files = {"file": (os.path.basename(audio_path), audio_file, "audio/mpeg")}
+                response = requests.post(url, headers=headers, files=files, timeout=60)
+            
+            response.raise_for_status()
+            data = response.json()
+            
+            text = data.get("text", "")
             logger.info(f"Transcription successful. Length: {len(text)}")
             return text.strip()
         except Exception as e:
-            logger.error(f"Whisper transcription failed: {e}")
+            logger.error(f"Custom API transcription failed: {e}")
+            if 'response' in locals() and hasattr(response, 'text'):
+                logger.error(f"Response: {response.text}")
             return ""
 
     @staticmethod

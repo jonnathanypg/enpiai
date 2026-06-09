@@ -1,3 +1,4 @@
+from extensions import ctx
 from typing import List
 from langchain_core.tools import StructuredTool
 from flask import g
@@ -27,7 +28,7 @@ class RAGSkill(BaseSkill):
         ]
 
     def consult_knowledge_base(self, query: str) -> str:
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: No distributor context found."
             

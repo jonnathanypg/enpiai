@@ -14,7 +14,8 @@ import {
     ArrowUpCircle, 
     XCircle,
     UserCheck,
-    Zap
+    Zap,
+    Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,11 +26,20 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 import type { Plan } from '@/types';
 import { cn } from '@/lib/utils';
+import { PayPalCheckout } from '@/components/features/billing/paypal-checkout';
+import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
 interface MembershipInfo {
     status: string;
@@ -49,6 +59,7 @@ export default function SubscribePage() {
     const queryClient = useQueryClient();
     const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
     const [showPlans, setShowPlans] = useState(false);
+    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
     // 1. Fetch Plans
     const { data: plans = [], isLoading: loadingPlans } = useQuery({
@@ -69,29 +80,9 @@ export default function SubscribePage() {
         },
     });
 
-    const subscribeMutation = useMutation({
-        mutationFn: async (planId: number) => {
-            const { data } = await apiClient.post('/billing/subscribe', {
-                plan_id: planId,
-            });
-            return data;
-        },
-        onSuccess: (data) => {
-            if (data.subscribe_url) {
-                toast.success(t('subscribe.redirectingToGateway'));
-                window.location.href = data.subscribe_url;
-            } else {
-                toast.error(t('subscribe.paymentUrlError'));
-            }
-        },
-        onError: (error: any) => {
-            toast.error(error?.response?.data?.error || t('subscribe.subscriptionError'));
-        },
-    });
-
     const handleSubscribe = (planId: number) => {
         setSelectedPlanId(planId);
-        subscribeMutation.mutate(planId);
+        setIsCheckoutOpen(true);
     };
 
     const isLoading = loadingPlans || loadingMembership;
@@ -101,6 +92,9 @@ export default function SubscribePage() {
         membership.status === 'trial' ||
         membership.status === 'pending'
     );
+
+    const subscriptionPlans = plans.filter(p => !p.is_credit_block);
+    const creditPlans = plans.filter(p => p.is_credit_block);
 
     if (isLoading) {
         return (
@@ -219,7 +213,7 @@ export default function SubscribePage() {
                                 <div className="p-4 rounded-xl border border-dashed text-center space-y-2">
                                     <ShieldCheck className="h-8 w-8 text-primary/40 mx-auto" />
                                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest leading-tight">
-                                        Secured by dLocal
+                                        Secured by PayPal
                                     </p>
                                 </div>
                             </div>
@@ -344,111 +338,145 @@ export default function SubscribePage() {
         );
     }
 
-    return (
-        <div className="mx-auto max-w-5xl space-y-8 py-8">
-            {/* Header */}
-            <div className="text-center space-y-3">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5">
-                    <Sparkles className="h-7 w-7 text-primary" />
-                </div>
-                <h1 className="text-4xl font-bold tracking-tight">
-                    {t('subscribe.title')}
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                    {t('subscribe.subtitle')}
-                </p>
-            </div>
-
-            {/* Plans Grid */}
-            {plans.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {plans.map((plan) => (
-                        <Card
-                            key={plan.id}
-                            className="flex flex-col relative overflow-hidden border-2 hover:border-primary/50 transition-colors"
-                        >
-                            {plan.is_default && (
-                                <Badge className="absolute top-3 right-3">{t('common.recommended')}</Badge>
+    const renderPlans = (plansList: Plan[], title?: string) => (
+        <div className="space-y-6">
+            {title && <h2 className="text-2xl font-bold text-center">{title}</h2>}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {plansList.map((plan) => (
+                    <Card
+                        key={plan.id}
+                        className="flex flex-col relative overflow-hidden border-2 hover:border-primary/50 transition-colors"
+                    >
+                        {plan.is_default && (
+                            <Badge className="absolute top-3 right-3">{t('common.recommended')}</Badge>
+                        )}
+                        <CardHeader>
+                            <CardTitle className="text-xl flex items-center justify-between">
+                                {t(`planNames.${plan.name}`, plan.name)}
+                                {plan.is_credit_block && <Coins className="h-5 w-5 text-amber-500" />}
+                            </CardTitle>
+                            <CardDescription>
+                                {t(`planDescriptions.${plan.name}`, plan.description || '')}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <div className="mb-6 flex items-baseline gap-1">
+                                <span className="text-4xl font-bold">
+                                    ${plan.price_monthly}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                    {plan.currency} {plan.is_credit_block ? '' : t('common.perMonth')}
+                                </span>
+                            </div>
+                            {plan.features && !plan.is_credit_block && (
+                                <ul className="space-y-2.5">
+                                    {Object.entries(plan.features).map(([key, value]) => (
+                                        <li key={key} className="flex items-center text-sm">
+                                            <Check className="mr-2 h-4 w-4 text-green-500 shrink-0" />
+                                            <span className="capitalize">
+                                                {t(`planFeatures.${key.replace(/ /g, '_')}`, key.replace(/_/g, ' '))}: {
+                                                    typeof value === 'boolean'
+                                                        ? t(`planFeatures.${value}`)
+                                                        : String(value)
+                                                }
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
                             )}
-                            <CardHeader>
-                                <CardTitle className="text-xl">
-                                    {t(`planNames.${plan.name}`, plan.name)}
-                                </CardTitle>
-                                <CardDescription>
-                                    {t(`planDescriptions.${plan.name}`, plan.description || '')}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-1">
-                                <div className="mb-6 flex items-baseline gap-1">
-                                    <span className="text-4xl font-bold">
-                                        ${plan.price_monthly}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                        {plan.currency} {t('common.perMonth')}
-                                    </span>
+                            {plan.is_credit_block && (
+                                <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-sm flex items-center gap-2">
+                                    <Zap className="h-4 w-4 text-amber-500" />
+                                    <span>{plan.credits_granted} credits included</span>
                                 </div>
-                                {plan.features && (
-                                    <ul className="space-y-2.5">
-                                        {Object.entries(plan.features).map(([key, value]) => (
-                                            <li key={key} className="flex items-center text-sm">
-                                                <Check className="mr-2 h-4 w-4 text-green-500 shrink-0" />
-                                                <span className="capitalize">
-                                                    {t(`planFeatures.${key.replace(/ /g, '_')}`, key.replace(/_/g, ' '))}: {
-                                                        typeof value === 'boolean' 
-                                                            ? t(`planFeatures.${value}`) 
-                                                            : String(value)
-                                                    }
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </CardContent>
-                            <CardFooter>
-                                <Button
-                                    className="w-full"
-                                    size="lg"
-                                    onClick={() => handleSubscribe(plan.id)}
-                                    disabled={subscribeMutation.isPending && selectedPlanId === plan.id}
-                                >
-                                    {subscribeMutation.isPending && selectedPlanId === plan.id ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            {t('subscribe.redirecting')}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CreditCard className="mr-2 h-4 w-4" />
-                                            {t('subscribe.subscribeButton')}
-                                        </>
-                                    )}
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
-            ) : (
-                <Card className="p-12 text-center">
-                    <p className="text-muted-foreground text-lg">
-                        {t('subscribe.noPlans')}
-                    </p>
-                </Card>
-            )}
-
-            {/* Security Footer */}
-            <Card className="bg-gradient-to-br from-primary/5 via-transparent to-transparent">
-                <CardContent className="flex flex-col items-center gap-6 p-8 md:flex-row md:items-start md:text-left">
-                    <div className="rounded-full bg-primary/10 p-4 shrink-0">
-                        <ShieldCheck className="h-8 w-8 text-primary" />
-                    </div>
-                    <div className="space-y-2">
-                        <h3 className="text-lg font-semibold">{t('subscribe.securePaymentTitle')}</h3>
-                        <p className="text-muted-foreground">
-                            {t('subscribe.securePaymentDescription')}
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
+                            )}
+                        </CardContent>
+                        <CardFooter>
+                            <Button
+                                className="w-full"
+                                size="lg"
+                                onClick={() => handleSubscribe(plan.id)}
+                            >
+                                <CreditCard className="mr-2 h-4 w-4" />
+                                {plan.is_credit_block ? "Buy Credits" : t('subscribe.subscribeButton')}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ))}
+            </div>
         </div>
+    );
+
+    const checkoutDialog = (
+        <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Complete Payment</DialogTitle>
+                    <DialogDescription>
+                        Secure payment powered by PayPal. All cards accepted.
+                    </DialogDescription>
+                </DialogHeader>
+                {selectedPlanId && (
+                    <PayPalCheckout 
+                        planId={selectedPlanId} 
+                        onSuccess={() => setIsCheckoutOpen(false)}
+                    />
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+
+    return (
+        <PayPalScriptProvider options={{ "client-id": "PENDING", components: "buttons,card-fields" }}>
+            <div className="mx-auto max-w-5xl space-y-12 py-8">
+                {/* Header */}
+                <div className="text-center space-y-3">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5">
+                        <Sparkles className="h-7 w-7 text-primary" />
+                    </div>
+                    <h1 className="text-4xl font-bold tracking-tight">
+                        {t('subscribe.title')}
+                    </h1>
+                    <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                        {t('subscribe.subtitle')}
+                    </p>
+                </div>
+
+                {/* Subscription Plans */}
+                {subscriptionPlans.length > 0 ? (
+                    renderPlans(subscriptionPlans, "Subscription Plans")
+                ) : (
+                    <Card className="p-12 text-center">
+                        <p className="text-muted-foreground text-lg">
+                            {t('subscribe.noPlans')}
+                        </p>
+                    </Card>
+                )}
+
+                {/* Credit Blocks */}
+                {creditPlans.length > 0 && (
+                    <div className="pt-8 border-t">
+                        {renderPlans(creditPlans, "Buy Credit Blocks")}
+                    </div>
+                )}
+
+                {/* Security Footer */}
+                <Card className="bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+                    <CardContent className="flex flex-col items-center gap-6 p-8 md:flex-row md:items-start md:text-left">
+                        <div className="rounded-full bg-primary/10 p-4 shrink-0">
+                            <ShieldCheck className="h-8 w-8 text-primary" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-lg font-semibold">{t('subscribe.securePaymentTitle')}</h3>
+                            <p className="text-muted-foreground">
+                                {t('subscribe.securePaymentDescription')}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {checkoutDialog}
+            </div>
+        </PayPalScriptProvider>
     );
 }

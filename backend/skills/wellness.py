@@ -31,7 +31,7 @@ class WellnessSkill(BaseSkill):
         ]
 
     def wellness_evaluation_link(self) -> str:
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: No distributor context found."
             
@@ -43,12 +43,12 @@ class WellnessSkill(BaseSkill):
         from models.wellness_evaluation import WellnessEvaluation
         from models.lead import Lead
         from models.customer import Customer
-        from extensions import db
+        from extensions import db, ctx
         import json
 
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
-        conversation_id = getattr(g, 'current_conversation_id', None)
+        distributor = getattr(ctx, 'current_company', None)
+        conversation_id = getattr(ctx, 'current_conversation_id', None)
         
         if not distributor or not conversation_id:
             return "Error: context missing"

@@ -408,7 +408,7 @@ export default function AdminBillingPage() {
                                     <TableHead>{t('common.name')}</TableHead>
                                     <TableHead>{t('common.description')}</TableHead>
                                     <TableHead>{t('common.price')}</TableHead>
-                                    <TableHead>{t('admin.dLocalToken')}</TableHead>
+                                    <TableHead>{t('admin.paypalPlanId')}</TableHead>
                                     <TableHead>{t('common.status')}</TableHead>
                                     <TableHead className="text-right">{t('common.actions')}</TableHead>
                                 </TableRow>
@@ -472,8 +472,8 @@ export default function AdminBillingPage() {
                                             ) : `$${plan.price_monthly}${t('common.perMonth')}`}
                                         </TableCell>
                                         <TableCell className="font-mono text-xs opacity-60">
-                                            {plan.dlocal_plan_token
-                                                ? `${plan.dlocal_plan_token.substring(0, 12)}...`
+                                            {plan.paypal_plan_id
+                                                ? plan.paypal_plan_id
                                                 : <span className="text-yellow-600">{t('admin.local')}</span>
                                             }
                                         </TableCell>
@@ -649,10 +649,10 @@ export default function AdminBillingPage() {
                     <CardContent>
                         <div className="flex items-center gap-2">
                             <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            <span className="font-medium">{t('admin.dLocalConfigured')}</span>
+                            <span className="font-medium">{t('admin.paypalConfigured')}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                            {t('admin.integrationNote')}
+                            {t('admin.paypalIntegrationNote')}
                         </p>
                     </CardContent>
                 </Card>
