@@ -167,7 +167,12 @@ class RAGService:
         if not index:
             raise RuntimeError("Pinecone index not available")
 
-        namespace = f"dist_{distributor_id}" if distributor_id else "global"
+        # FIX-020: Ensure namespace is never None to prevent data leakage
+        if distributor_id:
+            namespace = f"dist_{distributor_id}"
+        else:
+            namespace = "global"
+            
         vectors = []
         vector_ids = []
 

@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
-import { Moon, Sun, LogOut, Menu, User as UserIcon, Shield } from 'lucide-react';
+import { LogOut, Menu, User as UserIcon, Shield } from 'lucide-react';
 import Cookies from 'js-cookie';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/store/use-auth-store';
 import { LanguageSwitcher } from './language-switcher';
+import { ThemeToggle } from './theme-toggle';
 
 interface HeaderProps {
     onMobileMenuToggle: () => void;
@@ -26,7 +26,6 @@ interface HeaderProps {
 export function Header({ onMobileMenuToggle }: HeaderProps) {
     const router = useRouter();
     const { t } = useTranslation();
-    const { theme, setTheme } = useTheme();
     const user = useAuthStore((s) => s.user);
     const logout = useAuthStore((s) => s.logout);
 
@@ -69,14 +68,9 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             </Button>
 
             {/* Logo for mobile */}
-            <div className="flex lg:hidden ml-2 items-center gap-2">
-                <div className="w-8 h-8 shrink-0">
-                    <img src="/favicon-enpiai-ligth.png" alt="Enpi AI" className="w-full h-full object-contain dark:hidden" />
-                    <img src="/favicon-enpiai-dark.png" alt="Enpi AI" className="w-full h-full object-contain hidden dark:block" />
-                </div>
-                 <span className="text-lg font-bold tracking-tight">
-                    Enpi<span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">AI</span>
-                </span>
+            <div className="flex lg:hidden ml-2 items-center">
+                <img src="/favicon-enpiai-ligth.png" alt="Enpi AI" className="h-8 w-auto object-contain dark:hidden" />
+                <img src="/favicon-enpiai-dark.png" alt="Enpi AI" className="h-8 w-auto object-contain hidden dark:block" />
             </div>
 
             {/* Override Indicator */}
@@ -101,15 +95,7 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                 </div>
 
                 {/* Theme toggle */}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hover:bg-white/10"
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                >
-                    <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-primary" />
-                    <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-secondary" />
-                </Button>
+                <ThemeToggle />
 
                 {/* User menu */}
                 <DropdownMenu>

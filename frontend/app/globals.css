@@ -140,3 +140,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide Powered by PayPal label */
+.paypal-powered-by > .paypal-button-text, 
+.paypal-powered-by > .paypal-logo {
+  display: none !important;
+}

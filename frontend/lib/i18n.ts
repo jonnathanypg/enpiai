@@ -10,10 +10,10 @@ i18n.use(initReactI18next).init({
     es: { translation: es },
     pt: { translation: pt },
   },
-  // Always start with 'en' to match SSR output and avoid hydration mismatch.
+  // Always start with 'es' to match SSR output and avoid hydration mismatch.
   // The saved language is restored client-side in Providers after mount.
-  lng: 'en',
-  fallbackLng: 'en',
+  lng: 'es',
+  fallbackLng: 'es',
   interpolation: {
     escapeValue: false, // React already escapes
   },

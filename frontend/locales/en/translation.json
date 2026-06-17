@@ -40,7 +40,22 @@
     "show": "Show",
     "hide": "Hide",
     "copy": "Copy",
-    "confirmDelete": "Are you sure you want to delete this record and all its history? This action cannot be undone."
+    "confirmDelete": "Are you sure you want to delete this record and all its history? This action cannot be undone.",
+    "friendly": "Friendly",
+    "professional": "Professional",
+    "sales": "Salesperson",
+    "wellness_coach": "Wellness Coach",
+    "support": "Support",
+    "casual": "Casual",
+    "formal": "Formal",
+    "general": "General",
+    "customer_service": "Customer Service",
+    "scheduling": "Scheduling",
+    "lead_qualification": "Lead Qualification",
+    "wellness_evaluation": "Wellness Evaluation",
+    "distributor_assistant": "Distributor Assistant",
+    "userAccount": "My Account",
+    "phone": "Phone"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -72,8 +87,8 @@
     "agentSetup": "Agent Setup",
     "channels": "Channels",
     "documents": "Documents",
-    "wellness": "Wellness",
-    "playground": "Playground",
+    "wellness": "Surveys",
+    "playground": "Chat with Assistant",
     "settings": "Settings",
     "coach": "Coach Mode",
     "systemKnowledge": "System Knowledge",
@@ -99,6 +114,9 @@
       "nextBilling": "Next billing on",
       "courtesy": "Courtesy License",
       "active": "Active",
+      "trial": "Free Trial (24h)",
+      "trialBannerText": "You are currently on a 24-hour free trial. You have {{hours}} hours of access left.",
+      "trialBannerAction": "Activate License Now",
       "pending": "Pending",
       "pastDue": "Past Due",
       "cancelled": "Cancelled",
@@ -107,6 +125,29 @@
       "cancel": "Cancel Subscription",
       "features": "Included Features",
       "noExpiry": "No Expiration"
+    },
+    "checkout": {
+      "title": "Complete Payment",
+      "description": "Secure payment powered by PayPal. All cards accepted.",
+      "recurringPayment": "Recurring monthly subscription via PayPal",
+      "oneTimePayment": "One-time secure payment via PayPal",
+      "preparingCheckout": "Preparing secure checkout...",
+      "loadingPayPal": "Loading PayPal...",
+      "scriptErrorTitle": "PayPal Script Error",
+      "scriptErrorDesc": "Could not load PayPal SDK. Check your internet connection and try again.",
+      "checkoutErrorTitle": "Checkout Error",
+      "configErrorTitle": "Configuration Error",
+      "configErrorDesc": "PayPal Client ID is missing. Contact support if this persists.",
+      "tryAgain": "Try Again",
+      "successSubscription": "Subscription activated successfully!",
+      "errorSubscription": "There was a problem activating your subscription.",
+      "successOrder": "Payment successful! Credits added to your account.",
+      "errorCapture": "Payment was approved but could not be captured. Contact support.",
+      "errorOrder": "There was a payment error. Please try again.",
+      "cancelled": "Payment cancelled.",
+      "subscriptionCancelled": "Subscription cancelled.",
+      "recurringNote": "Important: To set up a recurring subscription, PayPal requires creating a password to establish a free account. This allows you to securely manage or cancel your subscription at any time.",
+      "oneTimeNote": "Secure payment processed by PayPal. No account registration is required for one-time payments."
     }
   },
   "admin": {
@@ -236,8 +277,7 @@
     "communicationChannels": "Communication Channels",
     "noChannels": "No channels connected yet.",
     "connectChannels": "Connect WhatsApp/Telegram",
-    "quickActions": "Quick Actions",
-    "testAgent": "Test AI Agent",
+    "testAgent": "Chat with my Assistant",
     "wellnessEvaluations": "Wellness Evaluations",
     "manageSubscription": "Manage Subscription"
   },
@@ -320,15 +360,15 @@
     "noDocuments": "No documents found."
   },
   "wellness": {
-    "title": "Wellness Center",
-    "description": "Manage evaluations and generate health reports.",
+    "title": "Surveys Center",
+    "description": "Manage surveys and generate health reports.",
     "copyShareLink": "Copy Share Link",
-    "newEvaluation": "New Evaluation",
+    "newEvaluation": "New Survey",
     "copyLink": "Copy Link",
-    "recentEvaluations": "Recent Evaluations",
-    "recentEvaluationsDesc": "A list of all wellness checks submitted by prospects and customers.",
-    "noEvaluations": "No evaluations found for this contact.",
-    "evaluation": "Evaluation",
+    "recentEvaluations": "Recent Surveys",
+    "recentEvaluationsDesc": "A list of all wellness surveys submitted by prospects and customers.",
+    "noEvaluations": "No surveys found for this contact.",
+    "evaluation": "Survey",
     "generatePdf": "Generate PDF",
     "viewContact": "View Contact",
     "stats": "Wellness Stats",
@@ -340,17 +380,17 @@
     "timelineDescription": "All messages, appointments, and system events."
   },
   "playground": {
-    "title": "Agent Playground",
-    "description": "Test your AI agent in real-time. Messages are sent to your configured agent.",
+    "title": "My Virtual Assistant",
+    "description": "Chat section with the distributor's assistant to interact with and control the system directly.",
     "clearChat": "Clear Chat",
-    "liveChat": "Live Agent Chat",
+    "liveChat": "Live Assistant Chat",
     "noMessages": "No messages yet",
-    "startTesting": "Send a message to start testing your agent.",
-    "typeMessage": "Type a message to test your agent...",
-    "helpText": "Press Enter to send. This playground uses your configured agent and RAG knowledge base.",
+    "startTesting": "Send a message to start chatting with your assistant.",
+    "typeMessage": "Type a message to chat with your assistant...",
+    "helpText": "Press Enter to send. This chat uses your configured assistant and RAG knowledge base.",
     "noResponse": "No response received.",
     "clearSuccess": "Conversation history reset.",
-    "liveAgentChat": "Live Agent Chat"
+    "liveAgentChat": "Live Assistant Chat"
   },
   "settings": {
     "title": "Settings",
@@ -359,6 +399,7 @@
     "personalInfoDesc": "Your basic profile and contact details.",
     "businessInfo": "Business Information",
     "businessInfoDesc": "Your Herbalife distributor business details.",
+    "distributorLevel": "Distributor Level",
     "localization": "Localization",
     "localizationDesc": "Region and language preferences.",
     "apiAccess": "API Access",
@@ -368,6 +409,8 @@
     "phoneNumber": "Phone Number",
     "personalStory": "Personal Story",
     "personalStoryPlaceholder": "Brief description about you...",
+    "whatsappPhone": "WhatsApp Phone",
+    "whatsappPhoneHelp": "Leave blank if your WhatsApp number is the same as the phone number above.",
     "businessName": "Business Name",
     "memberId": "Your Herbalife member ID",
     "website": "Website",
@@ -376,6 +419,7 @@
     "timezone": "Timezone",
     "city": "City",
     "country": "Country",
+    "selectCountry": "Select country",
     "noApiKey": "No API key generated",
     "endpoint": "Endpoint",
     "header": "Header",
@@ -424,8 +468,8 @@
           "description": "Connect WhatsApp, Telegram, and Web Chat in one place."
         },
         "wellness": {
-          "title": "Wellness Evaluations",
-          "description": "Share a personalized link for prospects to complete their assessment. Get BMI reports automatically."
+          "title": "Wellness Surveys",
+          "description": "Share a personalized link for prospects to complete their survey. Get BMI reports automatically."
         },
         "crm": {
           "title": "CRM & Lead Management",
@@ -631,5 +675,219 @@
     "english": "English",
     "spanish": "Spanish",
     "portuguese": "Portuguese"
+  },
+  "onboarding": {
+    "welcomeTitle": "Welcome to EnpiAI!",
+    "welcomeSubtitle": "Your Intelligent Health & Wellness Assistant",
+    "welcomeDesc": "EnpiAI helps you automate your nutrition business, manage clients, perform wellness evaluations, and automate your WhatsApp using Artificial Intelligence. Let's configure your account in a few simple steps.",
+    "startTour": "Start Guided Tour",
+    "exploreOnOwn": "Explore on my own",
+    "checklistTitle": "Steps to Activate Your Account",
+    "checklistDesc": "Complete these essential tasks to deploy your first conversational assistant and activate all tools.",
+    "stepProfile": "Complete Profile Details",
+    "stepProfileDesc": "Enter your name, email, phone number, and Herbalife ID in your Settings.",
+    "stepAgents": "Configure Your Agent",
+    "stepAgentsDesc": "Adjust your AI assistant's personality, role, tone, and instructions.",
+    "stepChannels": "Connect WhatsApp",
+    "stepChannelsDesc": "Link your WhatsApp number using a QR code to automate responses.",
+    "stepDocuments": "Upload Knowledge Documents",
+    "stepDocumentsDesc": "Upload product PDFs or manuals so your agent can answer questions using RAG.",
+    "stepWellness": "Configure Surveys",
+    "stepWellnessDesc": "Test or create a wellness survey form for your prospects.",
+    "stepCoach": "Try Coach Mode",
+    "stepCoachDesc": "Use your AI business mentor to plan your path to the President's Team.",
+    "stepSubscribe": "Activate Subscription",
+    "stepSubscribeDesc": "Subscribe to a plan to enable the conversational engine and messaging.",
+    "activationProgress": "Activation Progress",
+    "congratulations": "Congratulations!",
+    "allStepsCompleted": "You have completed all configuration steps! Your EnpiAI assistant is ready to work at full capacity.",
+    "tour": {
+      "progress": "Step {{current}} of {{total}}",
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip",
+      "finish": "Finish",
+      "step0Title": "Your Dashboard",
+      "step0Desc": "Here you will see the summary of leads, customers, active conversations, and daily messages processed by your assistant.",
+      "step1Title": "Account Details",
+      "step1Desc": "Enter your phone number, email, Herbalife ID, and distributor level so the agent can identify themselves in a personalized way.",
+      "step2Title": "Your Agent's Personality",
+      "step2Desc": "Adjust the role, communication tone, customized instructions, and activate the assistant's smart tools.",
+      "step3Title": "Connect Channels",
+      "step3Desc": "Link your WhatsApp by scanning the QR code. The agent will start responding and qualifying your contacts instantly.",
+      "step4Title": "Knowledge Base",
+      "step4Desc": "Upload Herbalife catalogs, nutrition charts, or policies. Your agent will answer your prospects' questions using this database.",
+      "step5Title": "My Virtual Assistant",
+      "step5Desc": "Chat with your assistant in real time to interact with and control the system directly.",
+      "step6Title": "Wellness Surveys",
+      "step6Desc": "Here you can configure and review the body composition and BMI surveys completed by your contacts.",
+      "step7Title": "Business Coach Mode",
+      "step7Desc": "Activate your Herbalife business mentor to guide you on your career plan and support your path to the President's Team.",
+      "step8Title": "Subscription & Activation",
+      "step8Desc": "Choose the ideal plan to keep your agents, message limits, and live conversational features active."
+    }
+  },
+  "legal": {
+    "privacyTitle": "Privacy Policy",
+    "termsTitle": "Terms of Service",
+    "pricingTitle": "Pricing",
+    "refundsTitle": "Refund Policy",
+    "lastUpdated": "Last updated: {{date}}",
+    "privacy": {
+      "intro": "At EnpiAI, we take your privacy very seriously. This policy describes how we collect, use, and protect your personal and health information in accordance with international standards and requirements for platforms like Google Cloud Console. Please note that EnpiAI is an independent SaaS platform and is not affiliated, associated, authorized, or officially endorsed in any way by Herbalife International or Herbalife Nutrition.",
+      "sections": {
+        "collection": {
+          "title": "1. Information We Collect",
+          "content": "To provide our AI assistant services and wellness tools, we collect information that you directly provide to us when creating an account, connecting messaging channels (WhatsApp, Telegram), or performing a wellness evaluation.",
+          "item1": "Account and Profile Data: Name, email address, phone number, distributor level, and Herbalife ID.",
+          "item2": "Integration Data: Google Calendar OAuth tokens for scheduling synchronization, and credentials for the WhatsApp/Telegram gateway.",
+          "item3": "Wellness Evaluation Data: Body measurements (weight, height), BMI, blood pressure, pulse, energy level, sleep quality/hours, water intake, meals, and health symptoms voluntarily reported by your prospects.",
+          "item4": "Knowledge Base Data (RAG): Product catalogs, manuals, or PDF documents uploaded by the distributor to train their AI agent."
+        },
+        "google": {
+          "title": "2. Google User Data (Limited Use Policy)",
+          "content": "EnpiAI requests access to your Google Calendar to allow your AI agents to schedule appointments and wellness checks on your behalf with prior consent.",
+          "disclosure": "EnpiAI's use and transfer of information received from Google APIs to any other app will adhere to Google API Services User Data Policy, including the Limited Use requirements."
+        },
+        "use": {
+          "title": "3. How We Use Your Information",
+          "content": "We use the collected data to:",
+          "item1": "Provide, operate, and maintain the EnpiAI platform and its business tools.",
+          "item2": "Enable your AI agent to respond to customer and prospect inquiries in a personalized manner using the knowledge base indexed in Pinecone.",
+          "item3": "Process and generate physical wellness diagnostics, BMI calculations, and nutrition plans suggested by AI.",
+          "item4": "Automate appointment scheduling in your Google Calendar and send notifications of captured leads.",
+          "item5": "Improve AI models and ensure overall system stability."
+        },
+        "sovereignty": {
+          "title": "4. Data Sovereignty, Encryption, and Security",
+          "content": "EnpiAI follows a strict Data Sovereignty principle. All personally identifiable information (PII) and health data are stored in our relational database in encrypted form at the application level using military-grade Fernet encryption. The data is logically isolated per tenant (multi-tenant). We do not commercialize or share conversation histories or prospect lists with third parties."
+        },
+        "thirdParty": {
+          "title": "5. Third-Party Services and Transfers",
+          "content": "Our platform interacts with essential external services: OpenAI/Google Gemini (natural language processing), Pinecone (vector database for RAG), WhatsApp (via our local Node.js gateway based on Baileys), and PayPal (secure billing processing). The interaction and transfer of data to these platforms comply exclusively with the functional purposes of the contracted service."
+        },
+        "contact": {
+          "content": "If you have any questions about this Privacy Policy or the handling of your data, you can contact us at support@weblifetech.com"
+        }
+      }
+    },
+    "terms": {
+      "intro": "By using the EnpiAI platform, you agree to the following terms and conditions of service. Please read them carefully before starting.",
+      "sections": {
+        "acceptance": {
+          "title": "1. Acceptance of Terms",
+          "content": "By accessing, registering, or using EnpiAI ('the Platform'), you agree to comply with and be bound by these terms and conditions. If you do not agree to any part of these terms, you must not use the Platform."
+        },
+        "service": {
+          "title": "2. Description of Service and Affiliation Disclaimer",
+          "content": "EnpiAI is a SaaS ecosystem that provides intelligent conversational assistants, CRM, and health evaluation tools for independent Herbalife distributors. EnpiAI is an independent brand and development by WEBLIFETECH. We have no legal relationship, sponsorship, or commercial affiliation with Herbalife International, Herbalife Nutrition, or their subsidiaries. The use of the platform is the sole responsibility of the independent distributor."
+        },
+        "responsibility": {
+          "title": "3. Responsible Use and Communication Channels",
+          "content": "You agree to use the AI agents, WhatsApp integration, and communication capabilities exclusively for legitimate and lawful business purposes. You are responsible for:",
+          "item1": "The data, catalogs, and product documents uploaded to the AI agent's knowledge base (RAG), ensuring they do not infringe copyright or present false information.",
+          "item2": "Compliance with telecommunications laws and anti-spam regulations. You must not use the WhatsApp or Telegram gateway to send unsolicited bulk messages (spam) or harass users.",
+          "item3": "Ensuring that you have the consent of your clients/prospects before registering their health data in the CRM or sending them automated messages."
+        },
+        "payments": {
+          "title": "4. Payments, Subscriptions, and Credits",
+          "content": "Access to the full features of EnpiAI requires an active subscription or the purchase of conversation credit blocks. Payments are securely processed through PayPal Smart Buttons. Monthly recurring subscriptions require the customer to create a PayPal password during checkout due to gateway fraud policies and to allow control of recurring charges. One-time credit blocks support the Guest Checkout method. The backend performs instant server-to-server verification to activate your services immediately."
+        },
+        "liability": {
+          "title": "5. Limitation of Liability and Exclusions",
+          "content": "EnpiAI provides answers generated by Artificial Intelligence and automated evaluations based on user inputs. The wellness and BMI evaluations generated by the AI are for informational and general guidance purposes only; they do not constitute medical advice, clinical diagnoses, or medical treatment plans. Although we strive for maximum accuracy, EnpiAI is not responsible for AI hallucinations, errors, or omissions in the agent's responses, or for the misuse of health information. The distributor must monitor and adjust the knowledge base and agent behavior on an ongoing basis."
+        }
+      }
+    }
+  },
+  "refunds": {
+    "title": "Refund Policy",
+    "lastUpdated": "Last updated",
+    "p1": "At EnpiAI (developed by WEBLIFETECH), we aim for our tools to fully optimize your nutrition and wellness business. Because real-time conversation processing consumes direct computing resources and AI API inference costs, our refund policy is governed by the following clear rules.",
+    "section1": {
+      "title": "1. Monthly Membership Subscriptions",
+      "p1": "We offer a 14-day refund guarantee from the date of your first monthly subscription payment on the platform, subject to the following usage limits:",
+      "li1": "A 100% refund will be granted only if the accumulated conversation credit consumption on your account is less than 10% of the credits assigned in the contracted plan.",
+      "li2": "If the use of the AI assistant exceeds 10% of the monthly credits during this period, no full or partial refund can be made, due to the operational costs already incurred with LLM providers."
+    },
+    "section2": {
+      "title": "2. Additional Credit Blocks (Top-ups)",
+      "p1": "Independently purchased packages and additional credit blocks are non-refundable once their use has started (at least 1 credit has been consumed). If you purchased a block by mistake and have not had any conversation with it, you can request a full refund within 7 days of purchase."
+    },
+    "section3": {
+      "title": "3. Processing and Refund (PayPal)",
+      "p1": "All EnpiAI billing and subscriptions are securely managed through PayPal.",
+      "p2": "Once the refund request is approved by our team, the transaction will be automatically reversed through the PayPal API. The funds will be returned to the original credit/debit card or PayPal account within 5 to 10 business days, depending on your financial institution's policies."
+    },
+    "section4": {
+      "title": "4. How to Request a Refund",
+      "p1": "To request a refund, please send an email to support@weblifetech.com indicating the following details:",
+      "li1": "The email registered in your EnpiAI account.",
+      "li2": "The PayPal transaction ID or the subscription code sent in the purchase receipt.",
+      "li3": "The reason for your request (your feedback helps us improve the product and our agents' behavior)."
+    },
+    "footer": "For any additional inquiries about consumption, limits, or cancellations, please feel free to write to us at support@weblifetech.com. We are here to support your business growth."
+  },
+  "levels": {
+    "distribuidor": "Independent Distributor",
+    "consultor": "Senior Consultant",
+    "constructor": "Success Builder",
+    "productor": "Qualified Producer",
+    "supervisor": "Supervisor / Wholesaler",
+    "mundo": "World Team",
+    "mundo_activo": "Active World Team",
+    "get": "Global Expansion Team (GET)",
+    "millonarios": "Millionaire Team",
+    "presidente": "President's Team",
+    "chairman": "Chairman's Club",
+    "fundador": "Founder's Circle"
+  },
+  "coachMode": {
+    "planMarketing": "Herbalife Marketing Plan",
+    "title": "Coach Mode: Road to President",
+    "roadToPresident": "Road to President",
+    "description": "Personalized 24/7 coaching with daily challenges and mental reprogramming through music, reading, and direct instruction. Receive messages 3 times a day on your WhatsApp.",
+    "successLadder": "Success Ladder - Progress {{progress}}%",
+    "currentPositionDesc": "Your current position in the Herbalife career plan.",
+    "presidentTeam": "President's Team (100%)",
+    "currentLevel": "Current Level",
+    "activeCoachService": "Active Coach Service",
+    "enableChallenges": "Enable daily messages and challenges",
+    "challengesTitle": "Your Challenges & Goals",
+    "challengesDesc": "Complete your daily, weekly, and monthly challenges to rise on the success thermostat.",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "noDailyChallenges": "No daily challenges assigned.",
+    "weeklyBadge": "Weekly",
+    "monthlyBadge": "Monthly",
+    "wealthFrequencies": "Wealth Frequencies",
+    "musicDesc": "Select the language of your daily mental reprogramming list.",
+    "musicEs": "Spanish Music (Billionaire Sound)",
+    "musicEn": "English Music (Billionaire Playlist)",
+    "musicNone": "Disable recommended music",
+    "listenPlaylist": "Listen to Focus Playlist",
+    "aiCoachMessage": "Message from your AI Coach",
+    "aiCoachDesc": "Get motivation or run your roadmap audit right now.",
+    "getAdvice": "Get Coach Advice",
+    "generatingAdvice": "Generating Advice...",
+    "adviceGenerated": "Coach advice generated.",
+    "adviceError": "Could not generate advice.",
+    "researchMilestones": "Research Key Milestones",
+    "analyzingProgress": "Analyzing Progress...",
+    "researchSuccess": "Roadmap analyzed by Success Agent.",
+    "researchAgentFailure": "The research agent reported an error.",
+    "researchInitError": "Failed to start the Research Agent.",
+    "recommendedMilestones": "Milestones recommended by the Researcher:",
+    "growthResources": "Growth Resources",
+    "resourcesDesc": "Recommended training links for your mindset.",
+    "eduardoSalazar": "Eduardo Salazar (HBL Mindset)",
+    "metafisica": "Metaphysics Audiobooks",
+    "recommendedReading": "Recommended Reading (Level)",
+    "loadError": "Could not load the roadmap. Please try again.",
+    "configUpdated": "Coach settings updated.",
+    "configUpdateError": "Error saving settings.",
+    "challengeUpdated": "Challenge updated.",
+    "challengeUpdateError": "Error updating challenge."
   }
 }

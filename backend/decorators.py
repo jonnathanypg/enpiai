@@ -40,7 +40,19 @@ def subscription_required(f):
                 distributor_id=user.distributor_id
             ).first()
 
-            if not subscription or not subscription.is_active:
+            is_active = subscription and subscription.is_active
+
+            # Fallback checks: Courtesy account or 24-hour trial period
+            if not is_active:
+                from datetime import datetime, timedelta
+                distributor = user.distributor
+                if distributor:
+                    if distributor.is_courtesy:
+                        is_active = True
+                    elif distributor.trial_activated and distributor.created_at:
+                        is_active = datetime.utcnow() < (distributor.created_at + timedelta(hours=24))
+
+            if not is_active:
                 return jsonify({
                     'error': 'Active subscription required',
                     'code': 'SUBSCRIPTION_REQUIRED'

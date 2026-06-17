@@ -296,7 +296,15 @@ def list_tenants():
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
 
-        pagination = Distributor.query.order_by(
+        from models.platform_config import PlatformConfig
+        platform_conf = PlatformConfig.get_config()
+        platform_dist_id = platform_conf.platform_distributor_id if platform_conf else None
+
+        query = Distributor.query
+        if platform_dist_id:
+            query = query.filter(Distributor.id != platform_dist_id)
+
+        pagination = query.order_by(
             Distributor.created_at.desc()
         ).paginate(page=page, per_page=per_page, error_out=False)
 
@@ -415,7 +423,18 @@ def delete_tenant(distributor_id):
         except Exception as e:
             logger.warning(f"Failed to delete QR code file for distributor {distributor_id}: {e}")
 
-        # 3. Delete distributor (Cascades to all relationships defined with delete-orphan)
+        # 3. Delete child tables not covered by SQLAlchemy cascades to prevent FK constraints
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("DELETE FROM scheduled_tasks WHERE distributor_id = :id"), {"id": distributor_id})
+            db.session.execute(text("DELETE FROM transactions WHERE distributor_id = :id"), {"id": distributor_id})
+            db.session.execute(text("DELETE FROM notes WHERE distributor_id = :id"), {"id": distributor_id})
+            db.session.execute(text("DELETE FROM bailey_sessions WHERE session_id = :id"), {"id": str(distributor_id)})
+            db.session.flush()
+        except Exception as fk_err:
+            logger.warning(f"Could not delete some child tables (continuing): {fk_err}")
+
+        # 4. Delete distributor (Cascades to all relationships defined with delete-orphan)
         db.session.delete(distributor)
         db.session.commit()
 

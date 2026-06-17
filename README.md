@@ -32,7 +32,7 @@ The platform is designed to be **frictionless** for both distributors and their 
     *   **Relational**: MySQL (SQLAlchemy) with Application-Level Encryption (Fernet).
     *   **Vector**: Pinecone (Namespace-isolated RAG).
 *   **Authentication**: JWT Security & Google OAuth.
-*   **Payments**: PayPal Advanced Credit and Debit Cards (ACDC).
+*   **Payments**: PayPal Smart Buttons (with Guest Checkout & Direct Verification).
 *   **Frontend**: Next.js 15 (React 19), TypeScript, Tailwind CSS, Shadcn UI.
 *   **AI/LLM**: Multi-provider failover (OpenAI -> Google Gemini -> Anthropic).
 *   **WhatsApp**: Custom Node.js Multi-tenant microservice (`api-whatsapp`).
@@ -63,10 +63,14 @@ The platform is designed to be **frictionless** for both distributors and their 
 *   ✅ **Core Infrastructure**: Multi-tenant database, JWT Auth, and multi-provider LLM failover.
 *   ✅ **Agent Orchestration**: LangGraph-based cyclic workflows with state persistence in Redis.
 *   ✅ **WhatsApp Multi-Tenancy**: Dedicated gateway for asynchronous message processing.
-*   ✅ **Payments**: Fully transitioned to PayPal ACDC for Subscriptions and Credit Blocks.
+*   ✅ **Payments**: Integrated PayPal Smart Buttons (with Guest Checkout and instant server-side verification) for Subscriptions and Credit Blocks.
 *   ✅ **CRM & Wellness**: Unified contact view and health evaluation logic implemented.
 *   ✅ **RAG System**: Automated document indexing and semantic search per distributor.
 *   ✅ **I18n & Themes**: Light/Dark theme support and EN/ES/PT i18n subsystem.
+*   ✅ **Legal Disclaimers & Policies**: Complete public-facing Terms of Service, Privacy Policy, and Refund Policy routes implemented with dynamic i18n translations, specifying Herbalife non-affiliation, Fernet-encrypted PII/health data, and Google OAuth Limited Use rules.
+*   ✅ **Channel Connections Polish**: Temporarily disabled Google Calendar and custom SMTP setup in dashboard settings, implementing a default mailing sender fallback via system SMTP (using `info@enpi.click` but showing distributor name dynamically as `"Distributor Name via EnpiAI"`).
+*   ✅ **Analytics & Tracking**: Embedded Google Tag Manager (`GTM-54SSFHBZ`) tracking scripts inside Next.js root layout.
+*   ✅ **Google Auth Resolution**: Fixed Google Sign-In "wrong audience" token verification mismatch between frontend and backend environment variables.
 *   🚧 **Monitoring**: Fine-tuning remote MySQL latency handling for high traffic.
 
 ---

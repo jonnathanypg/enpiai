@@ -25,7 +25,7 @@ class VoiceService:
     @staticmethod
     def transcribe(audio_path: str) -> str:
         """
-        Transcribes an audio file using MediaSuite Custom API.
+        Transcribes an audio file using MediaSuite Custom API. Falls back to OpenAI Whisper if needed.
         """
         if not os.path.exists(audio_path):
             logger.error(f"Audio file not found: {audio_path}")
@@ -33,31 +33,72 @@ class VoiceService:
 
         import requests
         
-        url = os.getenv("WHISPER_API_URL", "https://media.weblifetech.com/api/external/transcribe")
+        url = os.getenv("WHISPER_API_URL")
         api_key = os.getenv("WHISPER_API_KEY")
         
-        headers = {}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
+        custom_transcription_failed = False
+        if url:
+            headers = {}
+            if api_key and api_key.startswith("wlt_sec_"):
+                headers["Authorization"] = f"Bearer {api_key}"
+            else:
+                headers["x-api-key"] = api_key
+            try:
+                logger.info(f"Starting Custom API transcription for: {audio_path}")
+                with open(audio_path, "rb") as audio_file:
+                    # We specify the filename, the file object, and a generic audio mime type.
+                    files = {"file": (os.path.basename(audio_path), audio_file, "audio/mpeg")}
+                    response = requests.post(url, headers=headers, files=files, timeout=60)
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                text = data.get("text", "")
+                logger.info(f"Transcription successful. Length: {len(text)}")
+                return text.strip()
+            except Exception as e:
+                custom_transcription_failed = True
+                logger.error(f"Custom API transcription failed: {e}")
+                if 'response' in locals() and hasattr(response, 'text'):
+                    logger.error(f"Response: {response.text}")
+        else:
+            custom_transcription_failed = True
+            logger.warning("WHISPER_API_URL not configured in environment")
 
-        try:
-            logger.info(f"Starting Custom API transcription for: {audio_path}")
-            with open(audio_path, "rb") as audio_file:
-                # We specify the filename, the file object, and a generic audio mime type.
-                files = {"file": (os.path.basename(audio_path), audio_file, "audio/mpeg")}
-                response = requests.post(url, headers=headers, files=files, timeout=60)
-            
-            response.raise_for_status()
-            data = response.json()
-            
-            text = data.get("text", "")
-            logger.info(f"Transcription successful. Length: {len(text)}")
-            return text.strip()
-        except Exception as e:
-            logger.error(f"Custom API transcription failed: {e}")
-            if 'response' in locals() and hasattr(response, 'text'):
-                logger.error(f"Response: {response.text}")
-            return ""
+        if custom_transcription_failed:
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if openai_key:
+                try:
+                    logger.info("Attempting fallback transcription via OpenAI Whisper...")
+                    from openai import OpenAI
+                    client = OpenAI(api_key=openai_key)
+                    with open(audio_path, "rb") as audio_file:
+                        # Determine content type based on extension
+                        ext = os.path.splitext(audio_path)[1].lower()
+                        mime_type = "audio/mpeg"
+                        if ext in [".ogg", ".opus"]:
+                            mime_type = "audio/ogg"
+                        elif ext == ".webm":
+                            mime_type = "audio/webm"
+                        elif ext == ".wav":
+                            mime_type = "audio/wav"
+                        elif ext == ".m4a":
+                            mime_type = "audio/m4a"
+                            
+                        transcription = client.audio.transcriptions.create(
+                            model="whisper-1",
+                            file=(os.path.basename(audio_path), audio_file, mime_type)
+                        )
+                    if transcription and transcription.text:
+                        text = transcription.text.strip()
+                        logger.info(f"OpenAI transcription fallback successful. Length: {len(text)}")
+                        return text
+                except Exception as ex:
+                    logger.error(f"OpenAI transcription fallback also failed: {ex}")
+            else:
+                logger.error("No OPENAI_API_KEY available for fallback transcription")
+
+        return ""
 
     @staticmethod
     def transcribe_blob(audio_bytes: bytes, filename: str = "audio.webm") -> str:

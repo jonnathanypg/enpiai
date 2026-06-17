@@ -6,7 +6,7 @@ El proyecto **EnpiAI** sigue una arquitectura moderna HTA (Hypermedia-Driven, Ta
 1. **Frontend (`enpiai-frontend` - Puerto 3000)**: Construido en Next.js (App Router). Maneja el dashboard multi-tenant, CRM (vista 360), y configuración de los Agentes.
 2. **Backend Gateway (`enpiai-fastapi` - Puerto 5000)**: Aplicación FastAPI que actúa como punto de entrada unificado, manejando webhooks asíncronos y delegando a Flask para rutas legacy.
 3. **Redis (`enpiai-redis` - Puerto 6381)**: Actúa como el broker de mensajes para Celery y como caché.
-4. **Worker AI (`enpiai-worker`)**: Un proceso de Celery que toma las tareas pesadas en segundo plano (consultas a GPT-5/OpenAI, LangGraph, generación de RAG, creación de PDFs).
+4. **Worker AI (`enpiai-worker`)**: Un proceso de Celery que toma las tareas pesadas en segundo plano (consultas a **GPT-5 Nano** (OpenAI), LangGraph, generación de RAG, creación de PDFs).
 5. **Gateway de WhatsApp (`enpiai-whatsapp` - Puerto 3001)**: Un microservicio en Node.js que envuelve la librería Baileys. Mantiene las conexiones persistentes con WhatsApp Web, guarda las sesiones en MySQL, y envía webhooks al backend.
 
 ### ¿Cómo es el flujo de un mensaje en Producción?
@@ -83,6 +83,47 @@ Has hecho el trabajo correcto en local: refactorizar el `api-whatsapp` eliminand
 5. **Re-conectar WhatsApp:**
    Entra al dashboard web, ve a la sección del agente de WhatsApp, escanea el código QR de nuevo. El sistema usará ahora tu código nativo local, resistiendo la caída de base de datos gracias a `enableKeepAlive` y procesando el flujo sin interrupciones.
 
+## 4. Pasarela de Pagos (PayPal Smart Buttons)
+
+El sistema de facturación y recarga de créditos se ha migrado y optimizado utilizando los **Smart Payment Buttons del SDK de JavaScript de PayPal**, configurado específicamente para soportar cuentas de comerciantes de Ecuador/LATAM con el flujo **Guest Checkout** (Pago como Invitado) e integración de **Verificación Directa**.
+
+### Flujo de Pago y Reglas de Registro
+1. **Suscripciones Recurrentes (Membresías):**
+   * **Requisito de Cuenta:** Debido a las políticas de seguridad y fraude de PayPal, para establecer una membresía de cobro recurrente (Suscripción/Billing Agreement), el cliente **siempre debe crear una contraseña** al introducir su tarjeta. Esto crea una cuenta de PayPal gratuita y segura asociada a la tarjeta, lo que le permite al usuario gestionar, actualizar o cancelar su suscripción directamente desde su portal.
+   * **Visualización:** El flujo de checkout del frontend notifica explícitamente al usuario de esta regla para evitar fricción.
+2. **Pagos Únicos (Bloques de Créditos):**
+   * **Pago como Invitado Puro (Guest Checkout):** Para compras de una sola vez, el usuario puede introducir sus datos bancarios y completar el pago de forma 100% directa y como invitado, sin necesidad de crear contraseñas o registrarse en la plataforma de PayPal.
+
+### Arquitectura de Activación Instantánea
+Para mitigar la lentitud extrema de los webhooks de PayPal en Sandbox y producción (que pueden tardar de 3 a 15 minutos en llegar al backend), implementamos una estrategia de **Verificación Directa de doble vía**:
+* **Frontend (`paypal-checkout.tsx`):** Al obtener la aprobación de pago del usuario en el popup, antes de refrescar la pantalla, el frontend envía una solicitud inmediata al backend con el `subscriptionID`.
+* **Backend (`POST /api/billing/verify-subscription`):** El backend recibe el ID de suscripción, consulta en tiempo real mediante API REST directa (servidor a servidor) el estado de la suscripción en los servidores de PayPal, y activa la membresía en la base de datos de manera sub-segundo.
+* **Resultado:** La recarga finaliza con éxito y la interfaz del usuario se actualiza al instante, ofreciendo una experiencia fluida e inmediata.
+
+---
+
+## 5. Ajustes, Políticas & Integraciones Recientes (Junio 2026)
+
+Tras estabilizar los canales de mensajería y la pasarela de pagos con PayPal, se realizaron ajustes adicionales clave para el cumplimiento de normativas de tiendas de aplicaciones y plataformas de integración (como Google Cloud y Meta):
+
+### 📄 Políticas Legales Personalizadas
+Se implementaron e integraron páginas legales accesibles públicamente con traducción dinámica (Español, Inglés, Portugués), abordando específicamente la lógica interna y arquitectura de **EnpiAI**:
+*   **Condiciones del Servicio (`/terms`)**: Declara explícitamente el descargo de responsabilidad y la **no afiliación oficial con Herbalife International o Herbalife Nutrition**. Aclara las responsabilidades del distribuidor sobre el contenido de la base de conocimientos (RAG) y prohíbe el envío de spam masivo mediante el gateway de WhatsApp/Telegram.
+*   **Política de Privacidad (`/privacy`)**: Especifica la recopilación de datos sensibles de salud provenientes de las evaluaciones de bienestar corporales e IMC. Garantiza el aislamiento lógico multi-tenant y la protección de PII/salud mediante **cifrado Fernet a nivel de aplicación** en MySQL. Detalla la política de datos limitados de Google Calendar OAuth.
+*   **Política de Reembolso (`/refunds`)**: Regula el reembolso de 14 días para membresías mensuales condicionándolo a un consumo menor al 10% de los créditos mensuales de inferencia de IA. Especifica el reembolso de recargas de créditos no consumidos en 7 días y la devolución vía API segura de PayPal.
+*   *Nota de Navegación*: Los enlaces correspondientes se agregaron al footer de la página de inicio y al layout compartido de las páginas públicas (excluyendo el enlace de precios directo en footer por solicitud comercial).
+
+### 🛠️ Configuración de Canales y Envío de Correo Fallback
+*   **Ajuste Temporal de Interfaz**: Se ocultaron de forma temporal las opciones de vinculación de Calendario de Google y de SMTP personalizado en la pestaña de Configuración de Canales (`/channels`).
+*   **Mailing con Fallback Dinámico**: Cuando el distribuidor no tiene un canal de email personalizado integrado, el backend y los trabajadores de Celery utilizan el SMTP general de la plataforma (`info@enpi.click` del `.env`), pero construyen dinámicamente las cabeceras `From` y firmas a nombre de la información comercial del distribuidor (ej. `"Nombre de Distribuidor via EnpiAI <info@enpi.click>"`). Esto permite enviar los reportes PDF de bienestar firmados al correo del prospecto de forma automática.
+
+### 🔑 Google Sign-In & Google Tag Manager
+*   **Google OAuth "Wrong Audience" Solucionado**: Se alineó la configuración `GOOGLE_CLIENT_ID` del backend (`.env`) con el Client ID activo del frontend (`916670609421-89u06k4t5hr5smkccrpsvgrmqh6o40qc.apps.googleusercontent.com`), permitiendo la correcta verificación criptográfica de los tokens ID y habilitando el inicio de sesión y registro automático frictionless.
+*   **Google Tag Manager**: Se integraron los scripts de seguimiento de GTM (`GTM-54SSFHBZ`) en la cabecera y el cuerpo del layout de Next.js 16 (`app/layout.tsx`) utilizando la directiva `<Script>` optimizada.
+
+---
+
 ## Conclusión de la Radiografía
 Tu arquitectura base (HTA) y la lógica de LangGraph con OpenAI están funcionando perfectamente bajo presión (el log del worker prueba que es capaz de recibir, razonar y disparar un mensaje de vuelta en apenas 10 segundos). 
-El único eslabón roto es cómo PM2 en Contabo está "arrancando" el proceso de Node.js de WhatsApp, forzando a usar una versión antigua instalada por NPX que no es resiliente a los micro-cortes de red de la base de datos MySQL. Una vez que dirijas PM2 a ejecutar tu `dist/app.js` localizado, el agente comenzará a responder fluidamente.
+El único eslabón roto era cómo PM2 en Contabo arrancaba el proceso de Node.js de WhatsApp, lo cual se solucionó apuntando al `dist/app.js` localizado. Además, la pasarela de pagos con PayPal se ha optimizado para ser robusta, rápida e inmune a las demoras de webhooks en producción gracias al endpoint de verificación directa.
+

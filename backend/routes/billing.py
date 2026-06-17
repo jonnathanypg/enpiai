@@ -303,7 +303,36 @@ def get_my_subscription():
             'notes': 'Courtesy account granted by administrator'
         }), 200
 
-    # 2. Check for an actual subscription record
+    # 2. Check if it's a 24-hour trial account
+    from datetime import datetime, timedelta
+    in_trial = False
+    if distributor.trial_activated and distributor.created_at and not distributor.subscription_active:
+        trial_ends_at = distributor.created_at + timedelta(hours=24)
+        if datetime.utcnow() < trial_ends_at:
+            in_trial = True
+
+    if in_trial:
+        # Mock a subscription object for trial users using default plan features
+        plan = Plan.query.filter_by(is_default=True).first()
+        if not plan:
+            plan = Plan.query.first() # Fallback
+            
+        trial_ends_at = distributor.created_at + timedelta(hours=24)
+        return jsonify({
+            'status': 'trial',
+            'is_active': True,
+            'plan_name': plan.name if plan else 'Free Trial',
+            'plan_description': plan.description if plan else '24-hour free trial',
+            'price': plan.price_monthly if plan else 0.0,
+            'currency': plan.currency if plan else 'USD',
+            'features': plan.features if plan else {},
+            'start_date': distributor.created_at.isoformat(),
+            'end_date': trial_ends_at.isoformat(),
+            'next_payment_at': trial_ends_at.isoformat(),
+            'notes': 'Free trial active for 24 hours'
+        }), 200
+
+    # 3. Check for an actual subscription record
     # Since PayPal subscriptions are asynchronous, we might have distributor.subscription_plan_id
     # but not a row in the 'subscriptions' table yet, or vice versa.
     sub = Subscription.query.filter_by(distributor_id=distributor.id).order_by(Subscription.created_at.desc()).first()
@@ -392,7 +421,7 @@ def create_courtesy_account():
 
         # Send courtesy account credentials email
         try:
-            email_service.send_courtesy_account_created(email, name, temp_pass, lang=distributor.language or 'en')
+            email_service.send_courtesy_account_created(email, name, temp_pass, lang=distributor.language or 'es')
         except Exception as mail_err:
             logger.warning(f"Courtesy email failed (non-blocking): {mail_err}")
         
@@ -503,3 +532,71 @@ def toggle_courtesy_status(distributor_id):
         db.session.rollback()
         logger.error(f"Error toggling courtesy status: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@billing_bp.route('/verify-subscription', methods=['POST'])
+@jwt_required()
+def verify_subscription():
+    """
+    Directly query PayPal to verify the subscription status and activate locally.
+    This provides an instant activation fallback for the frontend before webhooks arrive.
+    """
+    db.session.rollback()
+    data = request.json
+    subscription_id = data.get('subscription_id')
+    
+    if not subscription_id:
+        return jsonify({'error': 'subscription_id is required'}), 400
+        
+    identity = get_jwt_identity()
+    user = User.query.get(int(identity))
+    distributor = user.distributor
+    
+    if not distributor:
+        return jsonify({'error': 'No distributor attached to this user'}), 400
+        
+    # Query PayPal API to get actual subscription details
+    sub_details = paypal_service.get_subscription_details(subscription_id)
+    if not sub_details:
+        return jsonify({'error': 'Could not fetch subscription details from PayPal'}), 400
+        
+    status = sub_details.get('status')
+    paypal_plan_id = sub_details.get('plan_id')
+    
+    # We accept ACTIVE, APPROVED
+    if status in ['ACTIVE', 'APPROVED']:
+        from datetime import datetime
+        logger.info(f"Direct verification success: Sub {subscription_id} ({status}) -> Distributor {distributor.id}")
+        
+        # Link plan
+        plan = Plan.query.filter_by(paypal_plan_id=paypal_plan_id).first()
+        if plan:
+            distributor.subscription_plan_id = plan.id
+            
+        distributor.subscription_active = True
+        
+        # Save subscription record
+        sub = Subscription.query.filter_by(paypal_subscription_id=subscription_id).first()
+        if not sub:
+            sub = Subscription(
+                distributor_id=distributor.id,
+                plan_id=plan.id if plan else None,
+                paypal_subscription_id=subscription_id,
+                status=SubscriptionStatus.ACTIVE,
+                start_date=datetime.utcnow()
+            )
+            db.session.add(sub)
+        else:
+            sub.status = SubscriptionStatus.ACTIVE
+            
+        db.session.commit()
+        return jsonify({
+            'message': 'Subscription verified and activated successfully',
+            'status': distributor.subscription_active,
+            'plan': plan.name if plan else None
+        }), 200
+        
+    return jsonify({
+        'error': f"Subscription is not active (current status: {status})"
+    }), 400
+

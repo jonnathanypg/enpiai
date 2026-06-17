@@ -68,7 +68,9 @@ class ResponseHumanizer:
         try:
             from services.llm_service import llm_service
             provider = distributor.llm_provider or 'openai'
-            model = distributor.llm_model or 'gpt-5-nano'
+            from config import get_config
+            cfg = get_config()
+            model = distributor.llm_model or cfg.DEFAULT_LLM_MODEL
 
             humanized = llm_service.generate(
                 prompt=prompt,

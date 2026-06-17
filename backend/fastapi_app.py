@@ -8,7 +8,7 @@ import os
 import time
 import logging
 from typing import Optional
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, Header, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
@@ -194,7 +194,6 @@ async def whatsapp_webhook_async(request: Request):
 # ---------------------------------------------------------------------------
 # Voice Protocol Endpoints (FastAPI Bridge)
 # ---------------------------------------------------------------------------
-from fastapi import UploadFile, File, Form
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uuid
@@ -275,8 +274,9 @@ async def voice_interact(
     # Resolve distributor_id if not provided (Platform Support fallback)
     if not distributor_id:
         from models.platform_config import PlatformConfig
-        platform_conf = PlatformConfig.get_config()
-        distributor_id = platform_conf.platform_distributor_id
+        with flask_app.app_context():
+            platform_conf = PlatformConfig.get_config()
+            distributor_id = platform_conf.platform_distributor_id
         if not distributor_id:
             raise HTTPException(status_code=503, detail="Platform agent not configured")
 
@@ -305,79 +305,95 @@ async def voice_interact(
                 logger.warning(f"Could not delete temp uploaded voice note: {e}")
 
     # 3. Process with Agent Orchestrator
-    with SessionLocal() as db:
-        distributor = db.query(Distributor).get(distributor_id)
-        if not distributor:
-            raise HTTPException(status_code=404, detail="Distributor not found")
+    with flask_app.app_context():
+        with SessionLocal() as db:
+            distributor = db.query(Distributor).get(distributor_id)
+            if not distributor:
+                raise HTTPException(status_code=404, detail="Distributor not found")
 
-        # Get or create active conversation
-        conversation = None
-        if conversation_id:
-            conversation = db.query(Conversation).get(conversation_id)
-            
-        if not conversation:
-            # Try to find an existing active conversation for this channel
-            conv_channel = ConversationChannel.WHATSAPP if channel == "whatsapp" else ConversationChannel.PLAYGROUND
-            conversation = db.query(Conversation).filter_by(
-                distributor_id=distributor.id,
-                channel=conv_channel,
-                status=ConversationStatus.ACTIVE
-            ).first()
-            
-        if not conversation:
-            conv_channel = ConversationChannel.WHATSAPP if channel == "whatsapp" else ConversationChannel.PLAYGROUND
-            conversation = Conversation(
-                distributor_id=distributor.id,
-                channel=conv_channel,
-                status=ConversationStatus.ACTIVE,
-                participant_name="Usuario Web Voz"
+            # Get or create active conversation
+            conversation = None
+            if conversation_id:
+                conversation = db.query(Conversation).get(conversation_id)
+                
+            if not conversation:
+                # Try to find an existing active conversation for this channel
+                if channel == "whatsapp":
+                    conv_channel = ConversationChannel.WHATSAPP
+                elif channel == "webchat":
+                    conv_channel = ConversationChannel.WEBCHAT
+                else:
+                    conv_channel = ConversationChannel.PLAYGROUND
+                    
+                conversation = db.query(Conversation).filter_by(
+                    distributor_id=distributor.id,
+                    channel=conv_channel,
+                    status=ConversationStatus.ACTIVE
+                ).first()
+                
+            if not conversation:
+                if channel == "whatsapp":
+                    conv_channel = ConversationChannel.WHATSAPP
+                elif channel == "webchat":
+                    conv_channel = ConversationChannel.WEBCHAT
+                else:
+                    conv_channel = ConversationChannel.PLAYGROUND
+                    
+                conversation = Conversation(
+                    distributor_id=distributor.id,
+                    channel=conv_channel,
+                    status=ConversationStatus.ACTIVE,
+                    participant_name="Usuario Web Voz"
+                )
+                db.add(conversation)
+                db.flush()
+
+            # Save User Message to conversation history
+            user_msg = Message(
+                conversation_id=conversation.id,
+                role=MessageRole.USER,
+                content=user_text
             )
-            db.add(conversation)
-            db.flush()
+            db.add(user_msg)
+            conversation.last_message_at = datetime.utcnow()
+            db.commit()
 
-        # Save User Message to conversation history
-        user_msg = Message(
-            conversation_id=conversation.id,
-            role=MessageRole.USER,
-            content=user_text
-        )
-        db.add(user_msg)
-        conversation.last_message_at = datetime.utcnow()
-        db.commit()
+            # Get response from Orchestrator
+            orchestrator = get_agent_orchestrator(distributor)
+            response_data = orchestrator.process_message(
+                conversation=conversation,
+                user_message=user_text,
+                channel=channel or "webchat"
+            )
+            
+            response_text = response_data.get('content', '')
+            
+            # Save Agent Message to conversation history
+            ai_msg = Message(
+                conversation_id=conversation.id,
+                role=MessageRole.ASSISTANT,
+                content=response_text,
+                message_metadata={'agent_name': response_data.get('agent_name')}
+            )
+            db.add(ai_msg)
+            conversation.last_message_at = datetime.utcnow()
+            db.commit()
 
-        # Get response from Orchestrator
-        orchestrator = get_agent_orchestrator(distributor)
-        response_data = orchestrator.process_message(
-            conversation=conversation,
-            user_message=user_text,
-            channel=channel or "webchat"
-        )
-        
-        response_text = response_data.get('content', '')
-        
-        # Save Agent Message to conversation history
-        ai_msg = Message(
-            conversation_id=conversation.id,
-            role=MessageRole.ASSISTANT,
-            content=response_text,
-            message_metadata={'agent_name': response_data.get('agent_name')}
-        )
-        db.add(ai_msg)
-        conversation.last_message_at = datetime.utcnow()
-        db.commit()
-
-        conv_id = conversation.id
+            conv_id = conversation.id
 
     # 4. Synthesize AI reply back to audio
-    voice_name = VoiceService.resolve_voice(distributor)
-    filename = f"reply_{uuid.uuid4().hex}.mp3"
-    output_path = os.path.join(voice_dir, filename)
+    # TEMPORARILY DISABLED (Voice Speaker Hidden)
+    audio_url = None
+    
+    # voice_name = VoiceService.resolve_voice(distributor)
+    # filename = f"reply_{uuid.uuid4().hex}.mp3"
+    # output_path = os.path.join(voice_dir, filename)
     
     # Strip markdown formatting
-    clean_text = re.sub(r'[*_`#~-]', '', response_text)
+    # clean_text = re.sub(r'[*_`#~-]', '', response_text)
     
-    success = VoiceService.synthesize(clean_text, voice_name, output_path)
-    audio_url = f"/api/voice/file/{filename}" if success else None
+    # success = VoiceService.synthesize(clean_text, voice_name, output_path)
+    # audio_url = f"/api/voice/file/{filename}" if success else None
 
     return {
         "user_text": user_text,

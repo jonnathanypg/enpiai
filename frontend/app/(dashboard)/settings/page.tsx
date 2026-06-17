@@ -39,6 +39,160 @@ interface DistributorSettings {
 
 import { useTranslation } from 'react-i18next';
 
+const COUNTRY_PREFIXES = [
+    // 4-digit prefixes (NANP Caribbean countries) first, so they match before +1
+    { code: '+1242', label: '🇧🇸 Bahamas (+1242)' },
+    { code: '+1246', label: '🇧🇧 Barbados (+1246)' },
+    { code: '+1268', label: '🇦🇬 Antigua y Barbuda (+1268)' },
+    { code: '+1473', label: '🇬🇩 Granada (+1473)' },
+    { code: '+1758', label: '🇱🇨 Santa Lucía (+1758)' },
+    { code: '+1767', label: '🇩🇲 Dominica (+1767)' },
+    { code: '+1784', label: '🇻🇨 San Vicente y las Granadinas (+1784)' },
+    { code: '+1809', label: '🇩🇴 Rep. Dominicana (+1809)' },
+    { code: '+1829', label: '🇩🇴 Rep. Dominicana (+1829)' },
+    { code: '+1849', label: '🇩🇴 Rep. Dominicana (+1849)' },
+    { code: '+1868', label: '🇹🇹 Trinidad y Tobago (+1868)' },
+    { code: '+1869', label: '🇰🇳 San Cristóbal y Nieves (+1869)' },
+    { code: '+1876', label: '🇯🇲 Jamaica (+1876)' },
+    
+    // 3-digit prefixes
+    { code: '+501', label: '🇧🇿 Belice (+501)' },
+    { code: '+502', label: '🇬🇹 Guatemala (+502)' },
+    { code: '+503', label: '🇸🇻 El Salvador (+503)' },
+    { code: '+504', label: '🇭🇳 Honduras (+504)' },
+    { code: '+505', label: '🇳🇮 Nicaragua (+505)' },
+    { code: '+506', label: '🇨🇷 Costa Rica (+506)' },
+    { code: '+507', label: '🇵🇦 Panamá (+507)' },
+    { code: '+509', label: '🇭🇹 Haití (+509)' },
+    { code: '+591', label: '🇧🇴 Bolivia (+591)' },
+    { code: '+592', label: '🇬🇾 Guyana (+592)' },
+    { code: '+593', label: '🇪🇨 Ecuador (+593)' },
+    { code: '+595', label: '🇵🇾 Paraguay (+595)' },
+    { code: '+597', label: '🇸🇷 Surinam (+597)' },
+    { code: '+598', label: '🇺🇾 Uruguay (+598)' },
+    
+    // 2-digit prefixes
+    { code: '+51', label: '🇵🇪 Perú (+51)' },
+    { code: '+52', label: '🇲🇽 México (+52)' },
+    { code: '+53', label: '🇨🇺 Cuba (+53)' },
+    { code: '+54', label: '🇦🇷 Argentina (+54)' },
+    { code: '+55', label: '🇧🇷 Brasil (+55)' },
+    { code: '+56', label: '🇨🇱 Chile (+56)' },
+    { code: '+57', label: '🇨🇴 Colombia (+57)' },
+    { code: '+58', label: '🇻🇪 Venezuela (+58)' },
+    { code: '+34', label: '🇪🇸 España (+34)' },
+    
+    // 1-digit prefixes last, so they don't overshadow 4-digit prefixes starting with +1
+    { code: '+1', label: '🇺🇸 Estados Unidos (+1)' },
+    { code: '+1', label: '🇨🇦 Canadá (+1)' },
+];
+
+const AMERICAN_COUNTRIES = [
+    "Canadá", "Estados Unidos", "México",
+    "Antigua y Barbuda", "Bahamas", "Barbados", "Belice", "Costa Rica", "Cuba", "Dominica",
+    "El Salvador", "Granada", "Guatemala", "Haití", "Honduras", "Jamaica", "Nicaragua",
+    "Panamá", "República Dominicana", "San Cristóbal y Nieves", "San Vicente y las Granadinas",
+    "Santa Lucía", "Trinidad y Tobago",
+    "Argentina", "Bolivia", "Brasil", "Chile", "Colombia", "Ecuador", "Guyana",
+    "Paraguay", "Perú", "Surinam", "Uruguay", "Venezuela"
+];
+
+function parsePhoneNumber(value: string) {
+    const prefixObj = COUNTRY_PREFIXES.find(p => value.startsWith(p.code));
+    if (prefixObj) {
+        let local = value.slice(prefixObj.code.length);
+        // Strip legacy leading zeros
+        local = local.replace(/^0+/, '');
+        return {
+            prefix: prefixObj.code,
+            localNumber: local,
+        };
+    }
+    return {
+        prefix: '+593',
+        localNumber: value || '',
+    };
+}
+
+const getLevelTranslationKey = (lvl: string) => {
+    switch (lvl) {
+        case 'Distribuidor Independiente': return 'levels.distribuidor';
+        case 'Consultor Mayor': return 'levels.consultor';
+        case 'Constructor del Éxito': return 'levels.constructor';
+        case 'Productor Calificado': return 'levels.productor';
+        case 'Supervisor': return 'levels.supervisor';
+        case 'Equipo del Mundo': return 'levels.mundo';
+        case 'Equipo del Mundo Activo': return 'levels.mundo_activo';
+        case 'GET': return 'levels.get';
+        case 'Equipo de Millonarios': return 'levels.millonarios';
+        case 'Equipo del Presidente': return 'levels.presidente';
+        case 'Club del Chairman': return 'levels.chairman';
+        case 'Círculo del Fundador': return 'levels.fundador';
+        default: return '';
+    }
+};
+
+interface PhoneInputWithPrefixProps {
+    id: string;
+    label: string;
+    value: string;
+    onChange: (val: string) => void;
+    helpText?: string;
+    placeholder?: string;
+}
+
+function PhoneInputWithPrefix({ id, label, value, onChange, helpText, placeholder }: PhoneInputWithPrefixProps) {
+    const { prefix, localNumber } = parsePhoneNumber(value || '');
+
+    const handlePrefixChange = (newPrefix: string) => {
+        onChange(newPrefix + localNumber);
+    };
+
+    const handleLocalNumberChange = (newLocal: string) => {
+        let cleaned = newLocal.replace(/\D/g, '');
+        // Strip duplicate pasted country code if matching selected prefix
+        const cleanedPrefix = prefix.replace(/\D/g, '');
+        if (cleaned.startsWith(cleanedPrefix)) {
+            cleaned = cleaned.slice(cleanedPrefix.length);
+        }
+        // Strip any leading zeros
+        cleaned = cleaned.replace(/^0+/, '');
+        onChange(prefix + cleaned);
+    };
+
+    return (
+        <div className="space-y-2">
+            <Label htmlFor={id}>{label}</Label>
+            <div className="flex gap-2">
+                <select
+                    value={prefix}
+                    onChange={(e) => handlePrefixChange(e.target.value)}
+                    className="flex h-10 w-[150px] rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                    {COUNTRY_PREFIXES.map((p) => (
+                        <option key={p.code} value={p.code}>
+                            {p.label}
+                        </option>
+                    ))}
+                </select>
+                <Input
+                    id={id}
+                    type="tel"
+                    value={localNumber}
+                    onChange={(e) => handleLocalNumberChange(e.target.value)}
+                    placeholder={placeholder || "0991234567"}
+                    className="flex-1"
+                />
+            </div>
+            {helpText && (
+                <p className="text-[10px] text-muted-foreground">
+                    {helpText}
+                </p>
+            )}
+        </div>
+    );
+}
+
 export default function SettingsPage() {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
@@ -202,27 +356,21 @@ export default function SettingsPage() {
                                     placeholder="you@example.com"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">{t('common.phone')}</Label>
-                                <Input
-                                    id="phone"
-                                    value={formData.phone || ''}
-                                    onChange={(e) => handleChange('phone', e.target.value)}
-                                    placeholder="+1234567890"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="whatsapp_phone">{t('settings.whatsappPhone')}</Label>
-                                <Input
-                                    id="whatsapp_phone"
-                                    value={formData.whatsapp_phone || ''}
-                                    onChange={(e) => handleChange('whatsapp_phone', e.target.value)}
-                                    placeholder="+1234567890"
-                                />
-                                <p className="text-[10px] text-muted-foreground">
-                                    {t('settings.whatsappPhoneHelp')}
-                                </p>
-                            </div>
+                            <PhoneInputWithPrefix
+                                id="phone"
+                                label={t('common.phone')}
+                                value={formData.phone || ''}
+                                onChange={(val) => handleChange('phone', val)}
+                                placeholder="0991234567"
+                            />
+                            <PhoneInputWithPrefix
+                                id="whatsapp_phone"
+                                label={t('settings.whatsappPhone')}
+                                value={formData.whatsapp_phone || ''}
+                                onChange={(val) => handleChange('whatsapp_phone', val)}
+                                placeholder="0991234567"
+                                helpText={t('settings.whatsappPhoneHelp')}
+                            />
                             <div className="space-y-2">
                                 <Label htmlFor="personal_story">{t('settings.personalStory')}</Label>
                                 <Input
@@ -264,25 +412,25 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="herbalife_level">Nivel de Distribuidor</Label>
+                                <Label htmlFor="herbalife_level">{t('settings.distributorLevel')}</Label>
                                 <select
                                     id="herbalife_level"
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     value={formData.herbalife_level || 'Distribuidor Independiente'}
                                     onChange={(e) => handleChange('herbalife_level', e.target.value)}
                                 >
-                                    <option value="Distribuidor Independiente">Distribuidor Independiente</option>
-                                    <option value="Consultor Mayor">Consultor Mayor</option>
-                                    <option value="Constructor del Éxito">Constructor del Éxito</option>
-                                    <option value="Productor Calificado">Productor Calificado</option>
-                                    <option value="Supervisor">Supervisor / Mayorista</option>
-                                    <option value="Equipo del Mundo">Equipo del Mundo</option>
-                                    <option value="Equipo del Mundo Activo">Equipo del Mundo Activo</option>
-                                    <option value="GET">Equipo de Expansión Global (GET)</option>
-                                    <option value="Equipo de Millonarios">Equipo de Millonarios</option>
-                                    <option value="Equipo del Presidente">Equipo del Presidente</option>
-                                    <option value="Club del Chairman">Club del Chairman</option>
-                                    <option value="Círculo del Fundador">Círculo del Fundador</option>
+                                    <option value="Distribuidor Independiente">{t('levels.distribuidor')}</option>
+                                    <option value="Consultor Mayor">{t('levels.consultor')}</option>
+                                    <option value="Constructor del Éxito">{t('levels.constructor')}</option>
+                                    <option value="Productor Calificado">{t('levels.productor')}</option>
+                                    <option value="Supervisor">{t('levels.supervisor')}</option>
+                                    <option value="Equipo del Mundo">{t('levels.mundo')}</option>
+                                    <option value="Equipo del Mundo Activo">{t('levels.mundo_activo')}</option>
+                                    <option value="GET">{t('levels.get')}</option>
+                                    <option value="Equipo de Millonarios">{t('levels.millonarios')}</option>
+                                    <option value="Equipo del Presidente">{t('levels.presidente')}</option>
+                                    <option value="Club del Chairman">{t('levels.chairman')}</option>
+                                    <option value="Círculo del Fundador">{t('levels.fundador')}</option>
                                 </select>
                             </div>
                             <div className="space-y-2">
@@ -331,12 +479,58 @@ export default function SettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="country">{t('settings.country')}</Label>
-                                <Input
+                                <select
                                     id="country"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     value={formData.country || ''}
                                     onChange={(e) => handleChange('country', e.target.value)}
-                                    placeholder="Ecuador"
-                                />
+                                >
+                                    <option value="" disabled>{t('settings.selectCountry') || 'Seleccionar país'}</option>
+                                    {formData.country && !AMERICAN_COUNTRIES.includes(formData.country) && (
+                                        <option value={formData.country}>{formData.country}</option>
+                                    )}
+                                    <optgroup label="América del Norte">
+                                        <option value="Canadá">Canadá</option>
+                                        <option value="Estados Unidos">Estados Unidos</option>
+                                        <option value="México">México</option>
+                                    </optgroup>
+                                    <optgroup label="América Central y las Antillas">
+                                        <option value="Antigua y Barbuda">Antigua y Barbuda</option>
+                                        <option value="Bahamas">Bahamas</option>
+                                        <option value="Barbados">Barbados</option>
+                                        <option value="Belice">Belice</option>
+                                        <option value="Costa Rica">Costa Rica</option>
+                                        <option value="Cuba">Cuba</option>
+                                        <option value="Dominica">Dominica</option>
+                                        <option value="El Salvador">El Salvador</option>
+                                        <option value="Granada">Granada</option>
+                                        <option value="Guatemala">Guatemala</option>
+                                        <option value="Haití">Haití</option>
+                                        <option value="Honduras">Honduras</option>
+                                        <option value="Jamaica">Jamaica</option>
+                                        <option value="Nicaragua">Nicaragua</option>
+                                        <option value="Panamá">Panamá</option>
+                                        <option value="República Dominicana">República Dominicana</option>
+                                        <option value="San Cristóbal y Nieves">San Cristóbal y Nieves</option>
+                                        <option value="San Vicente y las Granadinas">San Vicente y las Granadinas</option>
+                                        <option value="Santa Lucía">Santa Lucía</option>
+                                        <option value="Trinidad y Tobago">Trinidad y Tobago</option>
+                                    </optgroup>
+                                    <optgroup label="América del Sur">
+                                        <option value="Argentina">Argentina</option>
+                                        <option value="Bolivia">Bolivia</option>
+                                        <option value="Brasil">Brasil</option>
+                                        <option value="Chile">Chile</option>
+                                        <option value="Colombia">Colombia</option>
+                                        <option value="Ecuador">Ecuador</option>
+                                        <option value="Guyana">Guyana</option>
+                                        <option value="Paraguay">Paraguay</option>
+                                        <option value="Perú">Perú</option>
+                                        <option value="Surinam">Surinam</option>
+                                        <option value="Uruguay">Uruguay</option>
+                                        <option value="Venezuela">Venezuela</option>
+                                    </optgroup>
+                                </select>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="city">{t('settings.city')}</Label>

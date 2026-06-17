@@ -23,6 +23,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 
 // ── Symptom definitions (keyed to translation file) ──────────────────────
 const SYMPTOM_GROUPS = [
@@ -374,7 +375,8 @@ export default function EvaluationPage({ params }: { params: Promise<{ distribut
     return (
         <div className="mx-auto flex max-w-lg flex-col px-4 py-8 md:py-12">
             {/* Language Selector */}
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-end mb-4 gap-2">
+                <ThemeToggle />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 gap-2 text-muted-foreground hover:text-foreground">

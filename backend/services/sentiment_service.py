@@ -86,7 +86,7 @@ class SentimentService:
             raw = llm.generate(
                 prompt=prompt,
                 system_prompt="You are a sentiment analysis expert. Respond with valid JSON only.",
-                model='gpt-5-nano',
+                model=current_app.config.get('DEFAULT_LLM_MODEL'),
                 temperature=0.1,
                 max_tokens=200,
             )

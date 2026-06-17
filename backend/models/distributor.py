@@ -5,6 +5,7 @@ Each Herbalife distributor is a tenant with their own data, agents, and settings
 Migration Path: Distributor identity will link to cryptographic signatures/DIDs.
 Sovereign encrypted blobs will protect PII. Keys are client-side (Zero-Knowledge).
 """
+import os
 from datetime import datetime
 from enum import Enum
 from extensions import db
@@ -47,7 +48,7 @@ class Distributor(db.Model):
 
     # LLM Configuration (Platform-managed — distributors do NOT provide their own keys)
     llm_provider = db.Column(db.String(50), default='openai')
-    llm_model = db.Column(db.String(100), default='gpt-5-nano')
+    llm_model = db.Column(db.String(100), default=os.getenv('DEFAULT_LLM_MODEL', 'gpt-5-nano'))
 
     # Platform API Keys (encrypted — Sovereign SQL Layer)
     api_keys = db.Column(EncryptedJSON, nullable=True)
@@ -121,6 +122,11 @@ class Distributor(db.Model):
     subscription_plan_id = db.Column(db.Integer, db.ForeignKey('plans.id'), nullable=True)
     credits_balance = db.Column(db.Integer, default=0)
     
+    # Beta / Trial Gating
+    trial_activated = db.Column(db.Boolean, default=False, nullable=False)
+    feedback_submitted = db.Column(db.Boolean, default=False, nullable=False)
+    beta_feedback = db.Column(db.JSON, nullable=True)
+    
     # Billing relationships
     subscription_plan = db.relationship('Plan')
     # Note: `subscriptions` is already defined in the `Subscription` model as a backref/back_populates.
@@ -150,6 +156,11 @@ class Distributor(db.Model):
 
     def to_dict(self, include_api_keys=False):
         """Convert to dictionary"""
+        from datetime import datetime, timedelta
+        in_trial = False
+        if self.trial_activated and self.created_at:
+            in_trial = datetime.utcnow() < (self.created_at + timedelta(hours=24))
+
         data = {
             'id': self.id,
             'name': self.name,
@@ -176,8 +187,11 @@ class Distributor(db.Model):
             'personal_story': self.personal_story,
             'is_active': self.is_active,
             'subscription_tier': self.subscription_tier.value if self.subscription_tier else 'free',
-            'subscription_active': self.subscription_active,
+            'subscription_active': self.subscription_active or self.is_courtesy or in_trial,
+            'is_in_trial': in_trial,
             'is_courtesy': self.is_courtesy,
+            'trial_activated': self.trial_activated,
+            'feedback_submitted': self.feedback_submitted,
             'whatsapp_connected': self.whatsapp_connected,
             'whatsapp_phone': self.whatsapp_phone,
             'google_connected': self.google_credentials is not None and bool(self.google_credentials),
@@ -187,8 +201,8 @@ class Distributor(db.Model):
             'coach_level_progress': self.coach_level_progress,
             'coach_daily_tasks_status': self.coach_daily_tasks_status,
             'coach_last_research_advice': self.coach_last_research_advice,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
+            'updated_at': (self.updated_at.isoformat() + 'Z') if self.updated_at else None
         }
 
         if include_api_keys:

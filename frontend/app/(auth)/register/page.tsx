@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from 'react-i18next';
+import { Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,31 @@ export default function RegisterPage() {
     const login = useAuthStore((s) => s.login);
     const setLanguage = useAuthStore((s) => s.setLanguage);
     const [isLoading, setIsLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Waitlist and registration limit states
+    const [isLimitReached, setIsLimitReached] = useState(false);
+    const [waitlistEmail, setWaitlistEmail] = useState('');
+    const [waitlistName, setWaitlistName] = useState('');
+    const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+    const [waitlistLoading, setWaitlistLoading] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        
+        // Check if beta registration limit has been reached
+        const checkStatus = async () => {
+            try {
+                const { data } = await apiClient.get('/auth/registration-status');
+                if (data && data.available === false) {
+                    setIsLimitReached(true);
+                }
+            } catch (err) {
+                console.error("Failed to fetch registration status", err);
+            }
+        };
+        checkStatus();
+    }, []);
 
     const {
         register,
@@ -51,7 +77,7 @@ export default function RegisterPage() {
     } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
-            language: 'en',
+            language: 'es',
         },
     });
 
@@ -62,10 +88,10 @@ export default function RegisterPage() {
             const res = data.data;
 
             login(res.user, res.access_token, res.refresh_token);
-            setLanguage(values.language || 'en');
+            setLanguage(values.language || 'es');
             // Also sync i18n UI language with registration preference
-            i18n.changeLanguage(values.language || 'en');
-            localStorage.setItem('i18nextLng', values.language || 'en');
+            i18n.changeLanguage(values.language || 'es');
+            localStorage.setItem('i18nextLng', values.language || 'es');
             toast.success(t('auth.accountCreated'));
             router.push('/dashboard');
         } catch (err: unknown) {
@@ -85,7 +111,7 @@ export default function RegisterPage() {
             const res = data.data;
 
             login(res.user, res.access_token, res.refresh_token);
-            setLanguage('en'); 
+            setLanguage('es'); 
             toast.success(t('auth.googleAuthSuccess'));
 
             if (res.user.role === 'super_admin') {
@@ -101,6 +127,95 @@ export default function RegisterPage() {
         }
     };
 
+    if (isLimitReached) {
+        return (
+            <Card className="border-border/50 shadow-xl w-full max-w-md mx-auto bg-background/90 backdrop-blur-md">
+                <CardHeader className="text-center pb-4 border-b border-border/10">
+                    <div className="mx-auto h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
+                        <Sparkles className="h-6 w-6 text-amber-500 animate-pulse" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
+                        Fase Beta - Cupos Agotados
+                    </CardTitle>
+                    <CardDescription className="text-sm mt-1 text-muted-foreground">
+                        ¡Gracias por tu gran interés en EnpiAI! Hemos completado temporalmente los 300 cupos de registro disponibles para esta fase de prueba beta cerrada.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-6">
+                    {waitlistSubmitted ? (
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 p-5 rounded-xl text-center space-y-2 animate-in fade-in zoom-in-95 duration-300">
+                            <p className="font-bold text-sm">¡Te has registrado con éxito!</p>
+                            <p className="text-xs leading-relaxed">
+                                Te enviaremos un correo electrónico de inmediato en cuanto habilitemos nuevos cupos de prueba gratuitos.
+                            </p>
+                        </div>
+                    ) : (
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!waitlistEmail) {
+                                toast.warning('Por favor ingresa tu correo electrónico.');
+                                return;
+                            }
+                            setWaitlistLoading(true);
+                            try {
+                                await apiClient.post('/auth/register-waitlist', {
+                                    email: waitlistEmail,
+                                    name: waitlistName
+                                });
+                                setWaitlistSubmitted(true);
+                                toast.success('¡Registro de lista de espera exitoso!');
+                            } catch (err) {
+                                toast.error('Ocurrió un error al registrarte. Inténtalo de nuevo.');
+                            } finally {
+                                setWaitlistLoading(false);
+                            }
+                        }} className="space-y-4">
+                            <p className="text-xs text-muted-foreground text-center">
+                                Déjanos tus datos abajo para notificarte en cuanto abramos nuevas vacantes de prueba gratuita:
+                            </p>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="w_name">Tu Nombre</Label>
+                                <Input
+                                    id="w_name"
+                                    type="text"
+                                    placeholder="John Doe"
+                                    value={waitlistName}
+                                    onChange={(e) => setWaitlistName(e.target.value)}
+                                    disabled={waitlistLoading}
+                                    className="bg-white/5"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="w_email">Correo Electrónico</Label>
+                                <Input
+                                    id="w_email"
+                                    type="email"
+                                    placeholder="you@example.com"
+                                    value={waitlistEmail}
+                                    onChange={(e) => setWaitlistEmail(e.target.value)}
+                                    required
+                                    disabled={waitlistLoading}
+                                    className="bg-white/5"
+                                />
+                            </div>
+                            <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-white" disabled={waitlistLoading}>
+                                {waitlistLoading ? 'Registrando...' : 'Notificarme cuando haya cupos'}
+                            </Button>
+                        </form>
+                    )}
+                </CardContent>
+                <CardFooter className="flex justify-center border-t border-border/10 pt-4 pb-6">
+                    <p className="text-sm text-muted-foreground">
+                        ¿Ya tienes una cuenta?{' '}
+                        <Link href="/login" className="text-primary underline-offset-4 hover:underline font-semibold">
+                            Inicia Sesión
+                        </Link>
+                    </p>
+                </CardFooter>
+            </Card>
+        );
+    }
+
     return (
         <Card className="border-border/50 shadow-xl">
             <CardHeader className="text-center">
@@ -112,14 +227,18 @@ export default function RegisterPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="mb-4 flex justify-center">
-                    <GoogleLogin
-                        onSuccess={handleGoogleSuccess}
-                        onError={() => toast.error(t('auth.googleLoginFailed'))}
-                        theme="outline"
-                        width="100%"
-                        text="signup_with"
-                    />
+                <div className="mb-4 flex justify-center min-h-[40px]">
+                    {mounted ? (
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => toast.error(t('auth.googleLoginFailed'))}
+                            theme="outline"
+                            width="100%"
+                            text="signup_with"
+                        />
+                    ) : (
+                        <div className="h-10 w-full animate-pulse bg-muted rounded-md" />
+                    )}
                 </div>
                 <div className="relative mb-4">
                     <div className="absolute inset-0 flex items-center">
@@ -196,8 +315,8 @@ export default function RegisterPage() {
                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             disabled={isLoading}
                         >
-                            <option value="en">English</option>
                             <option value="es">Español</option>
+                            <option value="en">English</option>
                             <option value="pt">Português</option>
                         </select>
                     </div>

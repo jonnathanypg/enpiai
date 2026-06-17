@@ -9,7 +9,7 @@ import os
 import logging
 from datetime import datetime
 from typing import Dict, Any, List
-from flask import g
+from flask import g, current_app
 
 # LangChain / LangGraph imports
 from langgraph.graph import StateGraph, END
@@ -19,10 +19,11 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, Tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Local imports
+from extensions import db, ctx
 from services.agent_state import AgentState
 from models.distributor import Distributor
 from models.agent_config import AgentConfig
-from models.conversation import Conversation
+from models.conversation import Conversation, Message, MessageRole
 
 # Modular Logic Imports (Phase 8)
 from skills import get_registry
@@ -60,7 +61,7 @@ class AgentOrchestrator:
         """Get LLM client with distributor credentials and automated failover."""
         
         provider = self.distributor.llm_provider or 'openai'
-        model = model_override or self.distributor.llm_model or 'gpt-5-nano'
+        model = model_override or self.distributor.llm_model or current_app.config.get('DEFAULT_LLM_MODEL')
         
         logger.info(f"[ORCHESTRATOR] Initializing LLM: provider={provider}, model={model}")
         
@@ -74,7 +75,10 @@ class AgentOrchestrator:
         llms = []
         
         model_lower = model.lower()
-        is_o_model = any(m in model_lower for m in ['o1', 'o3', 'gpt-5'])
+        # Reasoning model detection
+        O_MODEL_PREFIXES = ('o1-', 'o3-', 'o4-', 'gpt-5-')
+        O_MODEL_EXACT = {'o1', 'o3', 'o4', 'gpt-5-nano'}
+        is_o_model = model_lower in O_MODEL_EXACT or model_lower.startswith(O_MODEL_PREFIXES)
 
         # Add OpenAI as primary
         if openai_key:
@@ -96,7 +100,7 @@ class AgentOrchestrator:
         platform_openai = os.getenv('OPENAI_API_KEY')
         if platform_openai and platform_openai != openai_key:
             llms.append(ChatOpenAI(
-                model="gpt-5-nano",
+                model=current_app.config.get('DEFAULT_LLM_MODEL'),
                 api_key=platform_openai,
                 temperature=1.0,
                 max_completion_tokens=4096
@@ -253,9 +257,12 @@ class AgentOrchestrator:
             
             # Role mapping for O-models (gpt-5)
             # Use distributor config or default
-            active_model = self.distributor.llm_model or 'gpt-5-nano'
+            active_model = self.distributor.llm_model or current_app.config.get('DEFAULT_LLM_MODEL')
             model_lower = active_model.lower()
-            is_o_model = any(m in model_lower for m in ['o1', 'o3', 'gpt-5'])
+            # Reasoning model detection
+            O_MODEL_PREFIXES = ('o1-', 'o3-', 'o4-', 'gpt-5-')
+            O_MODEL_EXACT = {'o1', 'o3', 'o4', 'gpt-5-nano'}
+            is_o_model = model_lower in O_MODEL_EXACT or model_lower.startswith(O_MODEL_PREFIXES)
             
             if is_o_model:
                 # O-models often ignore 'system' but respect 'developer' or instructions in 'user'
@@ -346,7 +353,6 @@ class AgentOrchestrator:
         """Process a message using the modular agent architecture (Phase 9 enhanced)."""
         
         try:
-            from extensions import db, ctx
             db.session.rollback()
         except Exception as e:
             logger.debug(f"Preventive rollback failed (likely no active session): {e}")
@@ -428,13 +434,40 @@ class AgentOrchestrator:
         except Exception as e:
             logger.debug(f"Identity resolution skipped: {e}")
 
+        # ========== Phase 10: State Injection (Real Persistence) ==========
+        # Load recent history from MySQL to ensure continuity even if workers restart
+        history_msgs = []
+        try:
+            # Check if checkpointer already has state for this thread
+            config = {"configurable": {"thread_id": thread_id}}
+            current_state = graph.get_state(config)
+            
+            if not current_state or not current_state.values.get("messages"):
+                logger.info(f"[ORCHESTRATOR] Checkpointer empty for {thread_id}. Loading from MySQL.")
+                recent_messages = Message.query.filter_by(
+                    conversation_id=conversation.id
+                ).order_by(Message.created_at.asc()).all()
+                
+                # Take last 20 messages for context
+                for m in recent_messages[-20:]:
+                    if m.role == MessageRole.USER:
+                        history_msgs.append(HumanMessage(content=m.content))
+                    elif m.role == MessageRole.ASSISTANT:
+                        # Skip empty responses or errors
+                        if m.content and m.content != "Lo siento, error interno.":
+                            history_msgs.append(AIMessage(content=m.content))
+            else:
+                logger.info(f"[ORCHESTRATOR] Checkpointer has state for {thread_id}. Skipping MySQL injection.")
+        except Exception as history_err:
+            logger.warning(f"Failed to load message history from MySQL: {history_err}")
+
         # ========== Invoke ==========
         enriched_message = user_message
         # Append context as invisible prefix for the agent (not shown to user)
         agent_hints = sentiment_context + identity_context
 
         initial_state = {
-            "messages": [HumanMessage(content=enriched_message)],
+            "messages": history_msgs + [HumanMessage(content=enriched_message)],
             "company_id": self.distributor.id,
             "agent_id": agent.id,
             "conversation_id": conversation.id,

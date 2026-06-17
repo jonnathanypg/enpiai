@@ -65,7 +65,7 @@ The system has evolved into a **Unified Gateway Architecture** where FastAPI act
 ---
 
 ## 🚀 6. Updates (June 2026 CTO Audit)
-- **Payment Gateway:** Successfully migrated from dLocal to **PayPal Advanced Credit and Debit Cards (ACDC)** for Subscriptions and Credit Blocks.
+- **Payment Gateway:** Successfully migrated from dLocal to **PayPal Smart Buttons (with Guest Checkout & Direct Verification)** for Subscriptions and Credit Blocks. This provides card processing support compatible with Ecuador and LATAM merchant accounts, utilizing a secure popup payment flow and direct server-side verification to avoid webhook delays.
 - **Critical Bug Fixes:** Resolved Priority 1 issues including CORS wildcard vulnerabilities, `gpt-4o-mini` LLM defaults, PDF newline escapes, and `is_o_model` detection.
 - **Themes:** Added support for dynamic Light/Dark theme favicons in the UI.
 

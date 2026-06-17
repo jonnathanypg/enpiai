@@ -1,17 +1,11 @@
 'use client';
-
-import React, { useState } from 'react';
-import { 
-    PayPalButtons, 
-    usePayPalScriptReducer,
-    PayPalCardFieldsProvider,
-    PayPalCardFieldsForm,
-    PayPalCardFieldsButton,
-    PayPalButtonsProps
-} from "@paypal/react-paypal-js";
+ 
+import React, { useState, useEffect } from 'react';
+import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { Loader2, AlertCircle, CreditCard } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from 'react-i18next';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 
@@ -21,16 +15,161 @@ interface PayPalCheckoutProps {
     onError?: (error: any) => void;
 }
 
-export const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ 
-    planId, 
-    onSuccess, 
-    onError 
+// ─────────────────────────────────────────────────────────────────────────────
+// Inner component: renders SUBSCRIPTION buttons
+// ─────────────────────────────────────────────────────────────────────────────
+const SubscriptionButtons: React.FC<{
+    config: any;
+    onSuccess?: (data: any) => void;
+    onError?: (error: any) => void;
+}> = ({ config, onSuccess, onError }) => {
+    const { t } = useTranslation();
+    const [{ isPending, isRejected }] = usePayPalScriptReducer();
+
+    if (isPending) {
+        return (
+            <div className="flex flex-col items-center justify-center p-6 space-y-3">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                <p className="text-sm text-gray-600 text-center">{t('subscribe.checkout.loadingPayPal')}</p>
+            </div>
+        );
+    }
+
+    if (isRejected) {
+        return (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{t('subscribe.checkout.scriptErrorTitle')}</AlertTitle>
+                <AlertDescription>
+                    {t('subscribe.checkout.scriptErrorDesc')}
+                </AlertDescription>
+            </Alert>
+        );
+    }
+
+    return (
+        <PayPalButtons
+            style={{ layout: 'vertical', shape: 'rect', label: 'subscribe', height: 48 }}
+            // createSubscription is ONLY used when intent=subscription
+            createSubscription={(data, actions) => {
+                return actions.subscription.create({
+                    plan_id: config.paypal_plan_id,
+                    custom_id: String(config.distributor_id),
+                });
+            }}
+            onApprove={async (data) => {
+                try {
+                    // Try to verify and activate the subscription on the backend instantly
+                    await apiClient.post('/billing/verify-subscription', {
+                        subscription_id: data.subscriptionID
+                    });
+                    toast.success(t('subscribe.checkout.successSubscription'));
+                } catch (err) {
+                    console.error("Direct subscription verification failed:", err);
+                    // Fallback to success toast anyway, since webhook might activate it shortly
+                    toast.success(t('subscribe.checkout.successSubscription'));
+                }
+                if (onSuccess) onSuccess(data);
+                window.location.href = '/dashboard';
+            }}
+            onError={(err) => {
+                console.error("PayPal Subscription Error:", err);
+                toast.error(t('subscribe.checkout.errorSubscription'));
+                if (onError) onError(err);
+            }}
+            onCancel={() => {
+                toast.info(t('subscribe.checkout.subscriptionCancelled'));
+            }}
+        />
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inner component: renders ONE-TIME ORDER buttons (credit blocks)
+// ─────────────────────────────────────────────────────────────────────────────
+const OrderButtons: React.FC<{
+    config: any;
+    planId: number;
+    onSuccess?: (data: any) => void;
+    onError?: (error: any) => void;
+}> = ({ config, planId, onSuccess, onError }) => {
+    const { t } = useTranslation();
+    const [{ isPending, isRejected }] = usePayPalScriptReducer();
+
+    if (isPending) {
+        return (
+            <div className="flex flex-col items-center justify-center p-6 space-y-3">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                <p className="text-sm text-gray-600 text-center">{t('subscribe.checkout.loadingPayPal')}</p>
+            </div>
+        );
+    }
+
+    if (isRejected) {
+        return (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{t('subscribe.checkout.scriptErrorTitle')}</AlertTitle>
+                <AlertDescription>
+                    {t('subscribe.checkout.scriptErrorDesc')}
+                </AlertDescription>
+            </Alert>
+        );
+    }
+
+    return (
+        <PayPalButtons
+            style={{ layout: 'vertical', shape: 'rect', label: 'pay', height: 48 }}
+            // createOrder is ONLY used when intent=capture (one-time payment)
+            createOrder={() => {
+                // The order_id was already created by the backend; return it directly.
+                // PayPal accepts either a new order via actions.order.create() or an existing order ID.
+                return Promise.resolve(config.order_id);
+            }}
+            onApprove={async (data) => {
+                try {
+                    const { data: captureData } = await apiClient.post('/billing/capture-order', {
+                        order_id: data.orderID,
+                        plan_id: planId,
+                    });
+                    toast.success(t('subscribe.checkout.successOrder'));
+                    if (onSuccess) onSuccess(captureData);
+                    window.location.reload();
+                } catch {
+                    toast.error(t('subscribe.checkout.errorCapture'));
+                }
+            }}
+            onError={(err) => {
+                console.error("PayPal Order Error:", err);
+                toast.error(t('subscribe.checkout.errorOrder'));
+                if (onError) onError(err);
+            }}
+            onCancel={() => {
+                toast.info(t('subscribe.checkout.cancelled'));
+            }}
+        />
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Exported Component
+// ─────────────────────────────────────────────────────────────────────────────
+export const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({
+    planId,
+    onSuccess,
+    onError,
 }) => {
-    const [{ isPending, options }, dispatch] = usePayPalScriptReducer();
+    const { t, i18n } = useTranslation();
+    const currentLang = i18n.language || 'en';
     const [config, setConfig] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [showCardFields, setShowCardFields] = useState(false);
+
+    const getPayPalLocale = (lang: string) => {
+        if (lang.startsWith('es')) return 'es_ES';
+        if (lang.startsWith('pt')) return 'pt_BR';
+        return 'en_US';
+    };
 
     const fetchConfig = async () => {
         setLoading(true);
@@ -38,22 +177,8 @@ export const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({
         try {
             const { data } = await apiClient.post('/billing/subscribe', { plan_id: planId });
             setConfig(data);
-            
-            // Update PayPal Script Options based on the plan type
-            const newOptions = {
-                ...options,
-                "client-id": data.client_id,
-                "intent": data.type === 'order' ? 'capture' : 'subscription',
-                "vault": data.type === 'subscription' ? 'true' : 'false',
-                "components": "buttons,card-fields"
-            };
-            
-            dispatch({
-                type: "resetOptions",
-                value: newOptions
-            });
         } catch (err: any) {
-            const msg = err.response?.data?.error || "Error initializing PayPal";
+            const msg = err.response?.data?.error || t('subscribe.subscriptionError');
             setError(msg);
             toast.error(msg);
         } finally {
@@ -61,15 +186,15 @@ export const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({
         }
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
         fetchConfig();
     }, [planId]);
 
-    if (loading || isPending) {
+    if (loading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Initializing secure checkout...</p>
+                <p className="text-sm text-gray-600 text-center">{t('subscribe.checkout.preparingCheckout')}</p>
             </div>
         );
     }
@@ -78,117 +203,93 @@ export const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({
         return (
             <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
+                <AlertTitle>{t('subscribe.checkout.checkoutErrorTitle')}</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
-                <Button variant="outline" size="sm" onClick={fetchConfig} className="mt-2">
-                    Retry
+                <Button variant="outline" size="sm" onClick={fetchConfig} className="mt-3">
+                    {t('subscribe.checkout.tryAgain')}
                 </Button>
             </Alert>
         );
     }
 
-    if (!config) return null;
+    if (!config || !config.client_id) {
+        return (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{t('subscribe.checkout.configErrorTitle')}</AlertTitle>
+                <AlertDescription>
+                    {t('subscribe.checkout.configErrorDesc')}
+                </AlertDescription>
+            </Alert>
+        );
+    }
+
+    const isSubscription = config.type === 'subscription';
+
+    /*
+     * IMPORTANT — SDK options:
+     * - For subscriptions: intent="subscription", vault=true (boolean, not string!)
+     * - For one-time orders: intent="capture", vault=false
+     * - "vault" must be a boolean in the options object for the SDK to parse it correctly.
+     * - "locale" determines button rendering language.
+     * - Do NOT mix createSubscription and createOrder on the same PayPalButtons instance.
+     */
+    const sdkOptions = isSubscription
+        ? {
+              clientId: config.client_id,
+              intent: 'subscription' as const,
+              vault: true,
+              components: 'buttons',
+              locale: getPayPalLocale(currentLang),
+          }
+        : {
+              clientId: config.client_id,
+              intent: 'capture' as const,
+              vault: false,
+              components: 'buttons',
+              locale: getPayPalLocale(currentLang),
+          };
 
     return (
-        <div className="space-y-6 w-full max-w-md mx-auto">
-            {/* Payment Method Selection */}
-            <div className="flex flex-col space-y-4">
-                <p className="text-sm font-medium text-center text-muted-foreground">
-                    Pay securely with card or PayPal
-                </p>
-
-                {/* PayPal Buttons (Standard handles PayPal Login and basic Guest Checkout) */}
-                <div className={showCardFields ? "hidden" : "block"}>
-                    <PayPalButtons
-                        style={{ 
-                            layout: 'vertical',
-                            shape: 'rect',
-                            label: 'pay'
-                        }}
-                        createSubscription={(data, actions) => {
-                            if (config.type === 'subscription') {
-                                return actions.subscription.create({
-                                    plan_id: config.paypal_plan_id,
-                                    custom_id: String(config.distributor_id)
-                                });
-                            }
-                            return "";
-                        }}
-                        createOrder={(data, actions) => {
-                            if (config.type === 'order') {
-                                return config.order_id;
-                            }
-                            return "";
-                        }}
-                        onApprove={async (data, actions) => {
-                            if (config.type === 'subscription') {
-                                toast.success("Subscription successful!");
-                                if (onSuccess) onSuccess(data);
-                                // Redirect or refresh
-                                window.location.reload();
-                            } else {
-                                // Capture Order
-                                try {
-                                    const { data: captureData } = await apiClient.post('/billing/capture-order', {
-                                        order_id: data.orderId,
-                                        plan_id: planId
-                                    });
-                                    toast.success("Payment successful!");
-                                    if (onSuccess) onSuccess(captureData);
-                                    window.location.reload();
-                                } catch (err) {
-                                    toast.error("Error capturing payment");
-                                }
-                            }
-                        }}
-                        onError={(err) => {
-                            console.error("PayPal Error:", err);
-                            toast.error("PayPal execution error");
-                            if (onError) onError(err);
-                        }}
-                    />
-                </div>
-
-                {/* Manual Card Fields Toggle (ACDC) */}
-                <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => setShowCardFields(!showCardFields)}
-                >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    {showCardFields ? "Use other methods" : "Pay with Credit or Debit Card"}
-                </Button>
-
-                {showCardFields && (
-                    <div className="p-4 border rounded-lg bg-card space-y-4">
-                        <PayPalCardFieldsProvider
-                            createOrder={async () => {
-                                if (config.type === 'order') return config.order_id;
-                                // Subscriptions via CardFields is more complex and usually 
-                                // handled by the Standard PayPalButtons.
-                                return "";
-                            }}
-                            onApprove={async (data) => {
-                                if (config.type === 'order') {
-                                    const { data: captureData } = await apiClient.post('/billing/capture-order', {
-                                        order_id: data.orderId,
-                                        plan_id: planId
-                                    });
-                                    toast.success("Payment successful!");
-                                    if (onSuccess) onSuccess(captureData);
-                                    window.location.reload();
-                                }
-                            }}
-                        >
-                            <PayPalCardFieldsForm />
-                            <PayPalCardFieldsButton 
-                                className="w-full mt-4 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 rounded-md font-medium"
-                                children="Pay Now"
-                            />
-                        </PayPalCardFieldsProvider>
-                    </div>
-                )}
+        <div className="space-y-5 w-full bg-white text-black">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+                <CreditCard className="h-4 w-4 shrink-0" />
+                <span>
+                    {isSubscription
+                        ? t('subscribe.checkout.recurringPayment')
+                        : t('subscribe.checkout.oneTimePayment')}
+                </span>
             </div>
+
+            {/* 
+             * Each PayPalScriptProvider is mounted with fully resolved, final options.
+             * Mounting it here (inside the component, after config is known) prevents
+             * race conditions and "PENDING" client-id issues from a parent provider.
+             */}
+            <div className="w-full min-h-[150px] flex flex-col justify-center [&_iframe]:!bg-transparent">
+                <PayPalScriptProvider options={sdkOptions}>
+                    {isSubscription ? (
+                        <SubscriptionButtons
+                            config={config}
+                            onSuccess={onSuccess}
+                            onError={onError}
+                        />
+                    ) : (
+                        <OrderButtons
+                            config={config}
+                            planId={planId}
+                            onSuccess={onSuccess}
+                            onError={onError}
+                        />
+                    )}
+                </PayPalScriptProvider>
+            </div>
+
+            <p className="text-[11px] text-center text-gray-500 leading-relaxed px-2">
+                {isSubscription 
+                    ? t('subscribe.checkout.recurringNote')
+                    : t('subscribe.checkout.oneTimeNote')}
+            </p>
         </div>
     );
 };

@@ -49,6 +49,13 @@ import { Switch } from '@/components/ui/switch';
 import apiClient from '@/lib/api-client';
 import type { UnifiedContact } from '@/types';
 
+const formatDateSafe = (dateString: string | Date | null | undefined, formatStr: string) => {
+    if (!dateString) return 'N/A';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'N/A';
+    return format(d, formatStr);
+};
+
 export default function UnifiedContactPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const { t } = useTranslation();
@@ -198,7 +205,7 @@ export default function UnifiedContactPage({ params }: { params: Promise<{ id: s
                                     </div>
                                     <div className="flex items-center gap-3 text-sm">
                                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                                        <span>Added {format(new Date(profile.created_at), 'PPP')}</span>
+                                        <span>Added {formatDateSafe(profile.created_at, 'PPP')}</span>
                                     </div>
 
                                     <Separator className="my-4" />
@@ -334,7 +341,7 @@ export default function UnifiedContactPage({ params }: { params: Promise<{ id: s
                                                             {t('wellness.evaluation')} #{ev.id}
                                                         </CardTitle>
                                                         <CardDescription>
-                                                            {format(new Date(ev.created_at), 'PPP')}
+                                                            {formatDateSafe(ev.created_at, 'PPP')}
                                                         </CardDescription>
                                                     </div>
                                                     <Badge variant={ev.bmi && ev.bmi > 25 ? 'destructive' : 'default'} className="text-sm">
@@ -441,7 +448,7 @@ export default function UnifiedContactPage({ params }: { params: Promise<{ id: s
                                                             {note.author_name || 'Agente'}
                                                         </span>
                                                         <time className="text-xs text-muted-foreground">
-                                                            {format(new Date(note.created_at), 'PPP p')}
+                                                            {formatDateSafe(note.created_at, 'PPP p')}
                                                         </time>
                                                     </div>
                                                     <p className="text-sm whitespace-pre-wrap">{note.content}</p>

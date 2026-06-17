@@ -28,6 +28,25 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import apiClient from '@/lib/api-client';
+import { useTranslation } from 'react-i18next';
+
+const getLevelTranslationKey = (lvl: string) => {
+    switch (lvl) {
+        case 'Distribuidor Independiente': return 'levels.distribuidor';
+        case 'Consultor Mayor': return 'levels.consultor';
+        case 'Constructor del Éxito': return 'levels.constructor';
+        case 'Productor Calificado': return 'levels.productor';
+        case 'Supervisor': return 'levels.supervisor';
+        case 'Equipo del Mundo': return 'levels.mundo';
+        case 'Equipo del Mundo Activo': return 'levels.mundo_activo';
+        case 'GET': return 'levels.get';
+        case 'Equipo de Millonarios': return 'levels.millonarios';
+        case 'Equipo del Presidente': return 'levels.presidente';
+        case 'Club del Chairman': return 'levels.chairman';
+        case 'Círculo del Fundador': return 'levels.fundador';
+        default: return '';
+    }
+};
 
 interface RoadmapData {
     level: string;
@@ -60,6 +79,7 @@ interface RoadmapData {
 }
 
 export default function CoachModePage() {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [coachAdvice, setCoachAdvice] = useState<string>('');
     const [researchAdvice, setResearchAdvice] = useState<string>('');
@@ -81,10 +101,10 @@ export default function CoachModePage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['coach-roadmap'] });
-            toast.success('Configuración del Coach actualizada.');
+            toast.success(t('coachMode.configUpdated'));
         },
         onError: (err) => {
-            toast.error('Error al guardar la configuración.');
+            toast.error(t('coachMode.configUpdateError'));
         }
     });
 
@@ -96,10 +116,10 @@ export default function CoachModePage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['coach-roadmap'] });
-            toast.success('Reto actualizado.');
+            toast.success(t('coachMode.challengeUpdated'));
         },
         onError: (err) => {
-            toast.error('Error al actualizar reto.');
+            toast.error(t('coachMode.challengeUpdateError'));
         }
     });
 
@@ -111,10 +131,10 @@ export default function CoachModePage() {
         },
         onSuccess: (data) => {
             setCoachAdvice(data.advice);
-            toast.success('Consejo de Coach generado.');
+            toast.success(t('coachMode.adviceGenerated'));
         },
         onError: (err) => {
-            toast.error('No se pudo generar el consejo.');
+            toast.error(t('coachMode.adviceError'));
         }
     });
 
@@ -127,13 +147,13 @@ export default function CoachModePage() {
         onSuccess: (data) => {
             if (data.success) {
                 setResearchAdvice(data.analysis);
-                toast.success('Roadmap analizado por el Agente de Éxito.');
+                toast.success(t('coachMode.researchSuccess'));
             } else {
-                toast.error('El agente de investigación reportó un error.');
+                toast.error(t('coachMode.researchAgentFailure'));
             }
         },
         onError: (err) => {
-            toast.error('Error al iniciar el Agente de Investigación.');
+            toast.error(t('coachMode.researchInitError'));
         }
     });
 
@@ -148,7 +168,7 @@ export default function CoachModePage() {
     }
 
     if (!roadmap) {
-        return <div className="p-4 text-center">No se pudo cargar el roadmap. Intenta de nuevo.</div>;
+        return <div className="p-4 text-center">{t('coachMode.loadError')}</div>;
     }
 
     const {
@@ -169,14 +189,13 @@ export default function CoachModePage() {
                 <div className="relative z-10 max-w-3xl space-y-4">
                     <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 px-3 py-1">
                         <Flame className="w-3.5 h-3.5 mr-1 text-orange-400 animate-pulse" />
-                        Plan de Marketing Herbalife
+                        {t('coachMode.planMarketing')}
                     </Badge>
                     <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">
-                        Modo Coach: <span className="bg-gradient-to-r from-emerald-400 to-cyan-300 bg-clip-text text-transparent">Camino al Presidente</span>
+                        {t('sidebar.coach')}: <span className="bg-gradient-to-r from-emerald-400 to-cyan-300 bg-clip-text text-transparent">{t('coachMode.roadToPresident')}</span>
                     </h1>
                     <p className="text-gray-300 text-lg md:text-xl">
-                        Acompañamiento personalizado 24/7 con retos diarios y reprogramación mental a través de música, 
-                        lectura e instrucción directa. Recibe mensajes 3 veces al día en tu WhatsApp.
+                        {t('coachMode.description')}
                     </p>
                 </div>
                 {/* Decorative glows */}
@@ -192,46 +211,46 @@ export default function CoachModePage() {
                         <CardHeader className="pb-4">
                             <CardTitle className="flex items-center gap-2 text-xl font-bold">
                                 <Trophy className="w-5 h-5 text-yellow-400" />
-                                Escalera del Éxito - Progreso {progress}%
+                                {t('coachMode.successLadder', { progress })}
                             </CardTitle>
-                            <CardDescription>Tu posición actual en el plan de carrera de Herbalife.</CardDescription>
+                            <CardDescription>{t('coachMode.currentPositionDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 <div className="flex justify-between text-sm font-semibold">
-                                    <span className="text-emerald-400">{level}</span>
-                                    <span className="text-muted-foreground">Equipo de Presidente (100%)</span>
+                                    <span className="text-emerald-400">{t(getLevelTranslationKey(level) || level)}</span>
+                                    <span className="text-muted-foreground">{t('coachMode.presidentTeam')}</span>
                                 </div>
                                 <Progress value={progress} className="h-3 bg-emerald-950" />
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-muted-foreground">Nivel Actual</label>
+                                    <label className="text-sm font-medium text-muted-foreground">{t('coachMode.currentLevel')}</label>
                                     <select
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         value={level}
                                         onChange={(e) => updateSettingsMutation.mutate({ herbalife_level: e.target.value })}
                                     >
-                                        <option value="Distribuidor Independiente">Distribuidor Independiente</option>
-                                        <option value="Consultor Mayor">Consultor Mayor</option>
-                                        <option value="Constructor del Éxito">Constructor del Éxito</option>
-                                        <option value="Productor Calificado">Productor Calificado</option>
-                                        <option value="Supervisor">Supervisor / Mayorista</option>
-                                        <option value="Equipo del Mundo">Equipo del Mundo</option>
-                                        <option value="Equipo del Mundo Activo">Equipo del Mundo Activo</option>
-                                        <option value="GET">Equipo GET</option>
-                                        <option value="Equipo de Millonarios">Equipo de Millonarios</option>
-                                        <option value="Equipo del Presidente">Equipo del Presidente</option>
-                                        <option value="Club del Chairman">Club del Chairman</option>
-                                        <option value="Círculo del Fundador">Círculo del Fundador</option>
+                                        <option value="Distribuidor Independiente">{t('levels.distribuidor')}</option>
+                                        <option value="Consultor Mayor">{t('levels.consultor')}</option>
+                                        <option value="Constructor del Éxito">{t('levels.constructor')}</option>
+                                        <option value="Productor Calificado">{t('levels.productor')}</option>
+                                        <option value="Supervisor">{t('levels.supervisor')}</option>
+                                        <option value="Equipo del Mundo">{t('levels.mundo')}</option>
+                                        <option value="Equipo del Mundo Activo">{t('levels.mundo_activo')}</option>
+                                        <option value="GET">{t('levels.get')}</option>
+                                        <option value="Equipo de Millonarios">{t('levels.millonarios')}</option>
+                                        <option value="Equipo del Presidente">{t('levels.presidente')}</option>
+                                        <option value="Club del Chairman">{t('levels.chairman')}</option>
+                                        <option value="Círculo del Fundador">{t('levels.fundador')}</option>
                                     </select>
                                 </div>
 
                                 <div className="flex items-center justify-between border rounded-lg p-4 bg-background/50">
                                     <div className="space-y-0.5">
-                                        <div className="text-sm font-semibold">Servicio de Coach Activo</div>
-                                        <div className="text-xs text-muted-foreground">Habilitar mensajes y retos diarios</div>
+                                        <div className="text-sm font-semibold">{t('coachMode.activeCoachService')}</div>
+                                        <div className="text-xs text-muted-foreground">{t('coachMode.enableChallenges')}</div>
                                     </div>
                                     <Switch
                                         checked={coach_mode_enabled}
@@ -247,21 +266,21 @@ export default function CoachModePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl font-bold">
                                 <Target className="w-5 h-5 text-indigo-400" />
-                                Tus Retos y Desafíos
+                                {t('coachMode.challengesTitle')}
                             </CardTitle>
-                            <CardDescription>Completa tus retos diarios, semanales y mensuales para subir en el termostato de éxito.</CardDescription>
+                            <CardDescription>{t('coachMode.challengesDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Tabs defaultValue="daily" className="w-full">
-                                <TabsList className="grid w-full grid-cols-3 mb-6 bg-slate-900/60 p-1 rounded-xl">
-                                    <TabsTrigger value="daily" className="rounded-lg py-2">Diarios</TabsTrigger>
-                                    <TabsTrigger value="weekly" className="rounded-lg py-2">Semanales</TabsTrigger>
-                                    <TabsTrigger value="monthly" className="rounded-lg py-2">Mensuales</TabsTrigger>
+                                <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted p-1 rounded-xl">
+                                    <TabsTrigger value="daily" className="rounded-lg py-2">{t('coachMode.daily')}</TabsTrigger>
+                                    <TabsTrigger value="weekly" className="rounded-lg py-2">{t('coachMode.weekly')}</TabsTrigger>
+                                    <TabsTrigger value="monthly" className="rounded-lg py-2">{t('coachMode.monthly')}</TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="daily" className="space-y-4">
                                     {daily_challenges.length === 0 ? (
-                                        <p className="text-center text-muted-foreground py-4">No hay retos diarios asignados.</p>
+                                        <p className="text-center text-muted-foreground py-4">{t('coachMode.noDailyChallenges')}</p>
                                     ) : (
                                         <div className="grid gap-3">
                                             {daily_challenges.map((c) => (
@@ -270,8 +289,8 @@ export default function CoachModePage() {
                                                     onClick={() => toggleTaskMutation.mutate(c.id)}
                                                     className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all duration-200 ${
                                                         c.is_completed 
-                                                        ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200' 
-                                                        : 'hover:bg-slate-900 border-white/5'
+                                                        ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200' 
+                                                        : 'bg-card hover:bg-slate-100 dark:hover:bg-slate-900 border-border text-foreground'
                                                     }`}
                                                 >
                                                     {c.is_completed ? (
@@ -291,11 +310,11 @@ export default function CoachModePage() {
                                         {weekly_goals.map((g) => (
                                             <div 
                                                 key={g.id} 
-                                                className="flex items-center gap-3 p-4 rounded-xl border border-white/5 bg-background/30"
+                                                className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card/50"
                                             >
                                                 <Square className="w-5 h-5 text-muted-foreground" />
-                                                <span className="text-sm font-semibold text-gray-300">{g.label}</span>
-                                                <Badge variant="outline" className="ml-auto text-indigo-400 border-indigo-500/20">Semanal</Badge>
+                                                <span className="text-sm font-semibold text-foreground">{g.label}</span>
+                                                <Badge variant="outline" className="ml-auto text-indigo-500 dark:text-indigo-400 border-indigo-500/30 dark:border-indigo-500/20">{t('coachMode.weeklyBadge')}</Badge>
                                             </div>
                                         ))}
                                     </div>
@@ -306,11 +325,11 @@ export default function CoachModePage() {
                                         {monthly_goals.map((g) => (
                                             <div 
                                                 key={g.id} 
-                                                className="flex items-center gap-3 p-4 rounded-xl border border-white/5 bg-background/30"
+                                                className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card/50"
                                             >
                                                 <Square className="w-5 h-5 text-muted-foreground" />
-                                                <span className="text-sm font-semibold text-gray-300">{g.label}</span>
-                                                <Badge variant="outline" className="ml-auto text-amber-400 border-amber-500/20">Mensual</Badge>
+                                                <span className="text-sm font-semibold text-foreground">{g.label}</span>
+                                                <Badge variant="outline" className="ml-auto text-amber-600 dark:text-amber-400 border-amber-500/30 dark:border-amber-500/20">{t('coachMode.monthlyBadge')}</Badge>
                                             </div>
                                         ))}
                                     </div>
@@ -327,9 +346,9 @@ export default function CoachModePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl font-bold">
                                 <Music className="w-5 h-5 text-cyan-400" />
-                                Frecuencias de Riqueza
+                                {t('coachMode.wealthFrequencies')}
                             </CardTitle>
-                            <CardDescription>Selecciona el idioma de tu lista de reprogramación mental diaria.</CardDescription>
+                            <CardDescription>{t('coachMode.musicDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <select
@@ -337,9 +356,9 @@ export default function CoachModePage() {
                                 value={coach_music_preference}
                                 onChange={(e) => updateSettingsMutation.mutate({ coach_music_preference: e.target.value })}
                             >
-                                <option value="spanish">Música en Español (Billionaire Sound)</option>
-                                <option value="english">Música en Inglés (Billionaire Playlist)</option>
-                                <option value="none">Desactivar música recomendada</option>
+                                <option value="spanish">{t('coachMode.musicEs')}</option>
+                                <option value="english">{t('coachMode.musicEn')}</option>
+                                <option value="none">{t('coachMode.musicNone')}</option>
                             </select>
                             <Button 
                                 variant="outline" 
@@ -347,7 +366,7 @@ export default function CoachModePage() {
                                 onClick={() => window.open(resources.music_playlist, '_blank')}
                             >
                                 <Play className="w-4 h-4 fill-cyan-400 text-cyan-400" />
-                                Escuchar Playlist de Enfoque
+                                {t('coachMode.listenPlaylist')}
                             </Button>
                         </CardContent>
                     </Card>
@@ -357,9 +376,9 @@ export default function CoachModePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl font-bold">
                                 <Sparkles className="w-5 h-5 text-emerald-400" />
-                                Mensaje de tu Coach IA
+                                {t('coachMode.aiCoachMessage')}
                             </CardTitle>
-                            <CardDescription>Obtén motivación o corre la auditoría de tu roadmap en este momento.</CardDescription>
+                            <CardDescription>{t('coachMode.aiCoachDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
@@ -371,26 +390,26 @@ export default function CoachModePage() {
                                     {requestAdviceMutation.isPending ? (
                                         <>
                                             <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                            Generando Consejo...
+                                            {t('coachMode.generatingAdvice')}
                                         </>
-                                    ) : 'Obtener Consejo del Coach'}
+                                    ) : t('coachMode.getAdvice')}
                                 </Button>
 
                                 <Button 
                                     variant="secondary"
-                                    className="w-full font-bold bg-slate-900 border border-white/5 text-gray-300 hover:bg-slate-800"
+                                    className="w-full font-bold"
                                     onClick={() => runResearchMutation.mutate()}
                                     disabled={runResearchMutation.isPending}
                                 >
                                     {runResearchMutation.isPending ? (
                                         <>
                                             <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                            Analizando Progreso...
+                                            {t('coachMode.analyzingProgress')}
                                         </>
                                     ) : (
                                         <>
                                             <Compass className="w-4 h-4 mr-2 text-cyan-400" />
-                                            Investigar Hitos Clave
+                                            {t('coachMode.researchMilestones')}
                                         </>
                                     )}
                                 </Button>
@@ -406,7 +425,7 @@ export default function CoachModePage() {
                                 <div className="p-4 rounded-xl border border-cyan-500/20 bg-cyan-950/15 text-sm text-cyan-300/90 whitespace-pre-wrap">
                                     <div className="font-bold mb-2 text-cyan-300 flex items-center gap-1.5">
                                         <Award className="w-4 h-4 text-cyan-400" />
-                                        Hitos recomendados por el Investigador:
+                                        {t('coachMode.recommendedMilestones')}
                                     </div>
                                     {researchAdvice}
                                 </div>
@@ -419,34 +438,34 @@ export default function CoachModePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl font-bold">
                                 <BookOpen className="w-5 h-5 text-indigo-400" />
-                                Recursos de Crecimiento
+                                {t('coachMode.growthResources')}
                             </CardTitle>
-                            <CardDescription>Enlaces de entrenamiento recomendados para tu mentalidad.</CardDescription>
+                            <CardDescription>{t('coachMode.resourcesDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid gap-2">
                                 <Button 
                                     variant="outline" 
-                                    className="w-full flex items-center justify-start gap-3 border-white/5 hover:bg-white/5 text-gray-300"
+                                    className="w-full flex items-center justify-start gap-3 border-border hover:bg-muted text-foreground"
                                     onClick={() => window.open(resources.eduardo_salazar_channel, '_blank')}
                                 >
                                     <Volume2 className="w-4 h-4 text-red-500" />
-                                    <span>Eduardo Salazar (Mentalidad HBL)</span>
+                                    <span>{t('coachMode.eduardoSalazar')}</span>
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full flex items-center justify-start gap-3 border-white/5 hover:bg-white/5 text-gray-300"
+                                    className="w-full flex items-center justify-start gap-3 border-border hover:bg-muted text-foreground"
                                     onClick={() => window.open(resources.metafisica_channel, '_blank')}
                                 >
                                     <Volume2 className="w-4 h-4 text-purple-400" />
-                                    <span>Audiolibros de Metafísica</span>
+                                    <span>{t('coachMode.metafisica')}</span>
                                 </Button>
                             </div>
 
                             {resources.recommended_books.length > 0 && (
                                 <div className="space-y-2 pt-2 border-t border-white/10">
-                                    <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Lectura Recomendada (Nivel)</h4>
-                                    <ul className="text-xs space-y-1.5 text-gray-400">
+                                    <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{t('coachMode.recommendedReading')}</h4>
+                                    <ul className="text-xs space-y-1.5 text-muted-foreground">
                                         {resources.recommended_books.map((b, i) => (
                                             <li key={i} className="flex items-start gap-2">
                                                 <span className="text-emerald-400">•</span>
@@ -459,21 +478,23 @@ export default function CoachModePage() {
                         </CardContent>
                     </Card>
 
-                    {/* President's Tips Section */}
-                    <Card className="border-amber-500/10 bg-amber-950/5 backdrop-blur-xl border shadow-lg">
-                        <CardHeader>
-                            <CardTitle className="text-xl font-bold flex items-center gap-2">
-                                <Award className="w-5 h-5 text-amber-400" />
-                                Consejos de Presidentes
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-sm space-y-4">
-                            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-950/15 text-amber-200/90 italic">
-                                &ldquo;El secreto en Herbalife no es solo reclutar, sino enseñar a tu gente a duplicarse. Si tú sabes hacer una evaluación de bienestar, enseña a tus distribuidores en sus primeras 48 horas.&rdquo;
-                                <div className="mt-2 text-xs font-bold text-amber-400 text-right">— María (Círculo de Fundadores)</div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {/* President's Tips Section - Hidden temporarily */}
+                    {false && (
+                        <Card className="border-amber-500/10 bg-amber-950/5 backdrop-blur-xl border shadow-lg">
+                            <CardHeader>
+                                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                    <Award className="w-5 h-5 text-amber-400" />
+                                    Consejos de Presidentes
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-sm space-y-4">
+                                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-950/15 text-amber-200/90 italic">
+                                    &ldquo;El secreto en Herbalife no es solo reclutar, sino enseñar a tu gente a duplicarse. Si tú sabes hacer una evaluación de bienestar, enseña a tus distribuidores en sus primeras 48 horas.&rdquo;
+                                    <div className="mt-2 text-xs font-bold text-amber-400 text-right">— María (Círculo de Fundadores)</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </div>
         </div>

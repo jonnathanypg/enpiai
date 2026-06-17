@@ -23,6 +23,7 @@ if [ ! -d "venv" ]; then
 fi
 source venv/bin/activate
 pip install -r requirements.txt
+venv/bin/flask db upgrade
 cd ..
 
 # 3. WhatsApp Gateway (Standalone Mode A via local microservice)

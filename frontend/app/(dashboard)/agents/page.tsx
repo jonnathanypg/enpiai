@@ -511,6 +511,7 @@ export default function AgentSetupPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {Object.entries(groupedFeatures)
+                        .filter(([category]) => category !== 'integration')
                         .sort(([a], [b]) => {
                             const order = ['skill', 'ai_feature', 'channel', 'integration'];
                             return order.indexOf(a) - order.indexOf(b);

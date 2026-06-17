@@ -70,7 +70,7 @@ class Config:
     GOOGLE_AI_API_KEY = os.getenv('GOOGLE_AI_API_KEY', '')
     # LLM Defaults
     DEFAULT_LLM_PROVIDER = os.getenv('DEFAULT_LLM_PROVIDER', 'openai')
-    DEFAULT_LLM_MODEL = os.getenv('DEFAULT_LLM_MODEL', 'gpt-4o-mini')
+    DEFAULT_LLM_MODEL = os.getenv('DEFAULT_LLM_MODEL', 'gpt-5-nano')
 
     # --- Google APIs ---
     GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Send, Bot, User, Loader2, Trash2, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, Trash2, Sparkles, Mic, Square } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/use-auth-store';
 
 interface ChatMessage {
     id: string;
@@ -24,6 +25,9 @@ export default function PlaygroundPage() {
     const { t } = useTranslation();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
+    const [isRecording, setIsRecording] = useState(false);
+    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+    const [isVoiceLoading, setIsVoiceLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -75,7 +79,7 @@ export default function PlaygroundPage() {
 
     const handleSend = () => {
         const trimmed = input.trim();
-        if (!trimmed || chatMutation.isPending) return;
+        if (!trimmed || chatMutation.isPending || isRecording || isVoiceLoading) return;
 
         const userMsg: ChatMessage = {
             id: `user-${Date.now()}`,
@@ -99,6 +103,117 @@ export default function PlaygroundPage() {
     const clearChat = () => {
         setMessages([]);
         toast.info(t('playground.clearSuccess', { defaultValue: 'Conversation reset.' }));
+    };
+
+    const unlockAudio = () => {
+        if (typeof window !== 'undefined') {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContext) {
+                const ctx = new AudioContext();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+            }
+        }
+    };
+
+    const startRecording = async () => {
+        try {
+            unlockAudio();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            const chunks: Blob[] = [];
+
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    chunks.push(e.data);
+                }
+            };
+
+            recorder.onstop = async () => {
+                const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+                await sendAudioMessage(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            recorder.start();
+            setMediaRecorder(recorder);
+            setIsRecording(true);
+        } catch (err) {
+            console.error('Failed to start recording:', err);
+            toast.error('No se pudo acceder al micrófono. Por favor, concede los permisos necesarios.');
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            setIsRecording(false);
+        }
+    };
+
+    const sendAudioMessage = async (blob: Blob) => {
+        setIsVoiceLoading(true);
+        
+        // Add temporary recording user message
+        const tempMsgId = `user-voice-${Date.now()}`;
+        const userMsg: ChatMessage = {
+            id: tempMsgId,
+            role: 'user',
+            content: '🎤 Grabando nota de voz...',
+            timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, userMsg]);
+
+        try {
+            const user = useAuthStore.getState().user as any;
+            const distributorId = user?.distributor?.id || user?.distributor_id;
+
+            const formData = new FormData();
+            formData.append('file', blob, 'recording.webm');
+            formData.append('channel', 'playground');
+            if (distributorId) {
+                formData.append('distributor_id', distributorId.toString());
+            }
+
+            const response = await apiClient.post('/voice/interact', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            const data = response.data;
+
+            // Update user message with actual transcribed text
+            setMessages((prev) => 
+                prev.map((msg) => 
+                    msg.id === tempMsgId 
+                        ? { ...msg, content: `🎤 ${data.user_text || 'Nota de voz'}` }
+                        : msg
+                )
+            );
+
+            // Add assistant response message
+            const assistantMsg: ChatMessage = {
+                id: `assistant-${Date.now()}`,
+                role: 'assistant',
+                content: data.response_text || 'No response',
+                timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, assistantMsg]);
+        } catch (error) {
+            console.error('Voice interaction error:', error);
+            setMessages((prev) => 
+                prev.map((msg) => 
+                    msg.id === tempMsgId 
+                        ? { ...msg, content: '🎤 (Error de transcripción)' }
+                        : msg
+                )
+            );
+            toast.error('Error al procesar nota de voz');
+        } finally {
+            setIsVoiceLoading(false);
+        }
     };
 
     return (
@@ -126,7 +241,7 @@ export default function PlaygroundPage() {
                     <CardTitle className="flex items-center gap-2 text-sm font-medium">
                         <Bot className="h-4 w-4 text-primary" />
                         {t('playground.liveAgentChat')}
-                        {chatMutation.isPending && (
+                        {(chatMutation.isPending || isVoiceLoading) && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <Loader2 className="h-3 w-3 animate-spin" />
                                 {t('common.saving', { defaultValue: 'Thinking...' })}
@@ -192,7 +307,7 @@ export default function PlaygroundPage() {
                     )}
 
                     {/* Typing indicator */}
-                    {chatMutation.isPending && (
+                    {(chatMutation.isPending || isVoiceLoading) && (
                         <div className="flex gap-3">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
                                 <Bot className="h-4 w-4 text-primary" />
@@ -211,21 +326,34 @@ export default function PlaygroundPage() {
                 {/* Input */}
                 <div className="border-t p-4">
                     <div className="flex gap-2">
+                        <Button 
+                            type="button"
+                            size="icon" 
+                            variant={isRecording ? "destructive" : "outline"}
+                            className={cn(
+                                "rounded-full shrink-0 h-10 w-10 shadow-md",
+                                isRecording && "animate-pulse"
+                            )}
+                            onClick={isRecording ? stopRecording : startRecording}
+                            disabled={chatMutation.isPending || isVoiceLoading}
+                        >
+                            {isRecording ? <Square className="h-4 w-4 text-white" /> : <Mic className="h-4 w-4" />}
+                        </Button>
                         <Input
                             ref={inputRef}
-                            placeholder={t('playground.typeMessage')}
+                            placeholder={isRecording ? "Grabando voz..." : t('playground.typeMessage')}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            disabled={chatMutation.isPending}
+                            disabled={chatMutation.isPending || isRecording || isVoiceLoading}
                             className="flex-1"
                         />
                         <Button
                             onClick={handleSend}
-                            disabled={!input.trim() || chatMutation.isPending}
+                            disabled={!input.trim() || chatMutation.isPending || isRecording || isVoiceLoading}
                             size="icon"
                         >
-                            {chatMutation.isPending ? (
+                            {chatMutation.isPending || isVoiceLoading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                                 <Send className="h-4 w-4" />

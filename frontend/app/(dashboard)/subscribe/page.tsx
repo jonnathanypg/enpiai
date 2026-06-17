@@ -39,7 +39,6 @@ import { toast } from 'sonner';
 import type { Plan } from '@/types';
 import { cn } from '@/lib/utils';
 import { PayPalCheckout } from '@/components/features/billing/paypal-checkout';
-import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
 interface MembershipInfo {
     status: string;
@@ -129,9 +128,13 @@ export default function SubscribePage() {
                                     <div className="flex items-center justify-between">
                                         <Badge className={cn(
                                             "px-3 py-1 text-sm font-medium",
-                                            membership.status === 'courtesy' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-primary/10 text-primary border-primary/20"
+                                            membership.status === 'courtesy' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                                            membership.status === 'trial' ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" :
+                                            "bg-primary/10 text-primary border-primary/20"
                                         )}>
-                                            {membership.status === 'courtesy' ? t('subscribe.membership.courtesy') : t('subscribe.membership.active')}
+                                            {membership.status === 'courtesy' ? t('subscribe.membership.courtesy') :
+                                             membership.status === 'trial' ? t('subscribe.membership.trial') :
+                                             t('subscribe.membership.active')}
                                         </Badge>
                                         {membership.next_payment_at && (
                                             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -191,7 +194,7 @@ export default function SubscribePage() {
                                         <ArrowUpCircle className="mr-2 h-4 w-4" />
                                         {t('subscribe.membership.upgrade')}
                                     </Button>
-                                    {membership.status !== 'courtesy' && (
+                                    {membership.status !== 'courtesy' && membership.status !== 'trial' && (
                                         <Button variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
                                             <XCircle className="mr-2 h-4 w-4" />
                                             {t('subscribe.membership.cancel')}
@@ -292,19 +295,9 @@ export default function SubscribePage() {
                                                 className="w-full"
                                                 size="lg"
                                                 onClick={() => handleSubscribe(plan.id)}
-                                                disabled={subscribeMutation.isPending && selectedPlanId === plan.id}
                                             >
-                                                {subscribeMutation.isPending && selectedPlanId === plan.id ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        {t('subscribe.redirecting')}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <CreditCard className="mr-2 h-4 w-4" />
-                                                        {t('subscribe.subscribeButton')}
-                                                    </>
-                                                )}
+                                                <CreditCard className="mr-2 h-4 w-4" />
+                                                {t('subscribe.subscribeButton')}
                                             </Button>
                                         </CardFooter>
                                     </Card>
@@ -408,12 +401,12 @@ export default function SubscribePage() {
     );
 
     const checkoutDialog = (
-        <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+        <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen} modal={false}>
+            <DialogContent className="sm:max-w-[425px] bg-white text-black border-gray-200">
                 <DialogHeader>
-                    <DialogTitle>Complete Payment</DialogTitle>
-                    <DialogDescription>
-                        Secure payment powered by PayPal. All cards accepted.
+                    <DialogTitle className="text-black">{t('subscribe.checkout.title')}</DialogTitle>
+                    <DialogDescription className="text-gray-500">
+                        {t('subscribe.checkout.description')}
                     </DialogDescription>
                 </DialogHeader>
                 {selectedPlanId && (
@@ -427,7 +420,6 @@ export default function SubscribePage() {
     );
 
     return (
-        <PayPalScriptProvider options={{ "client-id": "PENDING", components: "buttons,card-fields" }}>
             <div className="mx-auto max-w-5xl space-y-12 py-8">
                 {/* Header */}
                 <div className="text-center space-y-3">
@@ -477,6 +469,5 @@ export default function SubscribePage() {
 
                 {checkoutDialog}
             </div>
-        </PayPalScriptProvider>
     );
 }

@@ -297,7 +297,7 @@ class EmailService:
     # Core Send Method
     # ──────────────────────────────────────────────
 
-    def send(self, to_email, subject, body_html, body_text=None, from_email=None, attachments=None):
+    def send(self, to_email, subject, body_html, body_text=None, from_email=None, from_name=None, attachments=None):
         """
         Send an email via SMTP.
         attachments: list of file paths to attach.
@@ -316,7 +316,8 @@ class EmailService:
         try:
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
-            msg['From'] = f"EnpiAI <{smtp_from}>"
+            sender_name = from_name or "EnpiAI"
+            msg['From'] = f"{sender_name} <{smtp_from}>"
             msg['To'] = to_email
 
             if body_text:
@@ -629,16 +630,29 @@ class EmailService:
     # Legacy: Wellness Report to Prospect
     # ──────────────────────────────────────────────
 
-    def send_wellness_report(self, to_email, distributor_name, evaluation_data, lang='en'):
-        """Send a wellness evaluation report email to the prospect."""
+    def send_wellness_report(self, to_email=None, distributor_name=None, evaluation_data=None, lang='en', email=None, name=None, pdf_path=None, distributor=None):
+        """Send a wellness evaluation report email to the prospect with pdf report attached if provided."""
+        # Normalize inputs from different calls (tasks.py vs direct)
+        target_email = email or to_email
+        lang = lang or 'en'
+        
+        # If distributor object is passed
+        d_name = distributor_name
+        if distributor:
+            d_name = distributor.name
+            lang = distributor.language or lang
+            
+        # Get evaluation data
+        eval_dict = evaluation_data or {}
+        bmi = eval_dict.get('bmi', 'N/A')
+        bmi_cat = eval_dict.get('bmi_category', '')
+        goal = eval_dict.get('primary_goal', 'general wellness')
+        
         t = lambda key, **kw: self._t(lang, key, **kw)
-        bmi = evaluation_data.get('bmi', 'N/A')
-        bmi_cat = evaluation_data.get('bmi_category', '')
-        goal = evaluation_data.get('primary_goal', 'general wellness')
 
         content = f"""
         <h2>{t('report_title')}</h2>
-        <p>{t('report_thanks', distributor=distributor_name)}</p>
+        <p>{t('report_thanks', distributor=d_name)}</p>
 
         <div class="info-card">
           <table>
@@ -649,7 +663,16 @@ class EmailService:
 
         <p>{t('report_followup')}</p>
         """
-        return self.send(to_email, f"🌿 {t('report_title')} — {distributor_name}", self._base_template(content, t('report_title'), lang))
+        
+        attachments = [pdf_path] if pdf_path and os.path.exists(pdf_path) else None
+        
+        return self.send(
+            to_email=target_email, 
+            subject=f"🌿 {t('report_title')} — {d_name}", 
+            body_html=self._base_template(content, t('report_title'), lang),
+            from_name=f"{d_name} via EnpiAI",
+            attachments=attachments
+        )
 
     def send_wellness_report_to_lead(self, to_email, distributor_name, evaluation_data, pdf_path=None, lang='en'):
         """ Branded email for the lead with the PDF report attached. """
@@ -674,6 +697,7 @@ class EmailService:
             to_email, 
             f"🌿 {t('report_title')} — {distributor_name}", 
             self._base_template(content, t('report_title'), lang),
+            from_name=f"{distributor_name} via EnpiAI",
             attachments=attachments
         )
 

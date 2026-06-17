@@ -393,7 +393,7 @@ class CRMSkill(BaseSkill):
                         lead_email=email or "",
                         lead_phone=phone or "",
                         source="AI Agent Chat",
-                        lang=distributor.language or 'en'
+                        lang=distributor.language or 'es'
                     )
             except Exception as notify_err:
                 logger.warning(f"Lead notification failed (non-blocking): {notify_err}")

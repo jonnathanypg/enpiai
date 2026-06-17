@@ -25,6 +25,7 @@ export interface Distributor {
     language: string;
     subscription_tier: string;
     subscription_active: boolean;
+    is_in_trial?: boolean;
     is_courtesy: boolean;
     created_at: string;
 }
