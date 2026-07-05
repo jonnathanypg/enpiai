@@ -108,6 +108,16 @@ class CronService:
         Schedule a follow-up task. 
         Automatically cancels previous pending 'auto_followup' tasks for the same conversation.
         """
+        if action in ['daily_summary', 'coach_midday', 'coach_evening']:
+            existing = ScheduledTask.query.filter_by(
+                distributor_id=distributor_id,
+                action=action,
+                status='pending'
+            ).first()
+            if existing:
+                logger.info(f"[CRON] Duplicate system task for action {action} ignored (existing #{existing.id})")
+                return {'success': True, 'task_id': existing.id, 'scheduled_at': existing.scheduled_at.isoformat(), 'duplicated': True}
+
         if conversation_id and action == 'auto_followup':
             CronService.cancel_conversation_tasks(conversation_id, action='auto_followup')
 
@@ -315,6 +325,23 @@ class CronService:
         Execute a single scheduled task.
         Routes to the appropriate handler based on task.action.
         """
+        # Capa 2: Evitar ejecuciones duplicadas de tareas en la misma hora
+        if task.action in ['daily_summary', 'coach_midday', 'coach_evening']:
+            # Check if this task type has already been executed for this distributor in the last 60 minutes
+            recent_executed = ScheduledTask.query.filter(
+                ScheduledTask.distributor_id == task.distributor_id,
+                ScheduledTask.action == task.action,
+                ScheduledTask.status == 'executed',
+                ScheduledTask.executed_at >= datetime.utcnow() - timedelta(minutes=60),
+                ScheduledTask.id != task.id
+            ).first()
+            if recent_executed:
+                task.status = 'cancelled'
+                task.error_message = f"Deduplicated: already executed task #{recent_executed.id} in the last hour."
+                db.session.commit()
+                logger.info(f"[CRON] Deduplicated task #{task.id} (already executed task #{recent_executed.id})")
+                return
+
         if task.action == 'send_message':
             self._handle_send_message(task)
         elif task.action == 'send_email':

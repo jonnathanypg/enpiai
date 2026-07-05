@@ -481,7 +481,7 @@ class AgentOrchestrator:
             "is_anonymous": conversation.lead_id is None and not is_distributor,
         }
         
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 12}
         
         try:
             logger.info(f"[LANGGRAPH] Invoking graph for thread: {thread_id}")
