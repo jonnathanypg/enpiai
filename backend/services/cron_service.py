@@ -113,6 +113,17 @@ class CronService:
 
         if scheduled_at is None:
             scheduled_at = datetime.utcnow() + timedelta(minutes=max(1, delay_minutes))
+
+        # Capability: prevent duplicate critical cron notifications
+        if action in ('daily_summary', 'coach_midday', 'coach_evening'):
+            exists = ScheduledTask.query.filter_by(
+                distributor_id=distributor_id,
+                action=action,
+                status='pending'
+            ).first()
+            if exists:
+                logger.info(f"[CRON] Duplicate '{action}' task rejected for distributor {distributor_id}. Already scheduled at {exists.scheduled_at}")
+                return {'success': True, 'task_id': exists.id, 'scheduled_at': exists.scheduled_at.isoformat(), 'duplicate': True}
         
         task = ScheduledTask(
             distributor_id=distributor_id,
@@ -253,6 +264,24 @@ class CronService:
 
             for task in due_tasks:
                 try:
+                    # Deduplication safeguard: If this is a critical cron action, verify if we already processed
+                    # one for the same distributor in the last 1 hour. This prevents race conditions or residual DB loops.
+                    if task.action in ('daily_summary', 'coach_midday', 'coach_evening'):
+                        import datetime as dt
+                        one_hour_ago = dt.datetime.utcnow() - dt.timedelta(hours=1)
+                        already_run = ScheduledTask.query.filter(
+                            ScheduledTask.distributor_id == task.distributor_id,
+                            ScheduledTask.action == task.action,
+                            ScheduledTask.status == 'executed',
+                            ScheduledTask.executed_at >= one_hour_ago
+                        ).first()
+                        if already_run:
+                            task.status = 'cancelled'
+                            task.error_message = f"Deduplicated: already executed task #{already_run.id} in the last hour."
+                            db.session.commit()
+                            logger.info(f"[CRON] Cancelled duplicate task #{task.id} ({task.action}) for distributor {task.distributor_id}")
+                            continue
+
                     # 2. Claim the task IMMEDIATELY by marking it as executed
                     # This prevents other workers from picking it up if they query 
                     # while we are executing (though skip_locked should handle it).
