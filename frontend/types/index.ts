@@ -247,6 +247,15 @@ export interface DistributorMetrics {
     messages_today: number;
     active_conversations: number;
     conversion_rate: number;
+    total_evaluations?: number;
+    pipeline?: {
+        new: number;
+        contacted: number;
+        qualified: number;
+        nurturing: number;
+        converted: number;
+        customers: number;
+    };
 }
 
 // ========================

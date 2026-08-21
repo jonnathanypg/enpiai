@@ -25,18 +25,29 @@ class ProspectSearchTrieService:
         """Build Trie index for a distributor tenant from active prospects in database"""
         root = ProspectTrieNode()
         try:
-            from models.prospect import Prospect
-            prospects = Prospect.query.filter_by(distributor_id=tenant_id).all()
+            from models.lead import Lead
+            from models.customer import Customer
+            leads = Lead.query.filter_by(distributor_id=tenant_id).all()
+            customers = Customer.query.filter_by(distributor_id=tenant_id).all()
+            prospects = list(leads) + list(customers)
         except Exception:
             prospects = []
 
         for prospect in prospects:
-            prospect_info = prospect.to_dict() if hasattr(prospect, 'to_dict') else {
+            first_name = getattr(prospect, 'first_name', '') or ''
+            last_name = getattr(prospect, 'last_name', '') or ''
+            full_name = f"{first_name} {last_name}".strip() or getattr(prospect, 'name', '') or 'Contacto'
+            email = getattr(prospect, 'email', '') or ''
+            phone = getattr(prospect, 'phone', '') or ''
+            
+            prospect_info = {
                 'id': getattr(prospect, 'id', None),
-                'name': getattr(prospect, 'name', ''),
-                'email': getattr(prospect, 'email', ''),
-                'phone': getattr(prospect, 'phone', ''),
-                'lead_score': getattr(prospect, 'lead_score', 0)
+                'name': full_name,
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': email,
+                'phone': phone,
+                'type': 'lead' if hasattr(prospect, 'status') else 'customer'
             }
 
             # Index terms

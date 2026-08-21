@@ -35,8 +35,11 @@ class ProspectPriorityHeapService:
     def rebuild_heap_for_tenant(cls, tenant_id: int):
         """Build or refresh the Max-Heap for a distributor's tenant_id from database"""
         try:
-            from models.prospect import Prospect
-            prospects = Prospect.query.filter_by(distributor_id=tenant_id).all()
+            from models.lead import Lead
+            from models.customer import Customer
+            leads = Lead.query.filter_by(distributor_id=tenant_id).all()
+            customers = Customer.query.filter_by(distributor_id=tenant_id).all()
+            prospects = list(leads) + list(customers)
         except Exception:
             prospects = []
 
