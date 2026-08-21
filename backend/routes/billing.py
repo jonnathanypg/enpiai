@@ -1,6 +1,7 @@
 import logging
 import random
 import string
+import os
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -8,13 +9,13 @@ from extensions import db
 from models.user import User, UserRole
 from models.distributor import Distributor
 from models.subscription import Plan, Subscription, SubscriptionStatus, PlanInterval
-from services.dlocal_service import DLocalGoService
+from services.paypal_service import PayPalService
 from services.email_service import email_service
 from werkzeug.security import generate_password_hash
 
 logger = logging.getLogger(__name__)
 billing_bp = Blueprint('billing', __name__, url_prefix='/api/billing')
-dlocal_service = DLocalGoService()
+paypal_service = PayPalService()
 
 
 def admin_required(fn):
@@ -52,7 +53,7 @@ def get_plans():
 @jwt_required()
 @admin_required
 def create_plan():
-    """Create a new plan in both dLocal Go and local DB."""
+    """Create a new plan in local DB and sync with PayPal."""
     data = request.json
     try:
         name = data.get('name')
@@ -61,23 +62,10 @@ def create_plan():
         currency = data.get('currency', 'USD')
         frequency_type = data.get('frequency_type', 'MONTHLY')
         
-        # 1. Try to create in dLocal Go (will fail silently if keys are not set)
-        plan_token = None
-        dlocal_plan_id = None
-        try:
-            dlocal_resp = dlocal_service.create_plan(
-                name=name,
-                description=description,
-                amount=amount,
-                currency=currency,
-                frequency_type=frequency_type
-            )
-            plan_token = dlocal_resp.get('plan_token')
-            dlocal_plan_id = str(dlocal_resp.get('id', ''))
-        except Exception as dlocal_err:
-            logger.warning(f"dLocal Go plan creation skipped: {dlocal_err}")
+        # Sync with PayPal (IDs are provided manually for now)
+        paypal_plan_id = data.get('paypal_plan_id')
             
-        # 2. Save in DB (always)
+        # Save in DB
         features = data.get('features', {
             "analytics_enabled": False,
             "channels": "whatsapp",
@@ -93,8 +81,7 @@ def create_plan():
             price_monthly=amount if frequency_type == 'MONTHLY' else 0,
             price_annual=amount if frequency_type == 'YEARLY' else 0,
             currency=currency,
-            dlocal_plan_id=dlocal_plan_id,
-            dlocal_plan_token=plan_token,
+            paypal_plan_id=paypal_plan_id,
             is_active=True,
             features=features
         )
@@ -120,19 +107,14 @@ def update_plan(plan_id):
         if not plan:
             return jsonify({"error": "Plan not found"}), 404
 
-        dlocal_payload = {}
         if 'name' in data:
             plan.name = data['name']
-            dlocal_payload['name'] = plan.name
         if 'description' in data:
             plan.description = data['description']
-            dlocal_payload['description'] = plan.description
         if 'amount' in data:
             plan.price_monthly = data['amount']
-            dlocal_payload['amount'] = plan.price_monthly
         if 'price_monthly' in data:
             plan.price_monthly = data['price_monthly']
-            dlocal_payload['amount'] = plan.price_monthly
         if 'price_annual' in data:
             plan.price_annual = data['price_annual']
         if 'currency' in data:
@@ -146,19 +128,8 @@ def update_plan(plan_id):
             plan.is_default = data['is_default']
         if 'features' in data:
             plan.features = data['features']
-
-        # Sync changes with dLocal Go if applicable
-        if dlocal_payload and plan.dlocal_plan_id:
-            try:
-                dlocal_service.update_plan(
-                    plan_id=plan.dlocal_plan_id,
-                    name=dlocal_payload.get('name'),
-                    description=dlocal_payload.get('description'),
-                    amount=dlocal_payload.get('amount')
-                )
-            except Exception as e:
-                logger.error(f"Error syncing updated plan {plan.id} with dLocal Go: {e}")
-                # We log the error but do not fail the local DB update
+        if 'paypal_plan_id' in data:
+            plan.paypal_plan_id = data['paypal_plan_id']
 
         db.session.commit()
         return jsonify(plan.to_dict()), 200
@@ -196,10 +167,11 @@ def delete_plan(plan_id):
 
 @billing_bp.route('/subscribe', methods=['POST'])
 @jwt_required()
-def get_checkout_url():
+def get_checkout_details():
     """
-    Given a valid plan_id, returns the specific dLocal checkout URL 
-    tailored to the currently authenticated distributor.
+    Given a valid plan_id, returns the PayPal configuration 
+    needed for the frontend SDK.
+    Handles both subscriptions and one-time credit block purchases.
     """
     db.session.rollback()
     data = request.json
@@ -216,21 +188,84 @@ def get_checkout_url():
         return jsonify({'error': 'No distributor attached to this user'}), 400
 
     plan = Plan.query.get(plan_id)
-    if not plan or not plan.dlocal_plan_token:
-        return jsonify({'error': 'Plan not found or not linked to dLocal Go yet'}), 404
-        
-    try:
-        # Generate Checkout URL with their distributor ID
-        checkout_url = dlocal_service.get_checkout_url(
-            plan_token=plan.dlocal_plan_token,
-            distributor_id=distributor.id,
-            email=user.email
+    if not plan:
+        return jsonify({'error': 'Plan not found'}), 404
+
+    # Case 1: Credit Block (One-time Payment)
+    if plan.is_credit_block:
+        order = paypal_service.create_order(
+            amount=plan.price_monthly, # For credit blocks we use this field as price
+            currency=plan.currency,
+            description=f"Credit Recharge: {plan.name} ({plan.credits_granted} credits)"
         )
-        return jsonify({'subscribe_url': checkout_url}), 200
+        if not order:
+            return jsonify({'error': 'Could not create PayPal order'}), 500
+            
+        return jsonify({
+            'type': 'order',
+            'order_id': order.get('id'),
+            'client_id': os.environ.get('PAYPAL_CLIENT_ID'),
+            'plan_id': plan.id,
+            'distributor_id': distributor.id
+        }), 200
+
+    # Case 2: Subscription
+    if not plan.paypal_plan_id:
+        return jsonify({'error': 'Plan is not linked to a PayPal Plan ID'}), 404
         
-    except Exception as e:
-        logger.error(f"Subscribe error: {e}")
-        return jsonify({'error': str(e)}), 500
+    return jsonify({
+        'type': 'subscription',
+        'paypal_plan_id': plan.paypal_plan_id,
+        'client_id': os.environ.get('PAYPAL_CLIENT_ID'),
+        'user_email': user.email,
+        'distributor_id': distributor.id
+    }), 200
+
+
+@billing_bp.route('/capture-order', methods=['POST'])
+@jwt_required()
+def capture_paypal_order():
+    """Capture a one-time order and grant credits."""
+    data = request.json
+    order_id = data.get('order_id')
+    plan_id = data.get('plan_id')
+    
+    if not order_id or not plan_id:
+        return jsonify({'error': 'order_id and plan_id are required'}), 400
+        
+    capture = paypal_service.capture_order(order_id)
+    if not capture or capture.get('status') != 'COMPLETED':
+        return jsonify({'error': 'Payment could not be captured or is not completed'}), 400
+        
+    identity = get_jwt_identity()
+    user = User.query.get(int(identity))
+    distributor = user.distributor
+    
+    plan = Plan.query.get(plan_id)
+    if plan and plan.is_credit_block:
+        distributor.credits_balance += plan.credits_granted
+        db.session.commit()
+        
+        # Log transaction
+        from models.transaction import Transaction, TransactionStatus, TransactionType
+        transaction = Transaction(
+            distributor_id=distributor.id,
+            amount=plan.price_monthly,
+            currency=plan.currency,
+            status=TransactionStatus.APPROVED,
+            type=TransactionType.PAYMENT,
+            description=f"Credit Block Purchase: {plan.name}",
+            rebill_id=order_id # We reuse this field for PayPal Order ID
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Credits granted successfully',
+            'new_balance': distributor.credits_balance
+        }), 200
+        
+    return jsonify({'error': 'Invalid plan for credit block'}), 400
 
 
 @billing_bp.route('/my-subscription', methods=['GET'])
@@ -268,8 +303,37 @@ def get_my_subscription():
             'notes': 'Courtesy account granted by administrator'
         }), 200
 
-    # 2. Check for an actual subscription record
-    # Since dLocal subscriptions are asynchronous, we might have distributor.subscription_plan_id
+    # 2. Check if it's a 24-hour trial account
+    from datetime import datetime, timedelta
+    in_trial = False
+    if distributor.trial_activated and distributor.created_at and not distributor.subscription_active:
+        trial_ends_at = distributor.created_at + timedelta(hours=24)
+        if datetime.utcnow() < trial_ends_at:
+            in_trial = True
+
+    if in_trial:
+        # Mock a subscription object for trial users using default plan features
+        plan = Plan.query.filter_by(is_default=True).first()
+        if not plan:
+            plan = Plan.query.first() # Fallback
+            
+        trial_ends_at = distributor.created_at + timedelta(hours=24)
+        return jsonify({
+            'status': 'trial',
+            'is_active': True,
+            'plan_name': plan.name if plan else 'Free Trial',
+            'plan_description': plan.description if plan else '24-hour free trial',
+            'price': plan.price_monthly if plan else 0.0,
+            'currency': plan.currency if plan else 'USD',
+            'features': plan.features if plan else {},
+            'start_date': distributor.created_at.isoformat(),
+            'end_date': trial_ends_at.isoformat(),
+            'next_payment_at': trial_ends_at.isoformat(),
+            'notes': 'Free trial active for 24 hours'
+        }), 200
+
+    # 3. Check for an actual subscription record
+    # Since PayPal subscriptions are asynchronous, we might have distributor.subscription_plan_id
     # but not a row in the 'subscriptions' table yet, or vice versa.
     sub = Subscription.query.filter_by(distributor_id=distributor.id).order_by(Subscription.created_at.desc()).first()
     
@@ -357,7 +421,7 @@ def create_courtesy_account():
 
         # Send courtesy account credentials email
         try:
-            email_service.send_courtesy_account_created(email, name, temp_pass, lang=distributor.language or 'en')
+            email_service.send_courtesy_account_created(email, name, temp_pass, lang=distributor.language or 'es')
         except Exception as mail_err:
             logger.warning(f"Courtesy email failed (non-blocking): {mail_err}")
         
@@ -454,7 +518,7 @@ def toggle_courtesy_status(distributor_id):
             distributor.subscription_active = True
         else:
             # Only turn off if they don't have a valid plan (basic assumption, can be refined)
-            # For simplicity, if courtesy is removed, they hit the paywall until dLocal confirms payment
+            # For simplicity, if courtesy is removed, they hit the paywall until PayPal confirms payment
             distributor.subscription_active = False 
 
         db.session.commit()
@@ -468,3 +532,71 @@ def toggle_courtesy_status(distributor_id):
         db.session.rollback()
         logger.error(f"Error toggling courtesy status: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@billing_bp.route('/verify-subscription', methods=['POST'])
+@jwt_required()
+def verify_subscription():
+    """
+    Directly query PayPal to verify the subscription status and activate locally.
+    This provides an instant activation fallback for the frontend before webhooks arrive.
+    """
+    db.session.rollback()
+    data = request.json
+    subscription_id = data.get('subscription_id')
+    
+    if not subscription_id:
+        return jsonify({'error': 'subscription_id is required'}), 400
+        
+    identity = get_jwt_identity()
+    user = User.query.get(int(identity))
+    distributor = user.distributor
+    
+    if not distributor:
+        return jsonify({'error': 'No distributor attached to this user'}), 400
+        
+    # Query PayPal API to get actual subscription details
+    sub_details = paypal_service.get_subscription_details(subscription_id)
+    if not sub_details:
+        return jsonify({'error': 'Could not fetch subscription details from PayPal'}), 400
+        
+    status = sub_details.get('status')
+    paypal_plan_id = sub_details.get('plan_id')
+    
+    # We accept ACTIVE, APPROVED
+    if status in ['ACTIVE', 'APPROVED']:
+        from datetime import datetime
+        logger.info(f"Direct verification success: Sub {subscription_id} ({status}) -> Distributor {distributor.id}")
+        
+        # Link plan
+        plan = Plan.query.filter_by(paypal_plan_id=paypal_plan_id).first()
+        if plan:
+            distributor.subscription_plan_id = plan.id
+            
+        distributor.subscription_active = True
+        
+        # Save subscription record
+        sub = Subscription.query.filter_by(paypal_subscription_id=subscription_id).first()
+        if not sub:
+            sub = Subscription(
+                distributor_id=distributor.id,
+                plan_id=plan.id if plan else None,
+                paypal_subscription_id=subscription_id,
+                status=SubscriptionStatus.ACTIVE,
+                start_date=datetime.utcnow()
+            )
+            db.session.add(sub)
+        else:
+            sub.status = SubscriptionStatus.ACTIVE
+            
+        db.session.commit()
+        return jsonify({
+            'message': 'Subscription verified and activated successfully',
+            'status': distributor.subscription_active,
+            'plan': plan.name if plan else None
+        }), 200
+        
+    return jsonify({
+        'error': f"Subscription is not active (current status: {status})"
+    }), 400
+

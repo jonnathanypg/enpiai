@@ -3,7 +3,6 @@ from app import create_app
 from extensions import db
 from models.subscription import Plan, Subscription
 from models.distributor import Distributor
-from services.dlocal_service import DLocalGoService
 
 app = create_app()
 
@@ -26,8 +25,7 @@ with app.app_context():
     Plan.query.delete()
     db.session.commit()
 
-    print("Creating new plans with dLocal Go...")
-    dlocal = DLocalGoService()
+    print("Creating new plans (PayPal IDs should be added manually or via admin)...")
 
     plans_data = [
         {"name": "Starter", "desc": "Starter Plan", "price": 19.99},
@@ -36,34 +34,15 @@ with app.app_context():
     ]
 
     for p in plans_data:
-        try:
-            print(f"Syncing {p['name']} with dLocal...")
-            resp = dlocal.create_plan(
-                name=p["name"],
-                description=p["desc"],
-                amount=p["price"],
-                currency="USD",
-                frequency_type="MONTHLY",
-                frequency_value=1
-            )
-            
-            plan_token = resp.get('plan_token')
-            plan_id = str(resp.get('id', ''))
-            print(f"Success! Token: {plan_token}")
-            
-            new_plan = Plan(
-                name=p["name"],
-                description=p["desc"],
-                price_monthly=p["price"],
-                price_annual=0,
-                currency="USD",
-                dlocal_plan_id=plan_id,
-                dlocal_plan_token=plan_token,
-                is_active=True
-            )
-            db.session.add(new_plan)
-        except Exception as e:
-            print(f"Failed to create {p['name']}: {e}")
+        new_plan = Plan(
+            name=p["name"],
+            description=p["desc"],
+            price_monthly=p["price"],
+            price_annual=0,
+            currency="USD",
+            is_active=True
+        )
+        db.session.add(new_plan)
 
     db.session.commit()
     print("All plans successfully recreated and saved to the database!")

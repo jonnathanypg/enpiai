@@ -40,7 +40,22 @@
     "show": "Mostrar",
     "hide": "Ocultar",
     "copy": "Copiar",
-    "confirmDelete": "Tem certeza de que deseja excluir este registro e todo o seu histórico? Esta ação não pode ser desfeita."
+    "confirmDelete": "Tem certeza de que deseja excluir este registro e todo o seu histórico? Esta ação não pode ser desfeita.",
+    "friendly": "Amigável",
+    "professional": "Profissional",
+    "sales": "Vendedor",
+    "wellness_coach": "Treinador de Bem-Estar",
+    "support": "Suporte",
+    "casual": "Casual",
+    "formal": "Formal",
+    "general": "Geral",
+    "customer_service": "Atendimento ao Cliente",
+    "scheduling": "Agendamento",
+    "lead_qualification": "Qualificação de Leads",
+    "wellness_evaluation": "Avaliação de Bem-Estar",
+    "distributor_assistant": "Assistente do Distribuidor",
+    "userAccount": "Minha Conta",
+    "phone": "Telefone"
   },
   "auth": {
     "welcomeBack": "Bem-vindo de volta",
@@ -72,10 +87,10 @@
     "agentSetup": "Config. Agente",
     "channels": "Canais",
     "documents": "Documentos",
-    "wellness": "Bem-estar",
-    "playground": "Playground",
+    "wellness": "Pesquisas",
+    "playground": "Chat com Assistente",
     "settings": "Configurações",
-    "couch": "Modo Coach",
+    "coach": "Modo Coach",
     "systemKnowledge": "Conhecimento do Sistema",
     "billing": "Faturamento"
   },
@@ -85,8 +100,8 @@
     "subscribeButton": "Assinar",
     "redirecting": "Redirecionando...",
     "noPlans": "Nenhum plano disponível no momento. Entre em contato com o administrador da plataforma.",
-    "securePaymentTitle": "Pagamento Seguro com dLocal Go",
-    "securePaymentDescription": "Todos os pagamentos são processados de forma segura através do dLocal Go, o gateway de pagamentos líder na América Latina. Suas informações financeiras nunca são armazenadas em nossos servidores.",
+    "securePaymentTitle": "Pagamento Seguro com PayPal",
+    "securePaymentDescription": "Todos os pagamentos são processados de forma segura através do PayPal, o gateway de pagamentos líder na América Latina. Suas informações financeiras nunca são armazenadas em nossos servidores.",
     "redirectingToGateway": "Redirecionando para o gateway de pagamento...",
     "paymentUrlError": "Não foi possível gerar a URL de pagamento. Entre em contato com o administrador.",
     "subscriptionError": "Erro ao iniciar o processo de assinatura.",
@@ -99,6 +114,9 @@
       "nextBilling": "Próxima cobrança em",
       "courtesy": "Licença de Cortesia",
       "active": "Ativa",
+      "trial": "Teste Gratuito (24h)",
+      "trialBannerText": "Você está em um teste gratuito de 24 horas. Restam {{hours}} horas de acesso.",
+      "trialBannerAction": "Ativar Licença Agora",
       "pending": "Pendente",
       "pastDue": "Pagamento Atrasado",
       "cancelled": "Cancelada",
@@ -107,19 +125,42 @@
       "cancel": "Cancelar Assinatura",
       "features": "Recursos Incluídos",
       "noExpiry": "Sem Expiração"
+    },
+    "checkout": {
+      "title": "Completar Pagamento",
+      "description": "Pagamento seguro processado pelo PayPal. Todos os cartões são aceitos.",
+      "recurringPayment": "Assinatura mensal recorrente via PayPal",
+      "oneTimePayment": "Pagamento único seguro via PayPal",
+      "preparingCheckout": "Preparando pagamento seguro...",
+      "loadingPayPal": "Carregando o PayPal...",
+      "scriptErrorTitle": "Erro de Script do PayPal",
+      "scriptErrorDesc": "Não foi possível carregar o SDK do PayPal. Verifique sua conexão com a internet e tente novamente.",
+      "checkoutErrorTitle": "Erro no Checkout",
+      "configErrorTitle": "Erro de Configuração",
+      "configErrorDesc": "O ID do Cliente PayPal está faltando. Entre em contato com o suporte se isso persistir.",
+      "tryAgain": "Tentar novamente",
+      "successSubscription": "Assinatura ativada com sucesso!",
+      "errorSubscription": "Houve um problema ao ativar sua assinatura.",
+      "successOrder": "Pagamento bem-sucedido! Créditos adicionados à sua conta.",
+      "errorCapture": "O pagamento foi aprovado, mas não pôde ser capturado. Entre em contato com o suporte.",
+      "errorOrder": "Houve um erro no pagamento. Por favor, tente novamente.",
+      "cancelled": "Pagamento cancelado.",
+      "subscriptionCancelled": "Assinatura cancelada.",
+      "recurringNote": "Importante: Para configurar uma assinatura recorrente, o PayPal exige a criação de uma senha para estabelecer uma conta gratuita. Isso permite que você gerencie ou cancele sua assinatura com segurança a qualquer momento.",
+      "oneTimeNote": "Pagamento seguro processado pelo PayPal. Não é necessário registrar uma conta para pagamentos únicos."
     }
   },
   "admin": {
     "billingTitle": "Faturamento e Licenças",
-    "billingDescription": "Gerencie planos de assinatura, integração com dLocal Go e contas de cortesia.",
+    "billingDescription": "Gerencie planos de assinatura, integração com PayPal e contas de cortesia.",
     "courtesyAccount": "Conta de Cortesia",
     "newPlan": "Novo Plano",
     "plansTitle": "Planos de Assinatura",
     "plansDescription": "Todos os planos disponíveis. Os inativos não serão exibidos para os distribuidores.",
-    "dLocalToken": "dLocal Token",
+    "paypalPlanId": "ID do Plano PayPal",
     "local": "Local",
     "createPlanTitle": "Criar Plano de Assinatura",
-    "createPlanDescription": "O plano será sincronizado automaticamente com o dLocal Go. Se as credenciais não estiverem configuradas, será salvo localmente.",
+    "createPlanDescription": "O ID do plano deve corresponder ao criado no seu painel de desenvolvedor do PayPal.",
     "planName": "Nome do Plano",
     "planNamePlaceholder": "Licença Pessoal",
     "planDescription": "Descrição",
@@ -146,8 +187,8 @@
     "courtesyLicense": "Licença Cortesia",
     "registered": "Registrado",
     "integrationStatus": "Status da Integração",
-    "dLocalConfigured": "dLocal Go API Configurada",
-    "integrationNote": "O sistema se comunica com o ambiente configurado no seu arquivo .env. Se as credenciais estiverem incompletas, os planos serão salvos apenas localmente.",
+    "paypalConfigured": "PayPal Configurado",
+    "paypalIntegrationNote": "O sistema se comunica com o PayPal usando as credenciais do arquivo .env.",
     "courtesyTitle": "Contas de Cortesia",
     "courtesyNote": "Contas de cortesia ignoram completamente o processo de pagamento. Útil para VIPs, testes internos ou distribuidores em período de carência.",
     "createCourtesyTitle": "Criar Conta de Cortesia",
@@ -236,8 +277,7 @@
     "communicationChannels": "Canais de Comunicação",
     "noChannels": "Nenhum canal conectado aún.",
     "connectChannels": "Conectar WhatsApp/Telegram",
-    "quickActions": "Ações Rápidas",
-    "testAgent": "Testar Agente IA",
+    "testAgent": "Chat com meu Assistente",
     "wellnessEvaluations": "Avaliações de Bem-estar",
     "manageSubscription": "Gerenciar Assinatura"
   },
@@ -320,30 +360,30 @@
     "noDocuments": "Nenhum documento encontrado."
   },
   "wellness": {
-    "title": "Centro de Bem-estar",
-    "description": "Gerencie avaliações e gere relatórios de saúde.",
+    "title": "Centro de Pesquisas",
+    "description": "Gerencie pesquisas e gere relatórios de saúde.",
     "copyShareLink": "Copiar Link de Compartilhamento",
-    "newEvaluation": "Nova Avaliação",
+    "newEvaluation": "Nova Pesquisa",
     "copyLink": "Copiar Link",
-    "recentEvaluations": "Avaliações Recentes",
-    "recentEvaluationsDesc": "Uma lista de todos os exames de bem-estar enviados por prospectos e clientes.",
-    "noEvaluations": "Nenhuma avaliação encontrada.",
-    "evaluation": "Avaliação",
+    "recentEvaluations": "Pesquisas Recentes",
+    "recentEvaluationsDesc": "Uma lista de todas as pesquisas de bem-estar enviadas por potenciais clientes e clientes.",
+    "noEvaluations": "Nenhuma pesquisa encontrada.",
+    "evaluation": "Pesquisa",
     "generatePdf": "Gerar PDF",
     "viewContact": "Ver Contato"
   },
   "playground": {
-    "title": "Playground do Agente",
-    "description": "Teste seu agente de IA em tempo real. As mensagens são enviadas para o seu agente configurado.",
+    "title": "Meu Assistente Virtual",
+    "description": "Seção de chat com o assistente do distribuidor para interagir com o sistema e controlar suas funções diretamente.",
     "clearChat": "Limpar Chat",
-    "liveChat": "Chat ao vivo com o Agente",
+    "liveChat": "Chat ao vivo com o Assistente",
     "noMessages": "Nenhuma mensagem ainda",
-    "startTesting": "Envie uma mensagem para começar a testar seu agente.",
-    "typeMessage": "Digite uma mensagem para testar seu agente...",
-    "helpText": "Pressione Enter para enviar. Este playground usa seu agente configurado e a base de conhecimento RAG.",
+    "startTesting": "Envie uma mensagem para começar a conversar com seu assistente.",
+    "typeMessage": "Digite uma mensagem para conversar com seu assistente...",
+    "helpText": "Pressione Enter para enviar. Este chat usa seu assistente configurado e a base de conhecimento RAG.",
     "noResponse": "Nenhuma resposta recebida.",
     "clearSuccess": "Histórico de conversa redefinido.",
-    "liveAgentChat": "Chat ao Vivo com o Agente"
+    "liveAgentChat": "Chat ao Vivo com o Assistente"
   },
   "settings": {
     "title": "Configurações",
@@ -352,6 +392,7 @@
     "personalInfoDesc": "Seu perfil básico e detalhes de contato.",
     "businessInfo": "Informações do Negócio",
     "businessInfoDesc": "Detalhes do seu negócio como distribuidor Herbalife.",
+    "distributorLevel": "Nível de Distribuidor",
     "localization": "Localização",
     "localizationDesc": "Preferências de região e idioma.",
     "apiAccess": "Acesso API",
@@ -361,6 +402,8 @@
     "phoneNumber": "Número de Telefone",
     "personalStory": "História Pessoal",
     "personalStoryPlaceholder": "Breve descrição sobre você...",
+    "whatsappPhone": "Telefone do WhatsApp",
+    "whatsappPhoneHelp": "Deixe em branco se o seu WhatsApp for o mesmo número de telefone acima.",
     "businessName": "Nome da Empresa",
     "memberId": "Seu ID de membro Herbalife",
     "website": "Site",
@@ -369,6 +412,7 @@
     "timezone": "Fuso Horário",
     "city": "Cidade",
     "country": "País",
+    "selectCountry": "Selecionar país",
     "noApiKey": "Nenhuma chave API gerada",
     "endpoint": "Endpoint",
     "header": "Cabeçalho",
@@ -417,8 +461,8 @@
           "description": "Conecte WhatsApp, Telegram e Web Chat em um só lugar."
         },
         "wellness": {
-          "title": "Avaliações de Bem-estar",
-          "description": "Compartilhe um link personalizado para que os prospects concluam a avaliação. Obtenha relatórios de IMC automaticamente."
+          "title": "Pesquisas de Bem-estar",
+          "description": "Compartilhe um link personalizado para que os prospects concluam a pesquisa. Obtenha relatórios de IMC automaticamente."
         },
         "crm": {
           "title": "CRM e Gestão de Leads",
@@ -621,8 +665,222 @@
     "step": "Passo",
     "optional": "(opcional)",
     "selectLanguage": "Selecionar Idioma",
-    "english": "Inglês",
+    "english": "Inglés",
     "spanish": "Espanhol",
     "portuguese": "Português"
+  },
+  "onboarding": {
+    "welcomeTitle": "Bem-vindo ao EnpiAI!",
+    "welcomeSubtitle": "Seu Assistente Inteligente de Saúde e Bem-estar",
+    "welcomeDesc": "O EnpiAI ajuda você a automatizar seu negócio de nutrição, gerenciar clientes, realizar avaliações de bem-estar e automatizar seu WhatsApp com Inteligência Artificial. Vamos configurar sua conta em poucos passos.",
+    "startTour": "Iniciar Tour Guiado",
+    "exploreOnOwn": "Explorar por minha conta",
+    "checklistTitle": "Passos para Ativar sua Conta",
+    "checklistDesc": "Conclua estas tarefas essenciais para implantar seu primeiro assistente conversacional e ativar todas as ferramentas.",
+    "stepProfile": "Completar Dados do Perfil",
+    "stepProfileDesc": "Insira seu nome, e-mail, número de telefone e ID da Herbalife em suas Configurações.",
+    "stepAgents": "Configurar seu Agente",
+    "stepAgentsDesc": "Ajuste a personalidade, função, tom e instruções do seu assistente de IA.",
+    "stepChannels": "Conectar WhatsApp",
+    "stepChannelsDesc": "Vincule seu número de WhatsApp usando um código QR para automatizar as respostas.",
+    "stepDocuments": "Enviar Documentos de Conhecimento",
+    "stepDocumentsDesc": "Envie PDFs de produtos ou manuais para que seu agente responda usando RAG.",
+    "stepWellness": "Configurar Pesquisas",
+    "stepWellnessDesc": "Teste ou crie um formulário de pesquisa de bem-estar para seus prospects.",
+    "stepCoach": "Testar Modo Coach",
+    "stepCoachDesc": "Use seu mentor de negócios de IA para planejar seu caminho rumo à Equipe do Presidente.",
+    "stepSubscribe": "Ativar Assinatura",
+    "stepSubscribeDesc": "Assine um plano para habilitar o mecanismo conversacional e o envio de mensagens.",
+    "activationProgress": "Progresso de Ativação",
+    "congratulations": "Parabéns!",
+    "allStepsCompleted": "Você concluiu todas as etapas de configuração! Seu assistente EnpiAI está pronto para trabalhar em capacidade total.",
+    "tour": {
+      "progress": "Passo {{current}} de {{total}}",
+      "next": "Avançar",
+      "back": "Voltar",
+      "skip": "Pular",
+      "finish": "Concluir",
+      "step0Title": "Seu Painel de Controle",
+      "step0Desc": "Aqui você verá o resumo de leads, clientes, conversas ativas e mensagens diárias processadas pelo seu assistente.",
+      "step1Title": "Dados da sua Conta",
+      "step1Desc": "Insira seu número de telefone, e-mail, ID da Herbalife e nível de distribuidor para que o agente se identifique de forma personalizada.",
+      "step2Title": "Personalidad do seu Agente",
+      "step2Desc": "Ajuste a função, tom de comunicação, instruções personalizadas e ative as ferramentas inteligentes do assistente.",
+      "step3Title": "Conectar Canais",
+      "step3Desc": "Vincule seu WhatsApp escaneando o código QR. O agente começará a responder e qualificar seus contatos instantaneamente.",
+      "step4Title": "Base de Conhecimento",
+      "step4Desc": "Envie catálogos da Herbalife, tabelas de nutrição ou políticas. Seu agente responderá às dúvidas de seus prospects usando este banco de dados.",
+      "step5Title": "Meu Assistente Virtual",
+      "step5Desc": "Converse com seu assistente em tempo real para interagir com o sistema e controlar suas funções diretamente.",
+      "step6Title": "Pesquisas de Bem-estar",
+      "step6Desc": "Aqui você pode configurar e revisar as pesquisas de composição corporal e IMC concluídas por seus contatos.",
+      "step7Title": "Modo Coach de Negócios",
+      "step7Desc": "Ative seu mentor de negócios Herbalife para orientá-lo em seu plano de carreira e em seu caminho rumo à Equipe do Presidente.",
+      "step8Title": "Assinatura e Ativação",
+      "step8Desc": "Escolha o plano ideal para manter ativos seus agentes, limites de mensagens e recursos conversacionais em tempo real."
+    }
+  },
+  "legal": {
+    "privacyTitle": "Política de Privacidade",
+    "termsTitle": "Termos de Serviço",
+    "pricingTitle": "Preços",
+    "refundsTitle": "Política de Reembolso",
+    "lastUpdated": "Última atualização: {{date}}",
+    "privacy": {
+      "intro": "Na EnpiAI, levamos a sua privacidade muito a sério. Esta política descreve como coletamos, usamos e protegemos suas informações pessoais e de saúde de acordo com os padrões internacionais e requisitos para plataformas como o Google Cloud Console. Gostaríamos de esclarecer que a EnpiAI é uma plataforma SaaS independente e não é afiliada, associada, autorizada ou oficialmente endossada de qualquer forma pela Herbalife International ou Herbalife Nutrition.",
+      "sections": {
+        "collection": {
+          "title": "1. Informações que Coletamos",
+          "content": "Para fornecer nossos serviços de assistente e ferramentas de bem-estar com IA, coletamos as informações que você nos fornece diretamente ao criar uma conta, conectar canais de mensagens (WhatsApp, Telegram) ou realizar uma avaliação de bem-estar.",
+          "item1": "Dados de Conta e Perfil: Nome, e-mail, número de telefone, nível de distribuidor e ID da Herbalife.",
+          "item2": "Dados de Integração: Tokens do Google Calendar OAuth para sincronização de agenda, e credenciais para o gateway do WhatsApp/Telegram.",
+          "item3": "Dados de Avaliações de Bem-Estar: Medidas corporais (peso, altura), IMC, pressão arterial, pulso, nível de energia, qualidade do sono, consumo de água, refeições e sintomas de saúde informados voluntariamente pelos seus clientes em potencial.",
+          "item4": "Dados da Base de Conhecimento (RAG): Catálogos de produtos, manuais ou documentos PDF carregados pelo distribuidor para treinar seu agente de IA."
+        },
+        "google": {
+          "title": "2. Dados de Usuário do Google (Política de Uso Limitado)",
+          "content": "A EnpiAI solicita acesso ao seu Google Calendar para permitir que seus agentes de IA agendem consultas e avaliações de bem-estar em seu nome com consentimento prévio.",
+          "disclosure": "O uso e a transferência de informações recebidas das APIs do Google pela EnpiAI para qualquer outro aplicativo obedecerão à Política de Dados do Usuário dos Serviços de API do Google, incluindo os requisitos de Uso Limitado."
+        },
+        "use": {
+          "title": "3. Como Usamos Suas Informações",
+          "content": "Usamos os dados coletados para:",
+          "item1": "Fornecer, operar e manter a plataforma EnpiAI e suas ferramentas de negócios.",
+          "item2": "Permitir que seu agente de IA responda às dúvidas de clientes e leads de forma personalizada usando a base de conhecimento indexada no Pinecone.",
+          "item3": "Processar e gerar diagnósticos de bem-estar físico, cálculos de IMC e planos de nutrição sugeridos por IA.",
+          "item4": "Automatizar o agendamento de consultas no seu Google Calendar e enviar notificações de leads capturados.",
+          "item5": "Melhorar os modelos de IA e garantir a estabilidade do sistema como um todo."
+        },
+        "sovereignty": {
+          "title": "4. Soberania de Dados, Criptografia e Segurança",
+          "content": "A EnpiAI segue um princípio rigoroso de Soberania de Dados. Todas as informações de identificação pessoal (PII) e dados de saúde são armazenados em nosso banco de dados relacional de forma criptografada no nível do aplicativo usando criptografia Fernet de nível militar. Os dados são isolados logicamente por cliente (multi-tenant). Não comercializamos nem compartilhamos históricos de conversas ou listas de leads com terceiros."
+        },
+        "thirdParty": {
+          "title": "5. Serviços de Terceiros e Transferências",
+          "content": "Nossa plataforma interage com serviços externos essenciais: OpenAI/Google Gemini (processamento de linguagem natural), Pinecone (banco de dados vetorial para RAG), WhatsApp (através de nosso gateway local em Node.js baseado no Baileys) e PayPal (processamento seguro de cobrança). A interação e transferência de dados para essas plataformas cumprem exclusivamente as finalidades funcionais do serviço contratado."
+        },
+        "contact": {
+          "content": "Se você tiver alguma dúvida sobre esta Política de Privacidade ou sobre o manuseio de seus dados, entre em contato conosco pelo e-mail support@weblifetech.com"
+        }
+      }
+    },
+    "terms": {
+      "intro": "Ao usar a plataforma EnpiAI, você concorda com os seguintes termos e condições de serviço. Leia-os atentamente antes de começar.",
+      "sections": {
+        "acceptance": {
+          "title": "1. Aceitação dos Termos",
+          "content": "Ao acessar, registrar-se ou usar a EnpiAI ('la Plataforma'), você concorda em cumprir e estar sujeito a estes termos e condições. Se você não concordar com qualquer parte destes termos, não deve usar a Plataforma."
+        },
+        "service": {
+          "title": "2. Descrição do Serviço e Isenção de Responsabilidade de Afiliação",
+          "content": "A EnpiAI é um ecossistema SaaS que fornece assistentes de conversação inteligentes, CRM e ferramentas de avaliação de saúde para distribuidores independentes da Herbalife. A EnpiAI é uma marca e desenvolvimento independente da WEBLIFETECH. Não temos relacionamento legal, patrocínio ou afiliação comercial com a Herbalife International, Herbalife Nutrition ou suas subsidiárias. O uso da plataforma é de responsabilidade exclusiva do distribuidor independente."
+        },
+        "responsibility": {
+          "title": "3. Uso Responsable e Canais de Comunicação",
+          "content": "Você concorda em usar os agentes de IA, a integração do WhatsApp e as capacidades de comunicação exclusivamente para fins comerciais legítimos e legais. Você é responsável por:",
+          "item1": "Os dados, catálogos e documentos de produtos carregados na base de conhecimento (RAG) do agente de IA, garantizando que não infrinjam direitos autorais nem apresentem informações falsas.",
+          "item2": "O cumprimento das leis de telecomunicações e regulamentos anti-spam. Você não deve usar o gateway do WhatsApp ou Telegram para enviar mensagens em massa não solicitadas (spam) ou assediar os usuários.",
+          "item3": "Garantir que possui o consentimento de seus clientes/leads antes de registrar seus dados de saúde no CRM ou enviar-lhes mensagens automatizadas."
+        },
+        "payments": {
+          "title": "4. Pagamentos, Assinaturas e Créditos",
+          "content": "O acesso aos recursos completos da EnpiAI requer uma assinatura ativa ou a compra de blocos de créditos de conversação. Os pagamentos são processados com segurança por meio dos Smart Buttons do PayPal. As assinaturas mensais recorrentes exigem que o cliente crie uma senha do PayPal durante o checkout devido a políticas de fraude do gateway e para permitir o controle das cobranças recorrentes. Os blocos de créditos únicos suportam a modalidade de Finalização de Compra como Convidado (Guest Checkout). O backend realiza la verificação instantânea servidor a servidor para ativar seus serviços imediatamente."
+        },
+        "liability": {
+          "title": "5. Limitação de Responsabilidade e Exclusões",
+          "content": "A EnpiAI fornece respostas geradas por Inteligência Artificial e avaliações automatizadas com base nas entradas do usuário. Las avaliações de bem-estar e IMC geradas pela IA são apenas para fins informativos e de orientação geral; não constituem conselhos médicos, diagnósticos clínicos ou planos de tratamento médico. Embora busquemos a máxima precisão, a EnpiAI não é responsável por alucinações da IA, erros ou omissões nas respostas do agente, ou pelo uso indevido de informações de saúde. O distribuidor deve monitorar e ajustar a base de conhecimento e o comportamento do agente continuamente."
+        }
+      }
+    }
+  },
+  "refunds": {
+    "title": "Política de Reembolso",
+    "lastUpdated": "Última atualização",
+    "p1": "Na EnpiAI (desenvolvida pela WEBLIFETECH), buscamos fazer com que nossas ferramentas otimizem ao máximo o seu negócio de nutrição e bem-estar. Como o processamento de conversas em tempo real consome recursos de computação diretos e custos de inferência de API de IA, nossa política de reembolso é regida pelas seguintes regras claras.",
+    "section1": {
+      "title": "1. Assinaturas de Membro Mensal",
+      "p1": "Ofrecemos uma garantia de reembolso de 14 dias a partir da data do seu primeiro pagamento de assinatura mensal na plataforma, sujeita aos seguintes limites de uso:",
+      "li1": "O reembolso de 100% será concedido apenas se o consumo acumulado de créditos de conversação em sua conta for inferior a 10% dos créditos atribuídos no plano contratado.",
+      "li2": "Se o uso do assistente de IA exceder 10% dos créditos mensais durante este período, nenhum reembolso total ou parcial poderá ser feito, devido aos custos operacionais já incorridos com os provedores de LLM."
+    },
+    "section2": {
+      "title": "2. Blocos de Créditos Adicionales (Top-ups)",
+      "p1": "Os pacotes e blocos de créditos adicionais adquiridos de forma independente não são reembolsáveis depois que seu uso for iniciado (quando pelo menos 1 crédito tiver sido consumido). Se você comprou um bloco por engano e não realizou nenhuma conversa com ele, poderá solicitar o reembolso total dentro de 7 dias após a compra."
+    },
+    "section3": {
+      "title": "3. Processamento e Devolução (PayPal)",
+      "p1": "Todas as cobranças e assinaturas da EnpiAI são gerenciadas com segurança por meio do PayPal.",
+      "p2": "Uma vez aprovada a solicitação de reembolso pela nossa equipe, a transação será revertida automaticamente por meio da API do PayPal. Os fundos serão devolvidos ao cartão de crédito/débito original ou conta do PayPal dentro de 5 a 10 dias úteis, dependendo das políticas da sua instituição financeira."
+    },
+    "section4": {
+      "title": "4. Como Solicitar um Reembolso",
+      "p1": "Para solicitar a devolução de sua cobrança, envie um e-mail para support@weblifetech.com informando os seguintes dados:",
+      "li1": "O e-mail registrado em sua conta EnpiAI.",
+      "li2": "O ID da transação do PayPal ou o código de assinatura enviado no recibo de compra.",
+      "li3": "O motivo do seu pedido (seus comentários nos ajudam a melhorar o produto e o comportamento de nossos agentes)."
+    },
+    "footer": "Para qualquer dúvida adicional sobre consumo, limites ou cancelaciones, sinta-se à vontade para nos escrever em support@weblifetech.com. Estamos aqui para apoiar o crescimento do seu negócio."
+  },
+  "levels": {
+    "distribuidor": "Distribuidor Independente",
+    "consultor": "Consultor Sénior",
+    "constructor": "Construtor de Sucesso",
+    "productor": "Produtor Qualificado",
+    "supervisor": "Supervisor / Atacadista",
+    "mundo": "Equipe Mundial",
+    "mundo_activo": "Equipe Mundial Ativa",
+    "get": "Equipe de Expansão Global (GET)",
+    "millonarios": "Equipe de Milionários",
+    "presidente": "Equipe de Presidente",
+    "chairman": "Club do Chairman",
+    "fundador": "Círculo do Fundador"
+  },
+  "coachMode": {
+    "planMarketing": "Plano de Marketing Herbalife",
+    "title": "Modo Coach: Caminho ao Presidente",
+    "roadToPresident": "Caminho ao Presidente",
+    "description": "Acompanhamento personalizado 24/7 com desafios diários e reprogramação mental através de música, leitura e instrução direta. Receba mensagens 3 vezes ao dia no seu WhatsApp.",
+    "successLadder": "Escada do Sucesso - Progresso {{progress}}%",
+    "currentPositionDesc": "Sua posição atual no plano de carreira da Herbalife.",
+    "presidentTeam": "Equipe de Presidente (100%)",
+    "currentLevel": "Nível Atual",
+    "activeCoachService": "Serviço de Coach Ativo",
+    "enableChallenges": "Habilitar mensagens e desafios diários",
+    "challengesTitle": "Seus Desafios e Metas",
+    "challengesDesc": "Complete seus desafios diários, semanais e mensais para subir no termostato de sucesso.",
+    "daily": "Diários",
+    "weekly": "Semanais",
+    "monthly": "Mensais",
+    "noDailyChallenges": "Nenhum desafio diário atribuído.",
+    "weeklyBadge": "Semanal",
+    "monthlyBadge": "Mensal",
+    "wealthFrequencies": "Frequências de Riqueza",
+    "musicDesc": "Selecione o idioma da sua lista de reprogramação mental diária.",
+    "musicEs": "Música em Espanhol (Billionaire Sound)",
+    "musicEn": "Música em Inglês (Billionaire Playlist)",
+    "musicNone": "Desativar música recomendada",
+    "listenPlaylist": "Ouvir Playlist de Foco",
+    "aiCoachMessage": "Mensagem do seu Coach IA",
+    "aiCoachDesc": "Obtenha motivação ou faça a auditoria do seu roadmap agora mesmo.",
+    "getAdvice": "Obter Conselho do Coach",
+    "generatingAdvice": "Gerando Conselho...",
+    "adviceGenerated": "Conselho de Coach gerado.",
+    "adviceError": "Não foi possível gerar o conselho.",
+    "researchMilestones": "Investigar Marcos Principais",
+    "analyzingProgress": "Analisando Progresso...",
+    "researchSuccess": "Roadmap analisado pelo Agente de Sucesso.",
+    "researchAgentFailure": "O agente de pesquisa relatou um erro.",
+    "researchInitError": "Falha ao iniciar o Agente de Pesquisa.",
+    "recommendedMilestones": "Marcos recomendados pelo Pesquisador:",
+    "growthResources": "Recursos de Crescimento",
+    "resourcesDesc": "Links de treinamento recomendados para sua mentalidade.",
+    "eduardoSalazar": "Eduardo Salazar (Mentalidade HBL)",
+    "metafisica": "Audiolivros de Metafísica",
+    "recommendedReading": "Leitura Recomendada (Nível)",
+    "loadError": "Não foi possível carregar o roadmap. Tente novamente.",
+    "configUpdated": "Configurações do Coach atualizadas.",
+    "configUpdateError": "Erro ao salvar as configurações.",
+    "challengeUpdated": "Desafio atualizado.",
+    "challengeUpdateError": "Erro ao atualizar desafio."
   }
 }

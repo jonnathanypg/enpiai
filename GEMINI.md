@@ -65,8 +65,14 @@ To prevent "MySQL has gone away" errors and stale transactions:
 
 ### 1. Core Services (HTA Architecture)
 - **Agent Orchestrator**: LangGraph-based state machine with `MemorySaver` / `RedisSaver`.
-- **LLM Adapter**: Unified gate using `langchain_openai`, `langchain_anthropic`, and `langchain_google_genai` with a failover cascade.
+- **LLM Adapter**: Unified gate using `langchain_openai` (GPT-5 Nano as primary), `langchain_anthropic`, and `langchain_google_genai` with a failover cascade.
 - **RAG Memory**: Pinecone serverless with namespace-isolated indexes (`namespace=dist_ID`).
+
+### 3. Primary LLM: GPT-5 Nano
+- **Context Window**: 400K tokens.
+- **Role**: Standardized low-latency reasoning model for all distributor interactions.
+- **Configuration**: Temperature 1.0 (Reasoning optimized), uses `max_completion_tokens`.
+- **Capability**: Native reasoning + Multimodal (Text/Image).
 
 ### 2. Frontend (Next.js 14+ App Router)
 - **State Management**: `TanStack Query` (Server State) + `Zustand` (Client State).
@@ -93,7 +99,7 @@ To prevent "MySQL has gone away" errors and stale transactions:
 | **Orchestration** | 🟢 Ready | LangGraph + Redis Persistence |
 | **RAG** | 🟢 Ready | PDF/Docx uploads + Semantic Search |
 | **Scheduling** | 🟢 Ready | Google Calendar (Consensual) |
-| **Payments** | 🟡 Testing | dLocal integration for subscriptions |
+| **Payments** | 🟢 Ready | PayPal Smart Buttons (Guest Checkout & Direct Verification) |
 | **CRM** | 🟢 Ready | Unified 360° Contact Profile + Timeline |
 | **WhatsApp** | 🟡 Unstable | Remote DB latency causing session drops |
 | **Telegram** | 🟢 Ready | `python-telegram-bot` integrated |

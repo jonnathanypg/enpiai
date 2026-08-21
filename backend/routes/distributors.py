@@ -150,3 +150,52 @@ def get_public_profile(distributor_ref):
     except Exception as e:
         logger.error(f"Get public profile error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@distributors_bp.route('/activate-trial', methods=['POST'])
+@jwt_required()
+def activate_trial():
+    """Activate 24-hour free trial for distributor"""
+    db.session.rollback()
+    try:
+        user, distributor = _get_current_distributor()
+        if not distributor:
+            return jsonify({'error': 'Distributor not found'}), 404
+
+        from datetime import datetime
+        distributor.trial_activated = True
+        distributor.created_at = datetime.utcnow()  # Start the trial now
+        db.session.commit()
+        logger.info(f"Distributor {distributor.id} free trial activated at {distributor.created_at}")
+
+        return jsonify({'data': distributor.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Activate trial error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@distributors_bp.route('/submit-feedback', methods=['POST'])
+@jwt_required()
+def submit_feedback():
+    """Submit beta usability feedback for distributor"""
+    db.session.rollback()
+    try:
+        user, distributor = _get_current_distributor()
+        if not distributor:
+            return jsonify({'error': 'Distributor not found'}), 404
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        distributor.feedback_submitted = True
+        distributor.beta_feedback = data  # Save the feedback JSON object (e.g. stars, responses, comments)
+        db.session.commit()
+        logger.info(f"Distributor {distributor.id} submitted beta feedback")
+
+        return jsonify({'data': distributor.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Submit feedback error: {e}")
+        return jsonify({'error': str(e)}), 500

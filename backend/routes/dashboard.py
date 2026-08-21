@@ -69,17 +69,29 @@ def get_metrics():
         status=LeadStatus.CONVERTED
     ).count()
     
-    # The actual conversion rate is usually Converted / Total.
-    rate_denominator = total_leads 
-    conversion_rate = 0.0
-    if rate_denominator > 0:
-        conversion_rate = (converted_leads / rate_denominator) * 100
-        
+    # 6. Wellness Evaluations
+    from models.wellness_evaluation import WellnessEvaluation
+    total_evaluations = WellnessEvaluation.query.filter_by(distributor_id=distributor_id).count()
+
+    # 7. Pipeline breakdown
+    new_leads = Lead.query.filter_by(distributor_id=distributor_id, status=LeadStatus.NEW).count()
+    contacted_leads = Lead.query.filter_by(distributor_id=distributor_id, status=LeadStatus.CONTACTED).count()
+    nurturing_leads = Lead.query.filter_by(distributor_id=distributor_id, status=LeadStatus.NURTURING).count()
+
     return jsonify({
         'total_leads': total_leads,
         'qualified_leads': qualified_leads,
         'total_customers': total_customers,
         'messages_today': messages_today,
         'active_conversations': active_conversations,
-        'conversion_rate': round(conversion_rate, 1)
+        'conversion_rate': round(conversion_rate, 1),
+        'total_evaluations': total_evaluations,
+        'pipeline': {
+            'new': new_leads,
+            'contacted': contacted_leads,
+            'qualified': qualified_leads,
+            'nurturing': nurturing_leads,
+            'converted': converted_leads,
+            'customers': total_customers,
+        }
     }), 200

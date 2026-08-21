@@ -10,7 +10,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from typing import Optional
-from extensions import db
+from extensions import db, ctx
 
 logger = logging.getLogger(__name__)
 
@@ -108,11 +108,32 @@ class CronService:
         Schedule a follow-up task. 
         Automatically cancels previous pending 'auto_followup' tasks for the same conversation.
         """
+        if action in ['daily_summary', 'coach_midday', 'coach_evening']:
+            existing = ScheduledTask.query.filter_by(
+                distributor_id=distributor_id,
+                action=action,
+                status='pending'
+            ).first()
+            if existing:
+                logger.info(f"[CRON] Duplicate system task for action {action} ignored (existing #{existing.id})")
+                return {'success': True, 'task_id': existing.id, 'scheduled_at': existing.scheduled_at.isoformat(), 'duplicated': True}
+
         if conversation_id and action == 'auto_followup':
             CronService.cancel_conversation_tasks(conversation_id, action='auto_followup')
 
         if scheduled_at is None:
             scheduled_at = datetime.utcnow() + timedelta(minutes=max(1, delay_minutes))
+
+        # Capability: prevent duplicate critical cron notifications
+        if action in ('daily_summary', 'coach_midday', 'coach_evening'):
+            exists = ScheduledTask.query.filter_by(
+                distributor_id=distributor_id,
+                action=action,
+                status='pending'
+            ).first()
+            if exists:
+                logger.info(f"[CRON] Duplicate '{action}' task rejected for distributor {distributor_id}. Already scheduled at {exists.scheduled_at}")
+                return {'success': True, 'task_id': exists.id, 'scheduled_at': exists.scheduled_at.isoformat(), 'duplicate': True}
         
         task = ScheduledTask(
             distributor_id=distributor_id,
@@ -193,7 +214,7 @@ class CronService:
 
     def _clean_voice_files(self):
         """
-        Periodically clean up temporary voice files older than 7 days
+        Periodically clean up temporary voice files older than 1 day
         to prevent VPS disk exhaustion.
         """
         try:
@@ -218,8 +239,8 @@ class CronService:
                 if not filename.endswith(('.mp3', '.ogg', '.webm', '.wav', '.m4a')):
                     continue
                     
-                # If file is older than 7 days (7 * 86400 seconds)
-                if os.path.getmtime(file_path) < (now - 7 * 86400):
+                # If file is older than 1 day (1 * 86400 seconds)
+                if os.path.getmtime(file_path) < (now - 1 * 86400):
                     try:
                         os.remove(file_path)
                         deleted_count += 1
@@ -227,7 +248,7 @@ class CronService:
                         logger.warning(f"[CRON] Could not delete voice file {file_path}: {fe}")
                         
             if deleted_count > 0:
-                logger.info(f"[CRON] Cleaned up {deleted_count} voice files older than 7 days.")
+                logger.info(f"[CRON] Cleaned up {deleted_count} voice files older than 1 day.")
         except Exception as e:
             logger.error(f"[CRON] Voice files cleanup failed: {e}")
 
@@ -253,6 +274,24 @@ class CronService:
 
             for task in due_tasks:
                 try:
+                    # Deduplication safeguard: If this is a critical cron action, verify if we already processed
+                    # one for the same distributor in the last 1 hour. This prevents race conditions or residual DB loops.
+                    if task.action in ('daily_summary', 'coach_midday', 'coach_evening'):
+                        import datetime as dt
+                        one_hour_ago = dt.datetime.utcnow() - dt.timedelta(hours=1)
+                        already_run = ScheduledTask.query.filter(
+                            ScheduledTask.distributor_id == task.distributor_id,
+                            ScheduledTask.action == task.action,
+                            ScheduledTask.status == 'executed',
+                            ScheduledTask.executed_at >= one_hour_ago
+                        ).first()
+                        if already_run:
+                            task.status = 'cancelled'
+                            task.error_message = f"Deduplicated: already executed task #{already_run.id} in the last hour."
+                            db.session.commit()
+                            logger.info(f"[CRON] Cancelled duplicate task #{task.id} ({task.action}) for distributor {task.distributor_id}")
+                            continue
+
                     # 2. Claim the task IMMEDIATELY by marking it as executed
                     # This prevents other workers from picking it up if they query 
                     # while we are executing (though skip_locked should handle it).
@@ -286,6 +325,23 @@ class CronService:
         Execute a single scheduled task.
         Routes to the appropriate handler based on task.action.
         """
+        # Capa 2: Evitar ejecuciones duplicadas de tareas en la misma hora
+        if task.action in ['daily_summary', 'coach_midday', 'coach_evening']:
+            # Check if this task type has already been executed for this distributor in the last 60 minutes
+            recent_executed = ScheduledTask.query.filter(
+                ScheduledTask.distributor_id == task.distributor_id,
+                ScheduledTask.action == task.action,
+                ScheduledTask.status == 'executed',
+                ScheduledTask.executed_at >= datetime.utcnow() - timedelta(minutes=60),
+                ScheduledTask.id != task.id
+            ).first()
+            if recent_executed:
+                task.status = 'cancelled'
+                task.error_message = f"Deduplicated: already executed task #{recent_executed.id} in the last hour."
+                db.session.commit()
+                logger.info(f"[CRON] Deduplicated task #{task.id} (already executed task #{recent_executed.id})")
+                return
+
         if task.action == 'send_message':
             self._handle_send_message(task)
         elif task.action == 'send_email':
@@ -316,7 +372,7 @@ class CronService:
 
         # Use CRMSkill to generate the report
         from flask import g
-        g.current_company = distributor
+        ctx.current_company = distributor
         
         crm = CRMSkill()
         summary_data = crm.get_business_summary_data()

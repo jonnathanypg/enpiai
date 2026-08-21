@@ -51,6 +51,12 @@ def get_unified_profile(identifier):
         elif identifier.startswith('customer:'):
             customer_id = int(identifier.split(':')[1])
             customer = Customer.query.filter_by(id=customer_id, distributor_id=distributor_id).first()
+        elif identifier.isdigit():
+            # Support direct numeric identifiers (e.g. from table actions view link)
+            lead_id = int(identifier)
+            lead = Lead.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
+            if not lead:
+                customer = Customer.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
         elif '@' in identifier:
             h = Lead.generate_hash(identifier)
             lead = Lead.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
@@ -91,14 +97,7 @@ def get_unified_profile(identifier):
             ).order_by(Conversation.created_at.desc()).limit(20).all()
 
             for conv in conversations:
-                conv_data = {
-                    'id': conv.id,
-                    'channel': conv.channel.value if hasattr(conv.channel, 'value') else str(conv.channel),
-                    'status': conv.status.value if hasattr(conv.status, 'value') else str(conv.status),
-                    'created_at': conv.created_at.isoformat() if conv.created_at else None,
-                    'last_message_at': conv.last_message_at.isoformat() if conv.last_message_at else None,
-                    'message_count': conv.messages.count() if hasattr(conv.messages, 'count') else 0
-                }
+                conv_data = conv.to_dict(include_messages=True)
                 profile['conversations'].append(conv_data)
                 timeline.append({
                     'type': 'conversation',
@@ -152,6 +151,22 @@ def get_unified_profile(identifier):
                 'date': customer.created_at.isoformat() if customer.created_at else None,
                 'summary': f"Converted to customer ({customer.customer_type})"
             })
+
+            # Fetch customer conversations
+            conversations_cust = Conversation.query.filter_by(
+                distributor_id=distributor_id,
+                customer_id=customer.id
+            ).order_by(Conversation.created_at.desc()).limit(20).all()
+
+            for conv in conversations_cust:
+                conv_data = conv.to_dict(include_messages=True)
+                if not any(c['id'] == conv_data['id'] for c in profile['conversations']):
+                    profile['conversations'].append(conv_data)
+                    timeline.append({
+                        'type': 'conversation',
+                        'date': conv.created_at.isoformat() if conv.created_at else None,
+                        'summary': f"Conversation via {conv_data['channel']} ({conv_data['status']})"
+                    })
 
             appts = Appointment.query.filter_by(
                 distributor_id=distributor_id,
@@ -230,6 +245,11 @@ def add_note(identifier):
         elif identifier.startswith('customer:'):
             customer_id = int(identifier.split(':')[1])
             customer = Customer.query.filter_by(id=customer_id, distributor_id=distributor_id).first()
+        elif identifier.isdigit():
+            lead_id = int(identifier)
+            lead = Lead.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
+            if not lead:
+                customer = Customer.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
         else:
             h = Lead.generate_hash(identifier)
             lead = Lead.query.filter_by(distributor_id=distributor_id, email_hash=h).first()
@@ -287,6 +307,11 @@ def toggle_ai(identifier):
         elif identifier.startswith('customer:'):
             customer_id = int(identifier.split(':')[1])
             customer = Customer.query.filter_by(id=customer_id, distributor_id=distributor_id).first()
+        elif identifier.isdigit():
+            lead_id = int(identifier)
+            lead = Lead.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
+            if not lead:
+                customer = Customer.query.filter_by(id=lead_id, distributor_id=distributor_id).first()
         else:
             h = Lead.generate_hash(identifier)
             lead = Lead.query.filter_by(distributor_id=distributor_id, email_hash=h).first()

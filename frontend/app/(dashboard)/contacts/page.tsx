@@ -1,179 +1,89 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import {
-    useReactTable,
-    getCoreRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    getFilteredRowModel,
-    flexRender,
-    SortingState,
-    ColumnFiltersState,
-} from '@tanstack/react-table';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getColumns } from './columns';
-import { Input } from '@/components/ui/input';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import apiClient from '@/lib/api-client';
-import type { Lead } from '@/types';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
+import { List, LayoutGrid, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ContactsTable from './contacts-table';
+import ContactsKanban from './contacts-kanban';
+import ContactDetailsDrawer from './contact-details-drawer';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ContactsPage() {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [viewMode, setViewMode] = useState<'table' | 'kanban'>('kanban');
+    const [search, setSearch] = useState('');
+    const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
 
-    const deleteLeadMutation = useMutation({
-        mutationFn: async (id: number) => {
-            return apiClient.delete(`/leads/${id}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['contacts'] });
-            toast.success(t('common.success', { defaultValue: 'Lead deleted successfully' }));
-        },
-        onError: () => {
-            toast.error(t('common.error', { defaultValue: 'Failed to delete lead' }));
-        },
-    });
+    const handleContactClick = (id: number) => {
+        setSelectedContactId(id);
+    };
 
-    const columns = useMemo(() => getColumns(t, (lead) => {
-        if (confirm(t('common.confirmDelete', { defaultValue: 'Are you sure you want to delete this contact and all its history?' }))) {
-            deleteLeadMutation.mutate(lead.id);
-        }
-    }), [t, deleteLeadMutation]);
-
-    const { data: leads, isLoading } = useQuery({
-        queryKey: ['contacts'],
-        queryFn: async () => {
-            const { data } = await apiClient.get<{ data: Lead[] }>('/leads');
-            return data.data;
-        },
-    });
-
-    const table = useReactTable({
-        data: leads || [],
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        onSortingChange: setSorting,
-        getSortedRowModel: getSortedRowModel(),
-        onColumnFiltersChange: setColumnFilters,
-        getFilteredRowModel: getFilteredRowModel(),
-        state: {
-            sorting,
-            columnFilters,
-        },
-    });
+    const handleUpdate = () => {
+        queryClient.invalidateQueries({ queryKey: ['contacts'] });
+        queryClient.invalidateQueries({ queryKey: ['contacts-kanban'] });
+    };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">{t('contacts.title')}</h2>
-            </div>
-
-            <div className="flex items-center py-4">
-                <Input
-                    placeholder={t('contacts.filterPlaceholder')}
-                    value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
-                    onChange={(event) =>
-                        table.getColumn('name')?.setFilterValue(event.target.value)
-                    }
-                    className="max-w-sm"
-                />
-            </div>
-
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => {
-                                    return (
-                                        <TableHead key={header.id}>
-                                            {header.isPlaceholder
-                                                ? null
-                                                : flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext()
-                                                )}
-                                        </TableHead>
-                                    );
-                                })}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            // Skeleton Rows
-                            Array.from({ length: 5 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-[50px]" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
-                                    <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
-                                </TableRow>
-                            ))
-                        ) : table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    data-state={row.getIsSelected() && 'selected'}
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext()
-                                            )}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={columns.length}
-                                    className="h-24 text-center"
-                                >
-                                    {t('contacts.noResults')}
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
+        <div className="space-y-6 pb-12">
+            {/* Header section with view toggle */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">{t('contacts.title', { defaultValue: 'Contactos' })}</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {t('contacts.subtitle', { defaultValue: 'Gestiona, organiza y prioriza tu flujo de prospectos en tiempo real.' })}
+                    </p>
+                </div>
+                
+                <Tabs 
+                    value={viewMode} 
+                    onValueChange={(val) => setViewMode(val as 'table' | 'kanban')} 
+                    className="w-auto"
                 >
-                    {t('contacts.previous')}
-                </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                >
-                    {t('contacts.next')}
-                </Button>
+                    <TabsList className="grid grid-cols-2 w-[220px]">
+                        <TabsTrigger value="table" className="gap-1.5 text-xs">
+                            <List className="h-3.5 w-3.5" />
+                            {t('contacts.viewTable', { defaultValue: 'Lista' })}
+                        </TabsTrigger>
+                        <TabsTrigger value="kanban" className="gap-1.5 text-xs">
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            {t('contacts.viewKanban', { defaultValue: 'Kanban' })}
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </div>
+
+            {/* Global search and filter block */}
+            <div className="flex items-center gap-2 p-3 bg-muted/20 rounded-xl border">
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder={t('contacts.filterPlaceholder', { defaultValue: 'Filtrar nombres...' })}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-9 bg-background"
+                    />
+                </div>
+            </div>
+
+            {/* Dynamic Rendering */}
+            <div className="mt-4">
+                {viewMode === 'table' ? (
+                    <ContactsTable search={search} onContactClick={handleContactClick} />
+                ) : (
+                    <ContactsKanban search={search} onContactClick={handleContactClick} />
+                )}
+            </div>
+
+            {/* In-page Slide-out Details Drawer */}
+            <ContactDetailsDrawer
+                contactId={selectedContactId}
+                isOpen={selectedContactId !== null}
+                onClose={() => setSelectedContactId(null)}
+                onUpdate={handleUpdate}
+            />
         </div>
     );
 }

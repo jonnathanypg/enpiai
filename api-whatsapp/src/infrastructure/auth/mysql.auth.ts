@@ -5,6 +5,30 @@ import { RowDataPacket } from 'mysql2';
 // Define table name locally
 const TABLE_NAME = 'bailey_sessions';
 
+// Helper to execute query with retries on connection reset errors
+const executeQueryWithRetry = async (query: string, params?: any[]): Promise<any> => {
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (attempts < maxAttempts) {
+        try {
+            return await pool.query(query, params);
+        } catch (error: any) {
+            attempts++;
+            const isConnectionError = 
+                error.code === 'ECONNRESET' || 
+                error.code === 'PROTOCOL_CONNECTION_LOST' || 
+                error.code === 'ETIMEDOUT';
+                
+            if (isConnectionError && attempts < maxAttempts) {
+                console.warn(`[MySQL] Connection error (${error.code}). Retrying query (attempt ${attempts + 1}/${maxAttempts}) in ${500 * attempts}ms...`);
+                await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+                continue;
+            }
+            throw error;
+        }
+    }
+};
+
 export const useMySQLAuthState = async (sessionId: string): Promise<{ state: AuthenticationState, saveCreds: () => Promise<void> }> => {
 
     // Ensure table exists
@@ -20,7 +44,7 @@ export const useMySQLAuthState = async (sessionId: string): Promise<{ state: Aut
     `;
 
     try {
-        await pool.query(createTableQuery);
+        await executeQueryWithRetry(createTableQuery);
     } catch (error) {
         console.warn(`[${sessionId}] Warning: Could not verify/create table ${TABLE_NAME} (assumed to exist):`, error);
     }
@@ -28,7 +52,7 @@ export const useMySQLAuthState = async (sessionId: string): Promise<{ state: Aut
     const writeData = async (data: any, key: string) => {
         const pk_id = `${sessionId}-${key}`;
         try {
-            await pool.query(
+            await executeQueryWithRetry(
                 `INSERT INTO ${TABLE_NAME} (pk_id, session_id, data) VALUES (?, ?, ?) 
                  ON DUPLICATE KEY UPDATE data = VALUES(data)`,
                 [pk_id, sessionId, JSON.stringify(data, BufferJSON.replacer)]
@@ -42,10 +66,10 @@ export const useMySQLAuthState = async (sessionId: string): Promise<{ state: Aut
     const readData = async (key: string) => {
         const pk_id = `${sessionId}-${key}`;
         try {
-            const [rows] = await pool.query<RowDataPacket[]>(
+            const [rows] = await executeQueryWithRetry(
                 `SELECT data FROM ${TABLE_NAME} WHERE pk_id = ?`,
                 [pk_id]
-            );
+            ) as [RowDataPacket[], any];
 
             if (rows.length > 0) {
                 let rawData = rows[0].data;
@@ -80,7 +104,7 @@ export const useMySQLAuthState = async (sessionId: string): Promise<{ state: Aut
     const removeData = async (key: string) => {
         const pk_id = `${sessionId}-${key}`;
         try {
-            await pool.query(
+            await executeQueryWithRetry(
                 `DELETE FROM ${TABLE_NAME} WHERE pk_id = ?`,
                 [pk_id]
             );
@@ -143,7 +167,7 @@ export const useMySQLAuthState = async (sessionId: string): Promise<{ state: Aut
 
 export const clearMySQLAuthState = async (sessionId: string): Promise<void> => {
     try {
-        await pool.query(
+        await executeQueryWithRetry(
             `DELETE FROM ${TABLE_NAME} WHERE session_id = ?`,
             [sessionId]
         );

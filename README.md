@@ -26,14 +26,15 @@ The platform is designed to be **frictionless** for both distributors and their 
 
 ## 🛠️ Tech Stack
 
-*   **Backend**: Python (Flask 3.0) + LangGraph (AI Orchestration)
+*   **Backend**: Python (FastAPI + Flask Gateway) + LangGraph (AI Orchestration)
 *   **Task Queue**: Celery + Redis
 *   **Database**:
     *   **Relational**: MySQL (SQLAlchemy) with Application-Level Encryption (Fernet).
     *   **Vector**: Pinecone (Namespace-isolated RAG).
 *   **Authentication**: JWT Security & Google OAuth.
-*   **Frontend**: Next.js 14+ (App Router), TypeScript, Tailwind CSS, Shadcn UI.
-*   **AI/LLM**: Multi-provider failover (OpenAI -> Anthropic -> Google Gemini).
+*   **Payments**: PayPal Smart Buttons (with Guest Checkout & Direct Verification).
+*   **Frontend**: Next.js 15 (React 19), TypeScript, Tailwind CSS, Shadcn UI.
+*   **AI/LLM**: Multi-provider failover (OpenAI -> Google Gemini -> Anthropic).
 *   **WhatsApp**: Custom Node.js Multi-tenant microservice (`api-whatsapp`).
 *   **Internationalization**: Native support for EN, ES, PT (Backend & Frontend).
 
@@ -43,14 +44,13 @@ The platform is designed to be **frictionless** for both distributors and their 
 
 ```
 /
-├── backend/               # Flask Application (API & Logic)
-│   ├── routes/            # API Blueprints (Auth, CRM, RAG, etc.)
+├── backend/               # FastAPI Gateway + Flask Logic
+│   ├── routes/            # API Blueprints (Auth, CRM, RAG, Billing, etc.)
 │   ├── models/            # SQLAlchemy Models with PII Encryption
 │   ├── services/          # Core Business Logic & LangGraph Orchestrator
 │   └── skills/            # Agentic Skills & Tools
 ├── frontend/              # Next.js Application (Dashboard & Public Forms)
 ├── api-whatsapp/          # Node.js Microservice for WhatsApp Connectivity
-├── migrations/            # Database version control
 └── docs/                  # Technical Guides and Analysis
 ```
 
@@ -58,15 +58,20 @@ The platform is designed to be **frictionless** for both distributors and their 
 
 ## ⚡ Development Status
 
-**Current Phase: Advanced Implementation / Pre-Production**
+**Current Phase: Production-Ready Core (Stabilization)**
 
 *   ✅ **Core Infrastructure**: Multi-tenant database, JWT Auth, and multi-provider LLM failover.
 *   ✅ **Agent Orchestration**: LangGraph-based cyclic workflows with state persistence in Redis.
 *   ✅ **WhatsApp Multi-Tenancy**: Dedicated gateway for asynchronous message processing.
+*   ✅ **Payments**: Integrated PayPal Smart Buttons (with Guest Checkout and instant server-side verification) for Subscriptions and Credit Blocks.
 *   ✅ **CRM & Wellness**: Unified contact view and health evaluation logic implemented.
 *   ✅ **RAG System**: Automated document indexing and semantic search per distributor.
-*   ✅ **I18n**: Subsystem active for EN, ES, and PT.
-*   🚧 **UI Refinement**: Polishing dashboard components and reporting visualization.
+*   ✅ **I18n & Themes**: Light/Dark theme support and EN/ES/PT i18n subsystem.
+*   ✅ **Legal Disclaimers & Policies**: Complete public-facing Terms of Service, Privacy Policy, and Refund Policy routes implemented with dynamic i18n translations, specifying Herbalife non-affiliation, Fernet-encrypted PII/health data, and Google OAuth Limited Use rules.
+*   ✅ **Channel Connections Polish**: Temporarily disabled Google Calendar and custom SMTP setup in dashboard settings, implementing a default mailing sender fallback via system SMTP (using `info@enpi.click` but showing distributor name dynamically as `"Distributor Name via EnpiAI"`).
+*   ✅ **Analytics & Tracking**: Embedded Google Tag Manager (`GTM-54SSFHBZ`) tracking scripts inside Next.js root layout.
+*   ✅ **Google Auth Resolution**: Fixed Google Sign-In "wrong audience" token verification mismatch between frontend and backend environment variables.
+*   🚧 **Monitoring**: Fine-tuning remote MySQL latency handling for high traffic.
 
 ---
 

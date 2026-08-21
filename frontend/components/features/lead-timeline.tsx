@@ -42,14 +42,17 @@ export function LeadTimeline({ conversations, appointments, evaluations, notes }
     const events: TimelineEvent[] = [];
 
     // 1. Conversations (Messages)
-    conversations.forEach((conv) => {
-        conv.messages.forEach((msg) => {
+    (conversations || []).forEach((conv) => {
+        (conv?.messages || []).forEach((msg) => {
+            if (!msg || !msg.created_at) return;
+            const d = new Date(msg.created_at);
+            if (isNaN(d.getTime())) return;
             events.push({
                 id: `msg-${msg.id}`,
                 type: 'message',
-                date: new Date(msg.created_at),
+                date: d,
                 title: msg.role === 'user' ? 'Received Message' : 'Sent Message',
-                description: msg.content,
+                description: msg.content || '',
                 icon: msg.role === 'assistant' ? Bot : MessageSquare,
                 color: msg.role === 'assistant' ? 'bg-primary/10 text-primary' : 'bg-muted text-foreground',
             });
@@ -57,21 +60,27 @@ export function LeadTimeline({ conversations, appointments, evaluations, notes }
     });
 
     // 2. Appointments
-    appointments.forEach((apt) => {
+    (appointments || []).forEach((apt) => {
+        if (!apt || !apt.start_time) return;
+        const d = new Date(apt.start_time);
+        if (isNaN(d.getTime())) return;
         events.push({
             id: `apt-${apt.id}`,
             type: 'appointment',
-            date: new Date(apt.start_time),
+            date: d,
             title: 'Appointment Scheduled',
-            description: `${apt.title} - ${apt.status}`,
+            description: `${apt.title || ''} - ${apt.status || ''}`,
             icon: Calendar,
             color: 'bg-green-100 text-green-700',
         });
     });
 
     // 3. Evaluations
-    evaluations.forEach((evalItem) => {
-        let desc = `BMI: ${evalItem.bmi?.toFixed(1) || 'N/A'} - Goal: ${evalItem.primary_goal}`;
+    (evaluations || []).forEach((evalItem) => {
+        if (!evalItem || !evalItem.created_at) return;
+        const d = new Date(evalItem.created_at);
+        if (isNaN(d.getTime())) return;
+        let desc = `BMI: ${evalItem.bmi?.toFixed(1) || 'N/A'} - Goal: ${evalItem.primary_goal || 'None'}`;
         if (evalItem.diagnosis) {
             desc += `\n\nDiagnosis: ${evalItem.diagnosis.substring(0, 150)}${evalItem.diagnosis.length > 150 ? '...' : ''}`;
         }
@@ -79,7 +88,7 @@ export function LeadTimeline({ conversations, appointments, evaluations, notes }
         events.push({
             id: `eval-${evalItem.id}`,
             type: 'evaluation',
-            date: new Date(evalItem.created_at),
+            date: d,
             title: 'Wellness Evaluation Completed',
             description: desc,
             icon: Activity,
@@ -89,12 +98,15 @@ export function LeadTimeline({ conversations, appointments, evaluations, notes }
 
     // 4. Notes
     (notes || []).forEach((note) => {
+        if (!note || !note.created_at) return;
+        const d = new Date(note.created_at);
+        if (isNaN(d.getTime())) return;
         events.push({
             id: `note-${note.id}`,
             type: 'note',
-            date: new Date(note.created_at),
+            date: d,
             title: `Nota por ${note.author_name || 'Agente'}`,
-            description: note.content,
+            description: note.content || '',
             icon: FileText,
             color: 'bg-yellow-100 text-yellow-700',
         });

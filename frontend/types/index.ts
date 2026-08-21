@@ -25,6 +25,7 @@ export interface Distributor {
     language: string;
     subscription_tier: string;
     subscription_active: boolean;
+    is_in_trial?: boolean;
     is_courtesy: boolean;
     created_at: string;
 }
@@ -215,8 +216,9 @@ export interface Plan {
     features: Record<string, unknown> | null;
     is_active: boolean;
     is_default: boolean;
-    dlocal_plan_id: string | null;
-    dlocal_plan_token: string | null;
+    is_credit_block?: boolean;
+    credits_granted?: number;
+    paypal_plan_id: string | null;
 }
 
 export interface Subscription {
@@ -245,6 +247,15 @@ export interface DistributorMetrics {
     messages_today: number;
     active_conversations: number;
     conversion_rate: number;
+    total_evaluations?: number;
+    pipeline?: {
+        new: number;
+        contacted: number;
+        qualified: number;
+        nurturing: number;
+        converted: number;
+        customers: number;
+    };
 }
 
 // ========================

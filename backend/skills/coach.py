@@ -4,7 +4,7 @@ from typing import List
 from langchain_core.tools import StructuredTool
 from flask import g
 from .base_skill import BaseSkill
-from extensions import db
+from extensions import db, ctx
 from models.distributor import Distributor
 from services.ai_coach_service import ai_coach_service, TASK_METADATA
 
@@ -46,7 +46,7 @@ class CoachSkill(BaseSkill):
             is_completed: Boolean indicating if the task is completed.
         """
         db.session.rollback() # Database Stability Rule
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: No distributor context found."
 
@@ -95,7 +95,7 @@ class CoachSkill(BaseSkill):
         Retrieve the current coach roadmap stats and daily challenges for the distributor.
         """
         db.session.rollback() # Database Stability Rule
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: No distributor context found."
 
@@ -127,7 +127,7 @@ class CoachSkill(BaseSkill):
         """
         Provides guidance instructions for Coach Mode if it is enabled.
         """
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor or not distributor.coach_mode_enabled:
             return ""
 

@@ -68,6 +68,7 @@ class Config:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
     ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
     GOOGLE_AI_API_KEY = os.getenv('GOOGLE_AI_API_KEY', '')
+    # LLM Defaults
     DEFAULT_LLM_PROVIDER = os.getenv('DEFAULT_LLM_PROVIDER', 'openai')
     DEFAULT_LLM_MODEL = os.getenv('DEFAULT_LLM_MODEL', 'gpt-5-nano')
 

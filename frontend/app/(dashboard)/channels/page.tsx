@@ -153,7 +153,7 @@ export default function ChannelsPage() {
                 onDisconnect={() => telegramChannel?.id && deleteChannelMutation.mutate(telegramChannel.id)}
                 isDisconnecting={deleteChannelMutation.isPending}
             />
-
+            {/* 
             <EmailCard
                 channel={emailChannel}
                 onSave={(creds) =>
@@ -170,6 +170,7 @@ export default function ChannelsPage() {
             />
 
             <GoogleCard />
+            */}
         </div>
     );
 }
@@ -314,56 +315,70 @@ function WhatsAppCard({ channel }: { channel?: Channel }) {
                             {isDisconnecting ? t('common.saving', { defaultValue: 'Disconnecting...' }) : t('common.delete', { defaultValue: 'Disconnect WhatsApp' })}
                         </Button>
                     </div>
-                ) : qrCode ? (
-                    <div className="space-y-4">
-                        <div className="text-center">
-                            <p className="text-sm text-muted-foreground mb-4">
-                                {t('channels.whatsappDesc')}
-                            </p>
-                            <div className="bg-white p-4 rounded-lg inline-block shadow-sm border">
-                                <img
-                                    src={
-                                        qrCode.startsWith('<svg')
-                                            ? `data:image/svg+xml;base64,${typeof window !== 'undefined' ? window.btoa(qrCode) : ''}`
-                                            : qrCode
-                                    }
-                                    alt="WhatsApp QR Code"
-                                    className="w-56 h-56"
-                                />
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-4 flex items-center justify-center gap-1">
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                                {t('common.saving', { defaultValue: 'Waiting for connection...' })}
-                            </p>
-                        </div>
-                        <Button
-                            variant="outline"
-                            onClick={handleCancel}
-                            className="w-full"
-                        >
-                            {t('common.cancel', { defaultValue: 'Cancel' })}
-                        </Button>
-                    </div>
                 ) : (
-                    <div className="space-y-4">
-                        <Alert>
-                            <XCircle className="h-4 w-4" />
-                            <AlertDescription>
-                                {t('channels.whatsappNotConnected')}
-                            </AlertDescription>
-                        </Alert>
-                        <Button
-                            onClick={handleConnect}
-                            disabled={isConnecting}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        >
-                            {isConnecting ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <QrCode className="h-4 w-4 mr-2" />
-                            )}
-                            {isConnecting ? t('common.saving', { defaultValue: 'Generating QR...' }) : t('channels.connectWhatsapp')}
-                        </Button>
+                    <div className="space-y-6">
+                        {qrCode ? (
+                            <div className="space-y-4">
+                                <div className="text-center">
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        {t('channels.whatsappDesc')}
+                                    </p>
+                                    <div className="bg-white p-4 rounded-lg inline-block shadow-sm border">
+                                        <img
+                                            src={
+                                                qrCode.startsWith('<svg')
+                                                    ? `data:image/svg+xml;base64,${typeof window !== 'undefined' ? window.btoa(qrCode) : ''}`
+                                                    : qrCode
+                                            }
+                                            alt="WhatsApp QR Code"
+                                            className="w-56 h-56"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-4 flex items-center justify-center gap-1">
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                        {t('common.saving', { defaultValue: 'Waiting for connection...' })}
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCancel}
+                                    className="w-full"
+                                >
+                                    {t('common.cancel', { defaultValue: 'Cancel' })}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <Alert>
+                                    <XCircle className="h-4 w-4" />
+                                    <AlertDescription>
+                                        {t('channels.whatsappNotConnected')}
+                                    </AlertDescription>
+                                </Alert>
+                                <Button
+                                    onClick={handleConnect}
+                                    disabled={isConnecting}
+                                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                    {isConnecting ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <QrCode className="h-4 w-4 mr-2" />
+                                    )}
+                                    {isConnecting ? t('common.saving', { defaultValue: 'Generating QR...' }) : t('channels.connectWhatsapp')}
+                                </Button>
+                            </div>
+                        )}
+
+                        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 text-xs text-muted-foreground flex gap-3 items-start">
+                            <AlertCircle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="font-bold text-foreground">💡 Recomendación importante:</p>
+                                <p className="leading-relaxed text-muted-foreground">
+                                    Para evitar mezclar tus chats personales con las conversaciones automáticas del agente de IA, <strong>te recomendamos conectar un número de WhatsApp secundario o exclusivo para tu negocio</strong>. Esto garantizará un mayor control, profesionalismo y evitará interrupciones en tu uso personal.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 )}
             </CardContent>

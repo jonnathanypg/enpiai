@@ -31,6 +31,17 @@ def register():
     """Register a new distributor and admin user"""
     db.session.rollback()  # Preventive rollback (GEMINI.md Rule B.1)
 
+    # Check registration limit for beta phase (300 new slots, total limit = 309)
+    try:
+        current_count = Distributor.query.count()
+        if current_count >= 309:
+            return jsonify({
+                'error': 'BETA_LIMIT_REACHED',
+                'message': 'Los cupos de la fase beta se han agotado de momento. Una vez habilitemos nuevos cupos te notificaremos para que puedas probar la app.'
+            }), 403
+    except Exception as count_err:
+        logger.warning(f"Could not check distributor count: {count_err}")
+
     try:
         data = request.get_json()
         if not data:
@@ -61,7 +72,7 @@ def register():
             phone=data.get('phone'),
             country=data.get('country'),
             city=data.get('city'),
-            language=data.get('language', 'en')  # Default to English
+            language=data.get('language', 'es')  # Default to Spanish
         )
         db.session.add(distributor)
         db.session.flush()  # Get distributor ID
@@ -113,7 +124,7 @@ def register():
 
         # Send welcome email notification
         try:
-            email_service.send_welcome_email(email, name, distributor_name, lang=distributor.language or 'en')
+            email_service.send_welcome_email(email, name, distributor_name, lang=distributor.language or 'es')
         except Exception as mail_err:
             logger.warning(f"Welcome email failed (non-blocking): {mail_err}")
 
@@ -271,7 +282,7 @@ def google_auth():
             distributor = Distributor(
                 name=f"{name}'s Hub",
                 email=email,
-                language='en'
+                language='es'
             )
             db.session.add(distributor)
             db.session.flush()
@@ -290,7 +301,7 @@ def google_auth():
             db.session.flush()
 
             # Create default agent 
-            default_agent_data = i18n_service.get_default_agent_data('en')
+            default_agent_data = i18n_service.get_default_agent_data('es')
             prospect_agent = AgentConfig(
                 distributor_id=distributor.id,
                 name=default_agent_data['name'],
@@ -319,7 +330,7 @@ def google_auth():
 
             # Send Google welcome email notification
             try:
-                email_service.send_google_welcome_email(email, name, lang=distributor.language or 'en')
+                email_service.send_google_welcome_email(email, name, lang=distributor.language or 'es')
             except Exception as mail_err:
                 logger.warning(f"Google welcome email failed (non-blocking): {mail_err}")
         else:
@@ -438,3 +449,49 @@ def platform_chat():
         db.session.rollback()
         logger.error(f"Platform chat error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+@auth_bp.route('/registration-status', methods=['GET'])
+def registration_status():
+    """Check if registration is open or beta limit is reached"""
+    db.session.rollback()
+    try:
+        current_count = Distributor.query.count()
+        limit = 309
+        return jsonify({
+            'available': current_count < limit,
+            'current': current_count,
+            'limit': limit
+        }), 200
+    except Exception as e:
+        logger.error(f"Registration status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@auth_bp.route('/register-waitlist', methods=['POST'])
+@limiter.limit("3 per minute")
+def register_waitlist():
+    """Register email for notification when new slots open"""
+    db.session.rollback()
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        email = data.get('email', '').strip().lower()
+        name = data.get('name', '').strip()
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+            
+        from sqlalchemy import text
+        db.session.execute(
+            text("INSERT INTO beta_waitlist (email, name) VALUES (:email, :name)"),
+            {"email": email, "name": name}
+        )
+        db.session.commit()
+        return jsonify({'message': 'Waitlist registration successful'}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Waitlist registration error: {e}")
+        return jsonify({'error': str(e)}), 500

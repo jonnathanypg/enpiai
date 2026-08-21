@@ -16,7 +16,7 @@ class LLMService:
     SkillAdapter — Unified LLM interface.
     Usage:
         llm = LLMService()
-        response = llm.generate("Hello!", provider='openai', model='gpt-5-nano')
+        response = llm.generate("Hello!", provider='openai', model=current_app.config.get('DEFAULT_LLM_MODEL'))
     """
 
     def __init__(self):
@@ -89,7 +89,7 @@ class LLMService:
             str: The generated response text
         """
         primary_provider = provider or current_app.config.get('DEFAULT_LLM_PROVIDER', 'openai')
-        primary_model = model or current_app.config.get('DEFAULT_LLM_MODEL', 'gpt-5-nano')
+        primary_model = model or current_app.config.get('DEFAULT_LLM_MODEL')
 
         # --- Phase 11: Check global failover toggle ---
         failover_enabled = True  # Default: enabled
@@ -125,12 +125,8 @@ class LLMService:
 
     def _default_model_for(self, provider: str) -> str:
         """Return a sensible default model for failover targets."""
-        defaults = {
-            'openai': 'gpt-5-nano',
-            'anthropic': 'claude-3-5-sonnet-20241022',
-            'gemini': 'gemini-1.5-flash',
-        }
-        return defaults.get(provider, 'gpt-5-nano')
+        return current_app.config.get('DEFAULT_LLM_MODEL')
+
 
     def _generate_openai(self, prompt, model, system_prompt, messages, temperature, max_tokens):
         """Generate using OpenAI API"""

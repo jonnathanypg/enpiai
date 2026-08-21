@@ -17,6 +17,12 @@ The platform's intelligence is managed by a central **Agent Orchestrator**. This
 
 All AI-powered skills are accessed through a `SkillAdapter`, an abstraction layer that allows for swapping the underlying LLM provider without changing the core application logic. This ensures modularity and future-proofs the system against changes in the AI landscape.
 
+### 1.1. Intelligence Engine: GPT-5 Nano
+The platform is standardized on **GPT-5 Nano**, OpenAI's high-speed reasoning model. 
+- **Native Reasoning**: Agents do not just match patterns; they reason about the distributor's business goals and lead needs.
+- **Large Context**: With a 400K window, agents maintain long-term conversation continuity.
+- **Low Latency**: Optimized for real-time messaging channels like WhatsApp and Telegram.
+
 ---
 
 ## 2. Agent Roles & Skills

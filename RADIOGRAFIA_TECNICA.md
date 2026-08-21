@@ -50,7 +50,7 @@ The system has evolved into a **Unified Gateway Architecture** where FastAPI act
 ---
 
 ## 🔒 4. Security & Environment
-- **Secrets:** Critical keys (OpenAI, Pinecone, dLocal) are present in `.env` files.
+- **Secrets:** Critical keys (OpenAI, Pinecone, PayPal) are present in `.env` files.
 - **Resource Usage:** 
     - RAM: 9.2Gi Free (Excellent).
     - Disk: 180Gi Free (Excellent).
@@ -59,8 +59,13 @@ The system has evolved into a **Unified Gateway Architecture** where FastAPI act
 ---
 
 ## 🛠️ 5. Required Actions (Remediation)
-1.  **Frontend:** Generate and add `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` to `.env`.
-2.  **Database:** Investigate remote MySQL logs for connection limit hits. Consider migrating to a local MySQL instance or a more robust RDS.
-3.  **Nginx:** Align `/api/health` routing with FastAPI's `/health` endpoint.
-4.  **Secrets Rotation:** Rotate OpenAI and Pinecone keys as a precaution.
+1.  **Database:** Investigate remote MySQL logs for connection limit hits. Consider migrating to a local MySQL instance or a more robust RDS.
+2.  **Secrets Rotation:** Rotate OpenAI and Pinecone keys as a precaution.
+
+---
+
+## 🚀 6. Updates (June 2026 CTO Audit)
+- **Payment Gateway:** Successfully migrated from dLocal to **PayPal Smart Buttons (with Guest Checkout & Direct Verification)** for Subscriptions and Credit Blocks. This provides card processing support compatible with Ecuador and LATAM merchant accounts, utilizing a secure popup payment flow and direct server-side verification to avoid webhook delays.
+- **Critical Bug Fixes:** Resolved Priority 1 issues including CORS wildcard vulnerabilities, `gpt-4o-mini` LLM defaults, PDF newline escapes, and `is_o_model` detection.
+- **Themes:** Added support for dynamic Light/Dark theme favicons in the UI.
 

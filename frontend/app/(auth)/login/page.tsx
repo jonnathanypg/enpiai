@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -37,6 +37,11 @@ export default function LoginPage() {
     const { t } = useTranslation();
     const login = useAuthStore((s) => s.login);
     const [isLoading, setIsLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const {
         register,
@@ -103,14 +108,18 @@ export default function LoginPage() {
                 <CardDescription>{t('auth.signInDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="mb-4 flex justify-center">
-                    <GoogleLogin
-                        onSuccess={handleGoogleSuccess}
-                        onError={() => toast.error(t('auth.googleLoginFailed'))}
-                        theme="outline"
-                        width="100%"
-                        text="continue_with"
-                    />
+                <div className="mb-4 flex justify-center min-h-[40px]">
+                    {mounted ? (
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => toast.error(t('auth.googleLoginFailed'))}
+                            theme="outline"
+                            width="100%"
+                            text="continue_with"
+                        />
+                    ) : (
+                        <div className="h-10 w-full animate-pulse bg-muted rounded-md" />
+                    )}
                 </div>
                 <div className="relative mb-4">
                     <div className="absolute inset-0 flex items-center">

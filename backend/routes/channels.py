@@ -61,7 +61,25 @@ def list_channels():
             return jsonify({'error': 'Distributor not found'}), 404
 
         channels = Channel.query.filter_by(distributor_id=distributor_id).all()
-        return jsonify({'data': [c.to_dict() for c in channels]}), 200
+        data = [c.to_dict() for c in channels]
+
+        # Dynamically append WhatsApp channel if distributor has it connected
+        distributor = Distributor.query.get(distributor_id)
+        if distributor and distributor.whatsapp_connected:
+            has_wa = any(c.get('channel_type') == 'whatsapp' for c in data)
+            if not has_wa:
+                data.append({
+                    'id': 0,  # Virtual ID
+                    'distributor_id': distributor_id,
+                    'channel_type': 'whatsapp',
+                    'name': distributor.whatsapp_phone or 'WhatsApp Gateway',
+                    'status': 'active',
+                    'config': {},
+                    'created_at': distributor.created_at.isoformat() if distributor.created_at else None,
+                    'updated_at': distributor.updated_at.isoformat() if distributor.updated_at else None
+                })
+
+        return jsonify({'data': data}), 200
 
     except Exception as e:
         logger.error(f"List channels error: {e}")

@@ -167,7 +167,7 @@ export function PlatformChatWidget() {
     return (
         <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4">
             {isOpen && (
-                <Card className="w-[350px] sm:w-[400px] h-[500px] shadow-2xl border-primary/20 flex flex-col animate-in slide-in-from-bottom-4 duration-300 glass">
+                <Card className="w-[350px] sm:w-[400px] h-[500px] shadow-2xl border-primary/20 flex flex-col animate-in slide-in-from-bottom-4 duration-300 bg-background text-foreground">
                     <CardHeader className="p-4 border-b vivid-gradient text-white rounded-t-xl flex flex-row items-center justify-between space-y-0">
                         <div className="flex items-center gap-2">
                             <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -186,7 +186,7 @@ export function PlatformChatWidget() {
                         </Button>
                     </CardHeader>
                     
-                    <CardContent ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-background/50">
+                    <CardContent ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
                         {messages.map((m, i) => (
                             <div key={i} className={cn(
                                 "flex flex-col max-w-[85%]",
@@ -196,9 +196,9 @@ export function PlatformChatWidget() {
                                     "px-3 py-2 rounded-2xl text-sm shadow-sm",
                                     m.role === 'user' 
                                         ? "bg-primary text-white rounded-tr-none" 
-                                        : "bg-white/80 dark:bg-zinc-800 rounded-tl-none border border-border"
+                                        : "bg-white dark:bg-zinc-800 rounded-tl-none border border-border"
                                 )}>
-                                    {m.content}
+                                    {renderMarkdownFriendly(m.content)}
                                 </div>
                             </div>
                         ))}
@@ -210,7 +210,7 @@ export function PlatformChatWidget() {
                         )}
                     </CardContent>
 
-                    <CardFooter className="p-3 border-t bg-background/80">
+                    <CardFooter className="p-3 border-t bg-background">
                         <form className="flex w-full items-center gap-2" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
                             <Button 
                                 type="button"
@@ -249,6 +249,61 @@ export function PlatformChatWidget() {
             >
                 {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-7 w-7 group-hover:animate-bounce" />}
             </Button>
+        </div>
+    );
+}
+
+// Friendly markdown formatter for the visitor
+function renderMarkdownFriendly(text: string) {
+    if (!text) return null;
+    
+    const lines = text.split('\n');
+    return (
+        <div className="space-y-1.5">
+            {lines.map((line, idx) => {
+                const trimmed = line.trim();
+                if (!trimmed) return <div key={idx} className="h-1" />;
+                
+                // Match list item (e.g. "1. **title** description" or "- **title** description")
+                const listMatch = trimmed.match(/^(\d+\.|\-)\s+(.*)$/);
+                let content = trimmed;
+                let isListItem = false;
+                let bullet = '';
+                
+                if (listMatch) {
+                    isListItem = true;
+                    bullet = listMatch[1];
+                    content = listMatch[2];
+                }
+                
+                // Parse bold tag (**text**)
+                const parts = [];
+                let currentText = content;
+                const boldRegex = /\*\*(.*?)\*\*/g;
+                let match;
+                let lastIndex = 0;
+                
+                while ((match = boldRegex.exec(currentText)) !== null) {
+                    const before = currentText.substring(lastIndex, match.index);
+                    if (before) parts.push(before);
+                    parts.push(<strong key={match.index} className="font-bold text-primary dark:text-emerald-400">{match[1]}</strong>);
+                    lastIndex = boldRegex.lastIndex;
+                }
+                
+                const remaining = currentText.substring(lastIndex);
+                if (remaining) parts.push(remaining);
+                
+                if (isListItem) {
+                    return (
+                        <div key={idx} className="flex gap-1.5 pl-1.5 items-start">
+                            <span className="text-primary dark:text-emerald-400 font-bold shrink-0">{bullet}</span>
+                            <span className="flex-1">{parts}</span>
+                        </div>
+                    );
+                }
+                
+                return <p key={idx} className="leading-relaxed">{parts}</p>;
+            })}
         </div>
     );
 }

@@ -3,7 +3,7 @@ module.exports = {
         {
             name: "enpiai-redis",
             script: "redis-server",
-            args: "--port 6381",
+            args: "--port 6381 --bind 127.0.0.1 --requirepass YOUR_REDIS_PASS",
             env: {
                 NODE_ENV: "production"
             }
@@ -22,7 +22,7 @@ module.exports = {
             name: "enpiai-fastapi",
             cwd: "./backend",
             script: "/root/enpiai/backend/venv/bin/uvicorn",
-            args: "fastapi_app:app --host 0.0.0.0 --port 5000 --workers 2",
+            args: "fastapi_app:app --host 127.0.0.1 --port 5000 --workers 2",
             interpreter: "none",
             env: {
                 FLASK_ENV: "production",
@@ -37,9 +37,8 @@ module.exports = {
             args: "-A celery_app.celery worker --loglevel=info --concurrency=2",
             env: {
                 FLASK_ENV: "production",
-                CELERY_BROKER_URL: "redis://localhost:6381/0",
-                CELERY_RESULT_BACKEND: "redis://localhost:6381/1",
-                C_FORCE_ROOT: "true"
+                CELERY_BROKER_URL: "redis://:YOUR_REDIS_PASS@127.0.0.1:6381/0",
+                CELERY_RESULT_BACKEND: "redis://:YOUR_REDIS_PASS@127.0.0.1:6381/1"
             }
         },
         {
@@ -48,17 +47,19 @@ module.exports = {
             interpreter: "/root/enpiai/backend/venv/bin/python",
             script: "run_cron.py",
             env: {
-                FLASK_ENV: "production",
-                C_FORCE_ROOT: "true"
+                FLASK_ENV: "production"
             }
         },
         {
             name: "enpiai-whatsapp",
             cwd: "./api-whatsapp",
             script: "./dist/app.js",
+            max_memory_restart: "500M",
             env: {
                 PORT: 3001,
-                NODE_ENV: "production"
+                NODE_ENV: "production",
+                BACKEND_URL: "http://localhost:5000",
+                API_SECRET: process.env.WHATSAPP_API_SECRET
             }
         }
     ]

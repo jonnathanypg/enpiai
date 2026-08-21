@@ -34,10 +34,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
     React.useEffect(() => {
         const handleError = (e: ErrorEvent) => {
             const errorMsg = e.message || '';
+            const target = e.target as any;
+            const src = target?.src || target?.href || '';
+            
             if (
                 errorMsg.includes('ChunkLoadError') || 
                 errorMsg.includes('Failed to fetch dynamically imported module') ||
-                errorMsg.includes('Failed to find Server Action')
+                errorMsg.includes('Failed to find Server Action') ||
+                src.includes('.next/static/chunks/')
             ) {
                 console.warn('Stale assets or Server Action error detected. Reloading page...');
                 window.location.reload();
@@ -69,8 +73,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
             <NextThemesProvider
                 attribute="class"
-                defaultTheme="system"
-                enableSystem
+                defaultTheme="dark"
+                enableSystem={false}
                 disableTransitionOnChange
             >
                 <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>

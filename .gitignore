@@ -32,7 +32,6 @@ instance/
 
 # Uploads
 uploads/
-*.pdf
 
 # Node.js
 node_modules/

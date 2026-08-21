@@ -4,6 +4,7 @@ Controls system-wide behavior like LLM failover, maintenance mode, and RAG defau
 
 Migration Path: Config will be stored in a decentralized governance layer.
 """
+import os
 from datetime import datetime
 from extensions import db
 
@@ -20,7 +21,7 @@ class PlatformConfig(db.Model):
     # --- LLM Controls ---
     enable_failover = db.Column(db.Boolean, default=False, nullable=False)
     default_llm_provider = db.Column(db.String(50), default='openai')
-    default_llm_model = db.Column(db.String(100), default='gpt-5-nano')
+    default_llm_model = db.Column(db.String(100), default=os.getenv('DEFAULT_LLM_MODEL', 'gpt-5-nano'))
 
     # --- RAG Controls ---
     global_rag_enabled = db.Column(db.Boolean, default=True, nullable=False)

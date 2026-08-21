@@ -33,8 +33,12 @@ db.session.rollback = resilient_rollback
 
 jwt = JWTManager()
 migrate = Migrate()
+import os
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per minute"],
-    storage_uri="memory://",  # Use Redis in prod: "redis://localhost:6381/2"
+    storage_uri=os.getenv('CELERY_BROKER_URL', 'redis://localhost:6381/0').replace('/0', '/2')
 )
+
+import threading
+ctx = threading.local()

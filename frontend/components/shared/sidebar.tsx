@@ -36,7 +36,7 @@ const distributorItems: NavItem[] = [
     { titleKey: 'sidebar.documents', href: '/documents', icon: FileText },
     { titleKey: 'sidebar.wellness', href: '/wellness', icon: HeartPulse },
     { titleKey: 'sidebar.playground', href: '/agents/playground', icon: MessageSquare },
-    { titleKey: 'sidebar.couch', href: '/couch', icon: Sparkles },
+    { titleKey: 'sidebar.coach', href: '/coach', icon: Sparkles },
     { titleKey: 'sidebar.settings', href: '/settings', icon: Settings },
 ];
 
@@ -66,7 +66,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return (
         <aside
             className={cn(
-                'flex h-screen flex-col border-r bg-sidebar/60 backdrop-blur-xl transition-all duration-300 glass',
+                'relative flex h-screen flex-col border-r bg-sidebar/60 backdrop-blur-xl transition-all duration-300 glass',
                 collapsed ? 'w-16' : 'w-64'
             )}
         >
@@ -75,13 +75,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 "flex h-16 items-center border-b border-white/10 px-4",
                 collapsed ? "justify-center" : "justify-start gap-3"
             )}>
-                <div className="flex items-center justify-center w-8 h-8 shrink-0">
-                    <img src="/logo-small.png" alt="Enpi AI" className="w-full h-full object-contain" />
-                </div>
-                {!collapsed && (
-                    <span className="text-xl font-bold tracking-tight">
-                        Enpi<span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">AI</span>
-                    </span>
+                {collapsed ? (
+                    <div className="w-8 h-8 shrink-0">
+                        <img src="/favicon-enpiai.png" alt="Enpi AI" className="w-full h-full object-contain" />
+                    </div>
+                ) : (
+                    <div className="flex items-center">
+                        <img src="/favicon-enpiai-ligth.png" alt="Enpi AI" className="h-8 w-auto object-contain dark:hidden" />
+                        <img src="/favicon-enpiai-dark.png" alt="Enpi AI" className="h-8 w-auto object-contain hidden dark:block" />
+                    </div>
                 )}
                 {!collapsed && (
                     <div className="flex-1" />
@@ -118,8 +120,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 {allItems.map((item) => {
                     const isActive =
                         pathname === item.href || pathname.startsWith(item.href + '/');
+                    const navId = `onboarding-nav-${item.href.replace(/^\//, '').replace(/\//g, '-')}`;
                     return (
-                        <Link key={item.href} href={item.href}>
+                        <Link key={item.href} href={item.href} id={navId}>
                             <span
                                 className={cn(
                                     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 group',

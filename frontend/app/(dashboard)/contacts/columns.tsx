@@ -16,7 +16,11 @@ import Link from 'next/link';
 import type { Lead } from '@/types';
 import { TFunction } from 'i18next';
 
-export const getColumns = (t: TFunction, onDelete?: (lead: Lead) => void): ColumnDef<Lead>[] => [
+export const getColumns = (
+    t: TFunction, 
+    onContactClick: (id: number) => void,
+    onDelete?: (lead: Lead) => void
+): ColumnDef<Lead>[] => [
     {
         accessorKey: 'name',
         header: t('common.name'),
@@ -28,9 +32,12 @@ export const getColumns = (t: TFunction, onDelete?: (lead: Lead) => void): Colum
             }
             return (
                 <div className="flex flex-col">
-                    <Link href={`/contacts/lead:${lead.id}`} className="font-medium hover:underline">
+                    <button
+                        onClick={() => onContactClick(lead.id)}
+                        className="font-medium hover:underline text-left text-primary hover:text-primary/80 transition-colors"
+                    >
                         {fullName}
-                    </Link>
+                    </button>
                     <span className="text-xs text-muted-foreground">{lead.email}</span>
                 </div>
             );
@@ -95,9 +102,9 @@ export const getColumns = (t: TFunction, onDelete?: (lead: Lead) => void): Colum
                             <Phone className="mr-2 h-4 w-4" /> {t('common.save')} Phone
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <Link href={`/contacts/${lead.id}`}>
-                            <DropdownMenuItem>{t('distributorDashboard.viewContacts')}</DropdownMenuItem>
-                        </Link>
+                        <DropdownMenuItem onClick={() => onContactClick(lead.id)}>
+                            {t('distributorDashboard.viewContacts')}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => onDelete?.(lead)}

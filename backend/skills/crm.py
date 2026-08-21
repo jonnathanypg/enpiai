@@ -8,7 +8,7 @@ from .base_skill import BaseSkill
 from models.lead import Lead, LeadStatus, LeadSource
 from models.customer import Customer
 from models.wellness_evaluation import WellnessEvaluation
-from extensions import db
+from extensions import db, ctx
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class CRMSkill(BaseSkill):
     def get_business_summary_data(self) -> dict:
         """Retrieves structured data for the business summary report."""
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return {"error": "context_missing"}
             
@@ -190,7 +190,7 @@ class CRMSkill(BaseSkill):
 
     def add_crm_note(self, target_type: str, target_id: int, content: str) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -217,7 +217,7 @@ class CRMSkill(BaseSkill):
 
     def list_active_conversations(self, limit: int = 10) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -242,7 +242,7 @@ class CRMSkill(BaseSkill):
 
     def get_conversation_history(self, conversation_id: int, limit: int = 20) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -265,8 +265,8 @@ class CRMSkill(BaseSkill):
 
     def request_human_contact(self, summary: str, recommendation: str = "") -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
-        conversation_id = getattr(g, 'current_conversation_id', None)
+        distributor = getattr(ctx, 'current_company', None)
+        conversation_id = getattr(ctx, 'current_conversation_id', None)
         
         if not distributor:
             return "Error: context missing"
@@ -298,7 +298,7 @@ class CRMSkill(BaseSkill):
 
     def lookup_customer(self, email: str) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -324,8 +324,8 @@ class CRMSkill(BaseSkill):
 
     def register_lead(self, first_name: str, phone: str, last_name: str = "", email: str = None) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
-        conversation_id = getattr(g, 'current_conversation_id', None)
+        distributor = getattr(ctx, 'current_company', None)
+        conversation_id = getattr(ctx, 'current_conversation_id', None)
         
         if not distributor:
             return "Error: context missing"
@@ -393,7 +393,7 @@ class CRMSkill(BaseSkill):
                         lead_email=email or "",
                         lead_phone=phone or "",
                         source="AI Agent Chat",
-                        lang=distributor.language or 'en'
+                        lang=distributor.language or 'es'
                     )
             except Exception as notify_err:
                 logger.warning(f"Lead notification failed (non-blocking): {notify_err}")
@@ -405,7 +405,7 @@ class CRMSkill(BaseSkill):
 
     def list_recent_leads(self, limit: int = 10) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -421,7 +421,7 @@ class CRMSkill(BaseSkill):
 
     def get_lead_details(self, lead_id: int = None, email: str = None) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -473,7 +473,7 @@ class CRMSkill(BaseSkill):
 
     def toggle_ai_response(self, target_type: str, target_id: int, enabled: bool) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
@@ -498,7 +498,7 @@ class CRMSkill(BaseSkill):
 
     def mark_interested_in_buying(self, lead_id: int, products_summary: str) -> str:
         db.session.rollback()
-        distributor = getattr(g, 'current_company', None)
+        distributor = getattr(ctx, 'current_company', None)
         if not distributor:
             return "Error: context missing"
             
