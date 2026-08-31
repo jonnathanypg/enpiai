@@ -83,16 +83,18 @@
   },
   "sidebar": {
     "dashboard": "Painel",
+    "club": "Clube de Nutrição",
     "contacts": "Contatos",
     "agentSetup": "Config. Agente",
     "channels": "Canais",
     "documents": "Documentos",
     "wellness": "Pesquisas",
-    "playground": "Chat com Assistente",
+    "playground": "Conversar com Assistente",
     "settings": "Configurações",
     "coach": "Modo Coach",
     "systemKnowledge": "Conhecimento do Sistema",
-    "billing": "Faturamento"
+    "billing": "Faturamento",
+    "platformAgent": "Agente da Plataforma"
   },
   "subscribe": {
     "title": "Ative sua Licença",

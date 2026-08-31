@@ -11,8 +11,9 @@ A powerful, all-in-one SaaS platform designed to empower independent Herbalife d
 
 This platform is a multi-tenant SaaS application that allows distributors to subscribe to a monthly service and gain access to a powerful set of tools, including:
 
-*   **AI-Powered Assistants:** Automated assistants orchestrated via **LangGraph** that handle customer inquiries via WhatsApp and Telegram.
-*   **Wellness Evaluation System:** A customizable wellness evaluation system (conversational and web-form based) that stores data in a personalized CRM.
+*   **Nutrition Club & E-Commerce:** Customizable microsite (`/club/[distributor_id]`) with live Google Maps/Apple Maps navigation, product catalog (shakes, waffles, energy teas, bowls, combos), cart customization, and instant WhatsApp ordering.
+*   **AI-Powered Copilot & Assistants:** Automated assistants orchestrated via **LangGraph** that handle customer inquiries via WhatsApp and assist distributors in configuring their club, updating menus/prices, and managing orders via voice/text.
+*   **Wellness Evaluation System:** A real-time wellness evaluation system (conversational and web-form based) with instant AI diagnostic analysis, macro recommendations, and PDF generation.
 *   **CRM & Lead Management:** Unified 360° contact view for managing leads and customers with interaction timelines.
 *   **Automated Email Marketing:** System for notifications, lead follow-ups, and reports.
 *   **RAG (Retrieval-Augmented Generation):** Knowledge base management using **Pinecone** for company-specific documents.

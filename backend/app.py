@@ -96,6 +96,10 @@ def create_app(config_class=None, start_services=False):
     from routes.contacts import contacts_bp
     app.register_blueprint(contacts_bp, url_prefix='/api/contacts')
 
+    # Nutrition Club & E-Commerce
+    from routes.club import club_bp
+    app.register_blueprint(club_bp, url_prefix='/api/club')
+
     # -------------------------------------------------------------------
     # Proactive Initialization & Background Workers (Conditional)
     # -------------------------------------------------------------------

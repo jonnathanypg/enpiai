@@ -113,21 +113,38 @@ def submit_evaluation(distributor_ref):
 
         # Auto-calculate BMI
         evaluation.calculate_bmi()
-        
-        # Save initial evaluation data
+
+        # Generate AI Diagnosis immediately so the user never hangs or waits 10 minutes
+        try:
+            from services.ai_diagnostic_service import AIDiagnosticService
+            diag_result = AIDiagnosticService.generate_diagnosis(evaluation=evaluation, distributor=distributor)
+            evaluation.diagnosis = diag_result.get('diagnosis')
+            evaluation.recommendations = diag_result.get('recommendations')
+            evaluation.recommended_products = diag_result.get('recommended_products')
+        except Exception as diag_err:
+            logger.error(f"Immediate diagnosis generation error: {diag_err}")
+
+        # Save evaluation data
         db.session.add(evaluation)
         db.session.commit()
-        logger.info(f"Initial wellness evaluation saved: {evaluation.id}")
+        logger.info(f"Wellness evaluation saved with diagnosis: {evaluation.id}")
 
-        # --- Trigger Background Processing (AI + PDF + Messaging) ---
+        # --- Trigger Background Processing (PDF + Messaging) ---
         try:
             from tasks import process_wellness_evaluation
             process_wellness_evaluation.delay(evaluation.id, distributor.id, data)
             logger.info(f"Background task triggered for evaluation {evaluation.id}")
         except Exception as task_err:
-            logger.error(f"Failed to trigger background task: {task_err}")
-            # Fallback to sync diagnosis if Celery is down? 
-            # Better not to risk timeout, just log and let user retry manual PDF generation if needed.
+            logger.warning(f"Background task dispatch (Celery) skipped/failed: {task_err}")
+            # Try instant PDF generation fallback
+            try:
+                from services.pdf_service import pdf_service
+                pdf_path = pdf_service.generate_wellness_report(evaluation, distributor)
+                if pdf_path:
+                    evaluation.pdf_report_path = pdf_path
+                    db.session.commit()
+            except Exception as pdf_err:
+                logger.debug(f"Direct PDF generation fallback error: {pdf_err}")
 
         result = evaluation.to_dict()
         # Inject contact info and distributor info from request data for immediate display
