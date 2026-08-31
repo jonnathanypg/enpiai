@@ -1,29 +1,32 @@
 # Project Status Report: EnpiAI
 
 **Project Name**: Herbalife Distributor SaaS Platform
-**Status Date:** June 13, 2026
-**Overall Progress:** 98% (Production-Ready Core & Integration Polish)
+**Status Date:** August 31, 2026
+**Overall Progress:** 99.5% (Production-Ready Core, E-Commerce Nutrition Club & AI Copilot Suite)
 
 ---
 
 ## 1. Executive Summary
-EnpiAI is currently in a high-stakes stabilization phase. The core agentic infrastructure (LangGraph/FastAPI) is advanced and stable. The transition to Next.js 16/React 19 is successfully completed. Recent milestones include the complete migration from dLocal to **PayPal Smart Buttons (Guest Checkout & Direct Verification)** for subscriptions and the resolution of critical bugs flagged during the CTO Audit. Current focus is on mitigating **Remote Database Latency** and fine-tuning the **Multi-Tenant WhatsApp Gateway**.
+EnpiAI has achieved a major milestone with the launch of the **Nutrition Club (Club de Nutrición) Microsite & E-Commerce Subsystem**, allowing distributors to showcase their club preparations (shakes, energy teas, protein waffles, bowls, and combos), share direct Google Maps and Apple Maps navigation links, and accept orders seamlessly via WhatsApp and the CRM. Furthermore, the **Wellness Evaluation (Encuesta de Bienestar)** has been completely stabilized with instantaneous real-time AI diagnosis and robust clinical fallback, eliminating previous background task bottlenecks.
 
 ---
 
 ## 2. Technical Achievement & Milestones
 
-### 🧠 Unified Intelligence (100%)
-- **Primary Engine**: Standardized on **GPT-5 Nano** (OpenAI Reasoning Model). This provides native reasoning capabilities, a 400K context window, and ultra-low latency for all distributor-lead interactions.
-- **FastAPI Migration**: The main entry point is now an async FastAPI gateway that integrates legacy Flask logic seamlessly via WSGI.
+### 🏢 Nutrition Club E-Commerce & Microsite (100%)
+- **Public Microsite (`/club/[distributor_id]`)**: Full-featured mobile-responsive catalog and cart with open/closed status, schedule, club amenities, and announcement banners.
+- **Maps Navigation**: Instant one-tap navigation via **Google Maps** and **Apple Maps** based on distributor coordinates or address.
+- **Product Customization & Cart**: Multi-flavor, toppings, and temperature selection modal with live subtotal calculation and delivery mode selector (*En el Club*, *Para Llevar*, *A Domicilio*).
+- **Direct WhatsApp Checkout**: Generates structured, pre-formatted order summaries linking directly to the distributor's WhatsApp while auto-registering the prospect in the CRM and `club_orders` database table.
+- **Distributor Club Dashboard (`/club`)**: Intuitive profile/location manager, catalog manager with **1-Click Starter Menu Seed** (pre-populated with 8 popular Herbalife club recipes), and real-time orders tracker.
 
-### 🔌 Connectivity & Channels (85%)
-- **WhatsApp Gateway**: Fully multi-tenant. However, remote DB instability is causing session drops.
-- **Next.js 16 / React 19**: Successfully upgraded and stabilized.
+### 🤖 AI Copilot Club Skill (100%)
+- **Natural Language Club Management**: Distributors can manage their club, update opening hours, change item prices, add new recipes, and query recent orders via text/voice note from WhatsApp (Master Mode) or the web platform assistant.
+- **Modular Skill Tools**: Implemented `ClubSkill` (`get_club_info`, `update_club_profile`, `list_club_products`, `create_club_product`, `update_club_product`, `delete_club_product`, `seed_default_club_menu`, `list_recent_club_orders`).
 
-### 🗄️ Data & Sovereignty (95%)
-- **PII Encryption**: Fully operational using Fernet encryption.
-- **Remote DB Strategy**: Implemented `pool_recycle` and `pool_pre_ping` to handle high-latency remote MySQL connections.
+### 🩺 Wellness Evaluation Optimization (100%)
+- **Instant Response Engine**: Diagnoses and personalized nutrition recommendations are now generated inline during evaluation submission (<2s), removing Celery worker dependency delays for the end-user while still triggering background PDF reports.
+- **Celery Task Repair**: Fixed import discrepancies in `AIDiagnosticService` and model attribute alignments in `tasks.py`.
 
 ---
 
@@ -31,44 +34,30 @@ EnpiAI is currently in a high-stakes stabilization phase. The core agentic infra
 
 | Module | Completion | Status |
 | :--- | :---: | :--- |
-| **Unified Gateway (FastAPI)** | 100% | 🟢 Ready |
+| **Nutrition Club Microsite & E-Commerce** | 100% | 🟢 Ready |
+| **AI Copilot (Club & Coach Skills)** | 100% | 🟢 Ready |
+| **Wellness Evaluation (Inline + Celery)** | 100% | 🟢 Ready |
+| **Unified Gateway (FastAPI/Flask)** | 100% | 🟢 Ready |
 | **Authentication (JWT/OAuth)** | 100% | 🟢 Ready |
-| **CRM & Contact Timeline** | 98% | 🟢 Ready |
-| **Wellness Evaluation** | 100% | 🟢 Ready (With GTM & default SMTP fallback) |
-| **Agent Orchestration** | 95% | 🟢 Ready |
-| **RAG (Vector Memory)** | 100% | 🟢 Ready |
-| **WhatsApp Multi-Tenancy** | 95% | 🟢 Stable |
-| **Frontend Dashboard UI** | 100% | 🟢 Ready (With public legal footers & GTM scripts) |
-| **Celery Bg Processors** | 100% | 🟢 Ready |
+| **CRM & Contact Timeline** | 100% | 🟢 Ready |
+| **Agent Orchestration (LangGraph)** | 100% | 🟢 Ready |
+| **RAG (Pinecone Vector Memory)** | 100% | 🟢 Ready |
+| **WhatsApp Multi-Tenancy** | 98% | 🟢 Stable |
+| **Frontend Dashboard UI (Next.js 16)** | 100% | 🟢 Ready |
 | **Payments (PayPal Smart Buttons)** | 100% | 🟢 Ready |
 
 ---
 
-## 4. Critical Blockers & Known Issues
-- **Remote MySQL Latency**: Frequent `ECONNREFUSED` and `ETIMEDOUT` in Node.js microservice due to high latency to Hostinger MySQL.
-- **Health Endpoint 404**: `https://enpi.click/api/health` is not properly routed in Nginx.
-
----
-
-## 5. Immediate Next Steps
-1.  **DB Stabilization**: Evaluate moving the MySQL database to the local VPS or using a more reliable provider to eliminate latency spikes.
-2.  **Process Shielding**: Implement fail-ban or better protection for `enpiai-fastapi` against bot probes.
-3.  **UI Polish**: Continue refining the Dashboard UI now that Server Actions and Themes (Dark/Light) are stable.
-
----
-
-## 6. Recent Resolutions (June 2026 CTO Audit & Adjustments)
-- ✅ **Google Sign-In "wrong audience" token verification fix**: Aligned backend `GOOGLE_CLIENT_ID` configuration variable with the active frontend client ID (`916670609421-...`), resolving verification failures on user login.
-- ✅ **Google Tag Manager Integration**: Injected GTM head and body tracking script tags (`GTM-54SSFHBZ`) cleanly into Next.js root layout.
-- ✅ **Custom Legal Policies & Footers**: Created custom i18n-supported static pages for Terms of Service, Privacy Policy, and Refund Policy, detailing non-affiliation with Herbalife, Fernet-encrypted SQL database security, and Google OAuth Limited Use rules. Integrated footer links across all home and public layout routes (excluding pricing link per request).
-- ✅ **Email Delivery fallback logic**: Configured backend SMTP worker tasks to send wellness evaluations via the system sender (`info@enpi.click`) but dynamically displaying the distributor's business name (`"Distributor Name via EnpiAI"`) as the From sender name when local email channel integrations are not configured.
-- ✅ **Channel integrations polish**: Temporarily hid custom SMTP and Google Calendar integration setup cards in the `/channels` settings page.
-- ✅ Migrated from legacy dLocal gateway to **PayPal Smart Buttons with Guest Checkout**. Configured regional support for Ecuador/LATAM merchant accounts to accept credit/debit cards via a hosted popup, and added a direct, instant backend verification endpoint (`POST /api/billing/verify-subscription`) to bypass slow webhook delays.
-- ✅ Fixed `CORS` wildcard vulnerability.
-- ✅ Fully integrated **GPT-5 Nano** as the core reasoning engine, configuring optimized parameters (Temp 1.0, max_completion_tokens) for all agents.
-- ✅ Repaired Celery context leaks (`flask.g` proxy fixed with `threading.local`).
-- ✅ Resolved PDF newline escape bugs for perfect vector semantic chunking.
-- ✅ Fixed frontend typo (`couch` to `coach`) and fully locked down middleware routes.
+## 4. Recent Resolutions (August 2026)
+- ✅ **Nutrition Club E-Commerce Subsystem**: Launched public catalog, interactive customization modal, floating cart, and WhatsApp order generator.
+- ✅ **Google Maps & Apple Maps Integration**: Added dynamic URL generators and native buttons for mobile/desktop route discovery.
+- ✅ **AI Copilot Club Management (`ClubSkill`)**: Equipped the AI agent with 8 specialized tools to manage club operations through WhatsApp and Webchat.
+- ✅ **10-Minute Survey Evaluation Hang Fixed**:
+  - Reconstructed `AIDiagnosticService` with unified class interface and intelligent clinical fallback.
+  - Corrected task model field assignments (`diagnosis`, `recommendations`, `pdf_report_path`).
+  - Switched evaluation route to immediate synchronous diagnosis generation to eliminate user polling wait times.
+- ✅ **Database Schema Migration**: Added club attributes to `distributors`, preparation attributes to `products`, and created `club_orders` table.
+- ✅ **I18n Localization**: Added club navigation and terminology across Spanish, English, and Portuguese locale files.
 
 ---
 

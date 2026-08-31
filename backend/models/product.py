@@ -35,6 +35,14 @@ class Product(db.Model):
     ingredients = db.Column(db.Text, nullable=True)
     usage_instructions = db.Column(db.Text, nullable=True)
 
+    # Nutrition Club Preparations
+    is_club_menu = db.Column(db.Boolean, default=True)
+    protein_grams = db.Column(db.Float, nullable=True)          # e.g., 24.0
+    calories = db.Column(db.Integer, nullable=True)             # e.g., 210
+    preparation_time_min = db.Column(db.Integer, default=5)     # e.g., 5 min
+    customization_options = db.Column(db.JSON, default=dict)    # e.g. {"flavors": [...], "toppings": [...], "extras": [...]}
+    display_order = db.Column(db.Integer, default=0)
+
     # Relationships
     distributor = db.relationship('Distributor', back_populates='products')
 
@@ -48,14 +56,20 @@ class Product(db.Model):
             'distributor_id': self.distributor_id,
             'name': self.name,
             'sku': self.sku,
-            'category': self.category,
+            'category': self.category or 'batidos',
             'description': self.description,
             'price': self.price,
-            'currency': self.currency,
+            'currency': self.currency or 'USD',
             'image_url': self.image_url,
             'stock_quantity': self.stock_quantity,
-            'is_available': self.is_available,
-            'benefits': self.benefits,
+            'is_available': self.is_available if self.is_available is not None else True,
+            'is_club_menu': self.is_club_menu if self.is_club_menu is not None else True,
+            'protein_grams': self.protein_grams,
+            'calories': self.calories,
+            'preparation_time_min': self.preparation_time_min or 5,
+            'customization_options': self.customization_options or {},
+            'display_order': self.display_order or 0,
+            'benefits': self.benefits or [],
             'ingredients': self.ingredients,
             'usage_instructions': self.usage_instructions,
             'created_at': self.created_at.isoformat() if self.created_at else None,
