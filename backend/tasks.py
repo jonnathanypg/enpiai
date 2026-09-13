@@ -26,6 +26,12 @@ def generate_pdf_report(self, distributor_id, report_type, data):
     Generate a wellness report PDF in the background.
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -51,6 +57,12 @@ def index_document_rag(self, filepath, distributor_id, document_id, metadata=Non
     Process a document and index its chunks in Pinecone.
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -134,6 +146,12 @@ def send_broadcast_message(self, distributor_id, channel, recipients, message):
     Useful for campaigns and bulk notifications.
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -178,6 +196,14 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
     4. Sends the reply back via the messaging service (with optional voice synthesis)
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        # Celery workers launched by PM2 may not have PYTHONPATH set correctly.
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
+
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -286,6 +312,12 @@ def cleanup_old_voice_files(days=1):
     Periodic task to clean up old synthesized voice files from uploads/voice/
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -320,6 +352,12 @@ def process_wellness_evaluation(self, evaluation_id, distributor_id, data=None):
     3. WhatsApp/Email notification
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():

@@ -114,7 +114,8 @@ async def whatsapp_webhook_async(request: Request):
             logger.warning(f"Webhook discarded: Missing or invalid companyId (distributor_id): {data}")
             return {"status": "ignored", "reason": "missing_distributor_id"}
 
-        sender_phone = data.get('from', '').strip()
+        raw_phone = data.get('from', '').strip()
+        sender_phone = raw_phone.split('@')[0].strip() if raw_phone else ''
         message_text = data.get('message', '')
         attachment = data.get('attachment')
 

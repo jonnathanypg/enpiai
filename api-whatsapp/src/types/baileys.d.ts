@@ -94,4 +94,5 @@ declare module '@whiskeysockets/baileys' {
     export const jidDecode: (jid: string) => any;
     export const areJidsSameUser: (jid1: string, jid2: string) => boolean;
     export const S_WHATSAPP_NET: string;
+    export function fetchLatestBaileysVersion(): Promise<{ version: [number, number, number]; isLatest: boolean; error?: any }>;
 }
