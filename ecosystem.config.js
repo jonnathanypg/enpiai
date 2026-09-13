@@ -37,6 +37,7 @@ module.exports = {
             args: "-A celery_app.celery worker --loglevel=info --concurrency=2",
             env: {
                 FLASK_ENV: "production",
+                PYTHONPATH: "/root/enpiai/backend",
                 CELERY_BROKER_URL: "redis://:YOUR_REDIS_PASS@127.0.0.1:6381/0",
                 CELERY_RESULT_BACKEND: "redis://:YOUR_REDIS_PASS@127.0.0.1:6381/1"
             }
