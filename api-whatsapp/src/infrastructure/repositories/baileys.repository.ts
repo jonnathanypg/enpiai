@@ -433,6 +433,23 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     return this.sessions.get(companyId) || null;
   }
 
+  private resolveJid(phone: string): string {
+    const trimmed = (phone || "").trim();
+    if (trimmed.includes("@lid")) {
+      return trimmed;
+    }
+    if (trimmed.includes("@s.whatsapp.net")) {
+      return trimmed;
+    }
+    const digitsOnly = trimmed.replace(/[^0-9]/g, "");
+    const isLid = digitsOnly.length >= 14 && !digitsOnly.startsWith("593") && !digitsOnly.startsWith("52") && !digitsOnly.startsWith("57") && !digitsOnly.startsWith("34") && !digitsOnly.startsWith("1");
+    if (isLid) {
+      return `${digitsOnly}@lid`;
+    }
+    const cleanPhone = this.normalizePhone(trimmed);
+    return `${cleanPhone}@s.whatsapp.net`;
+  }
+
   /**
    * Send a text message from a specific company session.
    */
@@ -454,13 +471,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     }
 
     try {
-      // Normalize phone number (canonical E.164 without +, global-safe)
-      const cleanPhone = this.normalizePhone(phone);
-      if (!cleanPhone) {
-        throw new Error(`Invalid phone number for sendMsg: '${phone}'`);
-      }
-      const jid = `${cleanPhone}@s.whatsapp.net`;
-
+      const jid = this.resolveJid(phone);
       const response = await session.socket.sendMessage(jid, { text: message });
       console.log(`[${targetCompanyId}] Message sent to ${jid}`);
       return response;
@@ -495,8 +506,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     }
 
     try {
-      const cleanPhone = this.normalizePhone(phone);
-      const jid = `${cleanPhone}@s.whatsapp.net`;
+      const jid = this.resolveJid(phone);
 
       let messageContent: any = {};
 
@@ -543,8 +553,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     }
 
     try {
-      const cleanPhone = this.normalizePhone(phone);
-      const jid = `${cleanPhone}@s.whatsapp.net`;
+      const jid = this.resolveJid(phone);
       await session.socket.sendPresenceUpdate('composing', jid);
       return { status: 'success' };
     } catch (error) {
