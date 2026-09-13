@@ -99,10 +99,20 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     try {
       const { saveCreds, state } = await this.getAuth(companyId);
 
+      let waVersion: [number, number, number] = [2, 3000, 1043857760];
+      try {
+        const { version, isLatest } = await Baileys.fetchLatestBaileysVersion();
+        if (version) {
+          waVersion = version;
+        }
+      } catch (err) {
+        console.warn(`[${companyId}] Could not fetch latest WA version, using fallback`, err);
+      }
+
       const socket = this.baileys.makeWASocket({
         printQRInTerminal: false,
         browser: ["EnpiAI", "Chrome", "1.0.0"],
-        version: [2, 3000, 1033893291],
+        version: waVersion,
         //@ts-ignore
         logger: pino({ level: "silent" }),
         auth: state,
@@ -373,25 +383,67 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     
     console.log(`[${targetCompanyId}] Sending message to ${phone}. Connection status: ${connStatus}`);
 
-    if (connStatus !== "open") {
-      console.warn(`[${targetCompanyId}] Warning: Attempting to send message while connection is ${connStatus}. This may result in PENDING status.`);
-    }
-
     if (!session) {
       throw new Error(`Session for ${targetCompanyId} not found`);
     }
 
-    try {
-      // Normalize phone number (remove any non-numeric except +)
-      const cleanPhone = phone.replace(/[^0-9]/g, "");
-      const jid = `${cleanPhone}@s.whatsapp.net`;
+    // FIX-ENPIAI-003: Retry with exponential backoff when socket is reconnecting.
+    // Baileys may be in 'connecting' state after a transient disconnect. Wait up to 3s
+    // before giving up, in 500ms increments.
+    const MAX_WAIT_MS = 3000;
+    const POLL_INTERVAL_MS = 500;
+    let waited = 0;
 
-      const response = await session.socket.sendMessage(jid, { text: message });
-      return response;
-    } catch (error) {
-      console.error(`[${targetCompanyId}] Send message error:`, error);
-      throw error;
+    while (session.state.connection !== "open" && waited < MAX_WAIT_MS) {
+      const currentState = session.state.connection || "none";
+      if (currentState === "close" || currentState === "none") {
+        // Not reconnecting - fail immediately instead of wasting time
+        break;
+      }
+      console.log(`[${targetCompanyId}] Socket is ${currentState}, waiting ${POLL_INTERVAL_MS}ms before send... (${waited}ms elapsed)`);
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+      waited += POLL_INTERVAL_MS;
     }
+
+    if (session.state.connection !== "open") {
+      const finalState = session.state.connection || "none";
+      console.error(`[${targetCompanyId}] Cannot send to ${phone}: socket is '${finalState}' after ${waited}ms wait. Session requires reconnection.`);
+      throw new Error(`Session for ${targetCompanyId} is not open (state: ${finalState}). Reconnect required.`);
+    }
+
+    // FIX-ENPIAI-004: Normalize phone number to @s.whatsapp.net JID.
+    // Strips all non-numeric characters and builds clean JID to avoid encoding errors.
+    const cleanPhone = phone.replace(/[^0-9]/g, "");
+    if (!cleanPhone) {
+      throw new Error(`Invalid phone number for sendMsg: '${phone}'`);
+    }
+    const jid = `${cleanPhone}@s.whatsapp.net`;
+
+    // Retry send up to 2 times with exponential backoff for transient network errors
+    const MAX_SEND_RETRIES = 2;
+    let lastError: any;
+    for (let attempt = 1; attempt <= MAX_SEND_RETRIES + 1; attempt++) {
+      try {
+        const response = await session.socket.sendMessage(jid, { text: message });
+        console.log(`[${targetCompanyId}] Message sent to ${jid} (attempt ${attempt})`);
+        return response;
+      } catch (error: any) {
+        lastError = error;
+        const errMsg = String(error?.message || error);
+        // Do not retry for definitive rejections
+        if (errMsg.includes('not-acceptable') || errMsg.includes('logged') || errMsg.includes('403')) {
+          console.error(`[${targetCompanyId}] Non-retryable send error to ${jid}:`, error);
+          throw error;
+        }
+        if (attempt <= MAX_SEND_RETRIES) {
+          const backoff = attempt * 1000; // 1s, 2s
+          console.warn(`[${targetCompanyId}] Send attempt ${attempt} failed, retrying in ${backoff}ms:`, errMsg);
+          await new Promise(resolve => setTimeout(resolve, backoff));
+        }
+      }
+    }
+    console.error(`[${targetCompanyId}] Send message error after ${MAX_SEND_RETRIES + 1} attempts:`, lastError);
+    throw lastError;
   }
 
   /**

@@ -88,6 +88,21 @@ class Distributor(db.Model):
     # Personal story (used by agent in conversations)
     personal_story = db.Column(db.Text, nullable=True)
 
+    # Nutrition Club (Club de Nutrición) Configuration
+    club_name = db.Column(db.String(255), nullable=True)
+    club_slogan = db.Column(db.String(255), nullable=True)
+    club_address = db.Column(db.String(500), nullable=True)
+    club_city = db.Column(db.String(100), nullable=True)
+    club_schedule = db.Column(db.String(255), nullable=True)
+    club_phone = db.Column(db.String(50), nullable=True)
+    club_latitude = db.Column(db.Float, nullable=True)
+    club_longitude = db.Column(db.Float, nullable=True)
+    club_banner_url = db.Column(db.String(500), nullable=True)
+    club_logo_url = db.Column(db.String(500), nullable=True)
+    club_is_active = db.Column(db.Boolean, default=True)
+    club_amenities = db.Column(db.JSON, default=list)  # e.g., ["Wi-Fi", "Degustación Gratis", "Barra Proteica"]
+    club_announcement = db.Column(db.Text, nullable=True)
+
     # Coach Mode Configuration
     coach_mode_enabled = db.Column(db.Boolean, default=False)
     coach_music_preference = db.Column(db.String(50), default='spanish')
@@ -106,6 +121,7 @@ class Distributor(db.Model):
     documents = db.relationship('Document', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     channels = db.relationship('Channel', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     products = db.relationship('Product', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
+    club_orders = db.relationship('ClubOrder', back_populates='distributor', lazy='dynamic', cascade='all, delete-orphan')
     subscriptions = db.relationship('Subscription', backref=db.backref('distributor_parent', uselist=False), cascade='all, delete-orphan')
 
     # Timestamps
@@ -154,6 +170,52 @@ class Distributor(db.Model):
 
         return base_prompt
 
+    def get_google_maps_url(self) -> str:
+        """Generate direct Google Maps navigation URL"""
+        import urllib.parse
+        if self.club_latitude and self.club_longitude:
+            return f"https://www.google.com/maps/search/?api=1&query={self.club_latitude},{self.club_longitude}"
+        elif self.club_address:
+            addr = f"{self.club_address}, {self.club_city or ''}".strip(', ')
+            return f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(addr)}"
+        return ""
+
+    def get_apple_maps_url(self) -> str:
+        """Generate direct Apple Maps navigation URL"""
+        import urllib.parse
+        club_title = self.club_name or self.business_name or "Club de Nutrición"
+        if self.club_latitude and self.club_longitude:
+            return f"https://maps.apple.com/?q={urllib.parse.quote(club_title)}&ll={self.club_latitude},{self.club_longitude}"
+        elif self.club_address:
+            addr = f"{self.club_address}, {self.club_city or ''}".strip(', ')
+            return f"https://maps.apple.com/?q={urllib.parse.quote(addr)}"
+        return ""
+
+    def get_club_dict(self):
+        """Get specialized public club microsite data"""
+        return {
+            'distributor_id': self.id,
+            'distributor_name': self.name,
+            'herbalife_id': self.herbalife_id,
+            'club_name': self.club_name or self.business_name or f"Club de Nutrición {self.name}",
+            'club_slogan': self.club_slogan or "Tu espacio de energía, nutrición y comunidad saludable",
+            'club_address': self.club_address or "",
+            'club_city': self.club_city or self.city or "",
+            'club_schedule': self.club_schedule or "Lunes a Viernes: 07:00 - 12:00 | Sábados: 08:00 - 13:00",
+            'club_phone': self.club_phone or self.whatsapp_phone or self.phone or "",
+            'club_latitude': self.club_latitude,
+            'club_longitude': self.club_longitude,
+            'club_banner_url': self.club_banner_url or "",
+            'club_logo_url': self.club_logo_url or "",
+            'club_is_active': self.club_is_active if self.club_is_active is not None else True,
+            'club_amenities': self.club_amenities or ["Wi-Fi", "Barra Proteica", "Degustación", "Ambiente Climatizado"],
+            'club_announcement': self.club_announcement or "",
+            'google_maps_url': self.get_google_maps_url(),
+            'apple_maps_url': self.get_apple_maps_url(),
+            'instagram': self.instagram or "",
+            'facebook': self.facebook or "",
+        }
+
     def to_dict(self, include_api_keys=False):
         """Convert to dictionary"""
         from datetime import datetime, timedelta
@@ -185,6 +247,21 @@ class Distributor(db.Model):
             'instagram': self.instagram,
             'facebook': self.facebook,
             'personal_story': self.personal_story,
+            'club_name': self.club_name,
+            'club_slogan': self.club_slogan,
+            'club_address': self.club_address,
+            'club_city': self.club_city,
+            'club_schedule': self.club_schedule,
+            'club_phone': self.club_phone,
+            'club_latitude': self.club_latitude,
+            'club_longitude': self.club_longitude,
+            'club_banner_url': self.club_banner_url,
+            'club_logo_url': self.club_logo_url,
+            'club_is_active': self.club_is_active if self.club_is_active is not None else True,
+            'club_amenities': self.club_amenities or [],
+            'club_announcement': self.club_announcement,
+            'google_maps_url': self.get_google_maps_url(),
+            'apple_maps_url': self.get_apple_maps_url(),
             'is_active': self.is_active,
             'subscription_tier': self.subscription_tier.value if self.subscription_tier else 'free',
             'subscription_active': self.subscription_active or self.is_courtesy or in_trial,

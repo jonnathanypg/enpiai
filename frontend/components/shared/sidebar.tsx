@@ -16,6 +16,7 @@ import {
     ChevronLeft,
     MessageSquare,
     Sparkles,
+    Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ interface NavItem {
 // Distributor-only navigation
 const distributorItems: NavItem[] = [
     { titleKey: 'sidebar.dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { titleKey: 'sidebar.club', href: '/club', icon: Store },
     { titleKey: 'sidebar.contacts', href: '/contacts', icon: Users },
     { titleKey: 'sidebar.agentSetup', href: '/agents', icon: Bot },
     { titleKey: 'sidebar.channels', href: '/channels', icon: Radio },

@@ -24,6 +24,33 @@ class MessagingService:
             logger.error("No phone number provided for WhatsApp")
             return False
 
+        # FIX-ENPIAI-002: Validate session is active before sending
+        # Prevents "Session for X not found" errors when distributor's session is not in Baileys memory
+        try:
+            whatsapp_url_base = None
+            try:
+                whatsapp_url_base = current_app.config.get('WHATSAPP_API_URL', 'http://localhost:3001').rstrip('/')
+            except RuntimeError:
+                whatsapp_url_base = os.getenv('WHATSAPP_API_URL', 'http://localhost:3001').rstrip('/')
+
+            session_check = requests.get(
+                f"{whatsapp_url_base}/session/status/{distributor_id}",
+                timeout=5
+            )
+            session_data = session_check.json() if session_check.ok else {}
+            is_connected = session_data.get('connected', False) or session_data.get('status') == 'open'
+
+            if not is_connected:
+                session_state = session_data.get('state') or session_data.get('status', 'unknown')
+                logger.error(
+                    f"[MESSAGING] WhatsApp session for distributor {distributor_id} is not connected "
+                    f"(state: {session_state}). Message to {to_phone} dropped. "
+                    f"Distributor must reconnect via QR in the dashboard."
+                )
+                return False
+        except Exception as check_err:
+            logger.warning(f"[MESSAGING] Could not verify session status for distributor {distributor_id}: {check_err}. Proceeding anyway.")
+
         # Split message into parts if it's too long or has multiple paragraphs
         parts = self._split_message(message)
         

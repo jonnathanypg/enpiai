@@ -159,12 +159,22 @@ class AgentOrchestrator:
             active_skills.append(self.skill_registry.get_skill('communication'))
 
         # 5. Wellness
-        if 'wellness_evaluation' in enabled_features:
+        if 'wellness_evaluation' in enabled_features or 'wellness' in enabled_features:
             active_skills.append(self.skill_registry.get_skill('wellness'))
 
         # 6. Cron / Follow-ups (Phase 9)
         if any(f in enabled_features for f in ['follow_ups', 'cron', 'scheduled_tasks']):
             active_skills.append(self.skill_registry.get_skill('cron'))
+
+        # 7. Nutrition Club & Catalog Management
+        club_skill = self.skill_registry.get_skill('club')
+        if club_skill:
+            active_skills.append(club_skill)
+
+        # 8. Coach Roadmap & Challenges
+        coach_skill = self.skill_registry.get_skill('coach')
+        if coach_skill and (getattr(self.distributor, 'coach_mode_enabled', False) or 'coach' in enabled_features):
+            active_skills.append(coach_skill)
 
         return [s for s in active_skills if s is not None]
 

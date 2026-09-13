@@ -9,6 +9,7 @@ from .lead import Lead, LeadStatus, LeadSource, LeadType
 from .customer import Customer
 from .wellness_evaluation import WellnessEvaluation
 from .product import Product
+from .club_order import ClubOrder
 from .note import Note
 from .conversation import Conversation, Message, ConversationChannel, ConversationStatus, MessageRole
 from .appointment import Appointment, AppointmentStatus, AppointmentType
@@ -35,6 +36,7 @@ __all__ = [
     'Customer',
     'WellnessEvaluation',
     'Product',
+    'ClubOrder',
     'Conversation', 'Message', 'ConversationChannel', 'ConversationStatus', 'MessageRole',
     'Appointment', 'AppointmentStatus', 'AppointmentType',
     'Document',

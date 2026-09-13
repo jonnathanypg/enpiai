@@ -26,10 +26,16 @@ def generate_pdf_report(self, distributor_id, report_type, data):
     Generate a wellness report PDF in the background.
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
-            from services.pdf_service import PDFService
+            from services.pdf_service import pdf_service
             from models.distributor import Distributor
             
             distributor = Distributor.query.get(distributor_id)
@@ -37,7 +43,7 @@ def generate_pdf_report(self, distributor_id, report_type, data):
                 return {'status': 'error', 'reason': 'distributor_not_found'}
 
             logger.info(f"Generating {report_type} report for distributor {distributor_id}")
-            result = PDFService.generate_wellness_report(distributor, data)
+            result = pdf_service._generate_pdf_from_data(data, output_dir='uploads/reports')
             
             return {'status': 'success', 'path': result}
     except Exception as exc:
@@ -51,6 +57,12 @@ def index_document_rag(self, filepath, distributor_id, document_id, metadata=Non
     Process a document and index its chunks in Pinecone.
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -134,6 +146,12 @@ def send_broadcast_message(self, distributor_id, channel, recipients, message):
     Useful for campaigns and bulk notifications.
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -178,6 +196,14 @@ def process_webhook_message(self, distributor_id, conversation_id, message_text,
     4. Sends the reply back via the messaging service (with optional voice synthesis)
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        # Celery workers launched by PM2 may not have PYTHONPATH set correctly.
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
+
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -286,6 +312,12 @@ def cleanup_old_voice_files(days=1):
     Periodic task to clean up old synthesized voice files from uploads/voice/
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
@@ -315,19 +347,26 @@ def cleanup_old_voice_files(days=1):
 def process_wellness_evaluation(self, evaluation_id, distributor_id, data=None):
     """
     Process the complete wellness evaluation flow in the background:
-    1. AI Diagnosis & Recommendations
+    1. AI Diagnosis & Recommendations (if not already populated)
     2. PDF Generation
     3. WhatsApp/Email notification
     """
     try:
+        # FIX-ENPIAI-001: Ensure backend dir is in sys.path regardless of CWD
+        import sys as _sys
+        import os as _os
+        _backend_dir = _os.path.abspath(_os.path.dirname(__file__))
+        if _backend_dir not in _sys.path:
+            _sys.path.insert(0, _backend_dir)
         from app import create_app
         app = create_app()
         with app.app_context():
             from extensions import db as task_db
             task_db.session.rollback()
             from models.wellness_evaluation import WellnessEvaluation
+            from models.distributor import Distributor
             from services.ai_diagnostic_service import AIDiagnosticService
-            from services.pdf_service import PDFService
+            from services.pdf_service import pdf_service
             from services.messaging_service import messaging_service
             from services.email_service import email_service
             
@@ -336,26 +375,31 @@ def process_wellness_evaluation(self, evaluation_id, distributor_id, data=None):
                 return {'status': 'error', 'reason': 'evaluation_not_found'}
                 
             distributor = Distributor.query.get(distributor_id)
+            if not distributor:
+                return {'status': 'error', 'reason': 'distributor_not_found'}
             
-            # 1. AI Diagnosis
-            logger.info(f"Generating AI diagnosis for evaluation {evaluation_id}")
-            diagnosis = AIDiagnosticService.generate_diagnosis(evaluation, distributor)
-            evaluation.ai_diagnosis = diagnosis
-            evaluation.is_processed = True
-            evaluation.processed_at = datetime.utcnow()
-            task_db.session.commit()
+            # 1. AI Diagnosis if not present
+            if not evaluation.diagnosis:
+                logger.info(f"Generating AI diagnosis in worker for evaluation {evaluation_id}")
+                diag_result = AIDiagnosticService.generate_diagnosis(evaluation=evaluation, distributor=distributor)
+                evaluation.diagnosis = diag_result.get('diagnosis')
+                evaluation.recommendations = diag_result.get('recommendations')
+                evaluation.recommended_products = diag_result.get('recommended_products')
+                task_db.session.commit()
             
             # 2. PDF Generation
-            logger.info(f"Generating PDF report for evaluation {evaluation_id}")
-            pdf_path = PDFService.generate_wellness_report(distributor, evaluation.to_dict())
-            evaluation.report_pdf_path = pdf_path
-            task_db.session.commit()
+            logger.info(f"Generating PDF report in worker for evaluation {evaluation_id}")
+            pdf_path = pdf_service.generate_wellness_report(evaluation, distributor)
+            if pdf_path:
+                evaluation.pdf_report_path = pdf_path
+                task_db.session.commit()
             
             # 3. Notifications
             # WhatsApp
             if evaluation.lead and evaluation.lead.phone:
                 try:
-                    report_url = f"https://enpi.click/reports/{os.path.basename(pdf_path)}"
+                    pdf_name = os.path.basename(pdf_path) if pdf_path else "report.pdf"
+                    report_url = f"https://enpi.click/reports/{pdf_name}"
                     message = (
                         f"¡Hola {evaluation.lead.name}! Ya tengo lista tu Evaluación de Bienestar. "
                         f"Puedes ver el reporte completo aquí: {report_url}"
@@ -369,7 +413,7 @@ def process_wellness_evaluation(self, evaluation_id, distributor_id, data=None):
                     logger.warning(f"WhatsApp notification failed: {wa_err}")
                     
             # Email
-            if evaluation.lead and evaluation.lead.email:
+            if evaluation.lead and evaluation.lead.email and pdf_path:
                 try:
                     email_service.send_wellness_report(
                         email=evaluation.lead.email,
