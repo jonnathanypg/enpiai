@@ -109,15 +109,25 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
         console.warn(`[${companyId}] Could not fetch latest WA version, using fallback`, err);
       }
 
+      // In-memory cache of recent messages for WA decryption retries
+      const recentMessages = new Map<string, any>();
+
       const socket = this.baileys.makeWASocket({
         printQRInTerminal: false,
         browser: ["EnpiAI", "Chrome", "1.0.0"],
         version: waVersion,
+        syncFullHistory: false,
+        markOnlineOnConnect: true,
+        keepAliveIntervalMs: 25000,
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
         //@ts-ignore
         logger: pino({ level: "silent" }),
         auth: state,
-        //@ts-ignore - getMessage required for multi-device message retry
-        getMessage: async (key) => {
+        getMessage: async (key: any) => {
+          if (key.id && recentMessages.has(key.id)) {
+            return recentMessages.get(key.id);
+          }
           return { conversation: "" };
         }
       });
@@ -225,6 +235,18 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
       // Handle incoming messages (emit event for webhook processing)
       socket.ev.on("messages.upsert", async (m: any) => {
         console.log(`[${companyId}] messages.upsert received:`, JSON.stringify(m, null, 2));
+        if (m.messages) {
+          for (const msg of m.messages) {
+            if (msg.key?.id && msg.message) {
+              recentMessages.set(msg.key.id, msg.message);
+              // Cap cache size to 500 entries
+              if (recentMessages.size > 500) {
+                const firstKey = recentMessages.keys().next().value;
+                if (firstKey) recentMessages.delete(firstKey);
+              }
+            }
+          }
+        }
         if (m.type === "notify") {
           for (const msg of m.messages) {
             console.log(`[${companyId}] Processing message key:`, msg.key);
@@ -366,6 +388,52 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
   }
 
   /**
+   * Normalizes a phone number for WhatsApp:
+   * - Strips non-numeric characters.
+   * - If starts with '0' (local Ecuadorian 10-digit number like 09xxxxxxxx), converts to 5939xxxxxxxx.
+   * - If already international (e.g. 1xxx, 52xxx, 34xxx, 593xxx), leaves it untouched.
+   */
+  private normalizePhone(phone: string): string {
+    let clean = phone.replace(/[^0-9]/g, "");
+    if (clean.startsWith("0") && clean.length === 10) {
+      clean = "593" + clean.substring(1);
+    }
+    return clean;
+  }
+
+  private async getOrRestoreSession(companyId: string): Promise<SessionInfo | null> {
+    let session = this.sessions.get(companyId);
+    if (session?.socket && (session.isReady || session.state?.connection === "open")) {
+      return session;
+    }
+
+    // Check if another active session exists in memory (e.g. "default" or "1")
+    if (this.sessions.size > 0) {
+      for (const [sId, sInfo] of this.sessions.entries()) {
+        if (sInfo.socket && (sInfo.isReady || sInfo.state?.connection === "open")) {
+          console.log(`[${companyId}] Found active session under id '${sId}', reusing it.`);
+          return sInfo;
+        }
+      }
+    }
+
+    // Try auto-restoring from MySQL
+    console.log(`[${companyId}] Auto-restoring session from MySQL for messaging...`);
+    await this.getStatusWithAutoRestore(companyId);
+
+    // Wait up to 3 seconds for socket initialization
+    for (let i = 0; i < 6; i++) {
+      session = this.sessions.get(companyId);
+      if (session?.socket && (session.isReady || session.state?.connection === "open")) {
+        return session;
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    return this.sessions.get(companyId) || null;
+  }
+
+  /**
    * Send a text message from a specific company session.
    */
   async sendMsg({
@@ -378,72 +446,28 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     companyId?: string;
   }): Promise<any> {
     const targetCompanyId = companyId || "default";
-    const session = this.sessions.get(targetCompanyId);
-    const connStatus = session?.state?.connection || "none";
-    
-    console.log(`[${targetCompanyId}] Sending message to ${phone}. Connection status: ${connStatus}`);
+    console.log(`[${targetCompanyId}] Sending message to ${phone}: ${message}`);
+    const session = await this.getOrRestoreSession(targetCompanyId);
 
-    if (!session) {
-      throw new Error(`Session for ${targetCompanyId} not found`);
+    if (!session || !session.socket) {
+      throw new Error(`Session for ${targetCompanyId} not found or not connected. Please scan QR in channels.`);
     }
 
-    // FIX-ENPIAI-003: Retry with exponential backoff when socket is reconnecting.
-    // Baileys may be in 'connecting' state after a transient disconnect. Wait up to 3s
-    // before giving up, in 500ms increments.
-    const MAX_WAIT_MS = 3000;
-    const POLL_INTERVAL_MS = 500;
-    let waited = 0;
-
-    while (session.state.connection !== "open" && waited < MAX_WAIT_MS) {
-      const currentState = session.state.connection || "none";
-      if (currentState === "close" || currentState === "none") {
-        // Not reconnecting - fail immediately instead of wasting time
-        break;
+    try {
+      // Normalize phone number (canonical E.164 without +, global-safe)
+      const cleanPhone = this.normalizePhone(phone);
+      if (!cleanPhone) {
+        throw new Error(`Invalid phone number for sendMsg: '${phone}'`);
       }
-      console.log(`[${targetCompanyId}] Socket is ${currentState}, waiting ${POLL_INTERVAL_MS}ms before send... (${waited}ms elapsed)`);
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
-      waited += POLL_INTERVAL_MS;
-    }
+      const jid = `${cleanPhone}@s.whatsapp.net`;
 
-    if (session.state.connection !== "open") {
-      const finalState = session.state.connection || "none";
-      console.error(`[${targetCompanyId}] Cannot send to ${phone}: socket is '${finalState}' after ${waited}ms wait. Session requires reconnection.`);
-      throw new Error(`Session for ${targetCompanyId} is not open (state: ${finalState}). Reconnect required.`);
+      const response = await session.socket.sendMessage(jid, { text: message });
+      console.log(`[${targetCompanyId}] Message sent to ${jid}`);
+      return response;
+    } catch (error) {
+      console.error(`[${targetCompanyId}] Send message error:`, error);
+      throw error;
     }
-
-    // FIX-ENPIAI-004: Normalize phone number to @s.whatsapp.net JID.
-    // Strips all non-numeric characters and builds clean JID to avoid encoding errors.
-    const cleanPhone = phone.replace(/[^0-9]/g, "");
-    if (!cleanPhone) {
-      throw new Error(`Invalid phone number for sendMsg: '${phone}'`);
-    }
-    const jid = `${cleanPhone}@s.whatsapp.net`;
-
-    // Retry send up to 2 times with exponential backoff for transient network errors
-    const MAX_SEND_RETRIES = 2;
-    let lastError: any;
-    for (let attempt = 1; attempt <= MAX_SEND_RETRIES + 1; attempt++) {
-      try {
-        const response = await session.socket.sendMessage(jid, { text: message });
-        console.log(`[${targetCompanyId}] Message sent to ${jid} (attempt ${attempt})`);
-        return response;
-      } catch (error: any) {
-        lastError = error;
-        const errMsg = String(error?.message || error);
-        // Do not retry for definitive rejections
-        if (errMsg.includes('not-acceptable') || errMsg.includes('logged') || errMsg.includes('403')) {
-          console.error(`[${targetCompanyId}] Non-retryable send error to ${jid}:`, error);
-          throw error;
-        }
-        if (attempt <= MAX_SEND_RETRIES) {
-          const backoff = attempt * 1000; // 1s, 2s
-          console.warn(`[${targetCompanyId}] Send attempt ${attempt} failed, retrying in ${backoff}ms:`, errMsg);
-          await new Promise(resolve => setTimeout(resolve, backoff));
-        }
-      }
-    }
-    console.error(`[${targetCompanyId}] Send message error after ${MAX_SEND_RETRIES + 1} attempts:`, lastError);
-    throw lastError;
   }
 
   /**
@@ -471,7 +495,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     }
 
     try {
-      const cleanPhone = phone.replace(/[^0-9]/g, "");
+      const cleanPhone = this.normalizePhone(phone);
       const jid = `${cleanPhone}@s.whatsapp.net`;
 
       let messageContent: any = {};
@@ -519,7 +543,7 @@ export class BaileysTransporter extends EventEmitter implements LeadExternal {
     }
 
     try {
-      const cleanPhone = phone.replace(/[^0-9]/g, "");
+      const cleanPhone = this.normalizePhone(phone);
       const jid = `${cleanPhone}@s.whatsapp.net`;
       await session.socket.sendPresenceUpdate('composing', jid);
       return { status: 'success' };
